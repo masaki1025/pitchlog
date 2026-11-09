@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import threading
+from collections import OrderedDict
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Literal, NoReturn
@@ -16,6 +18,10 @@ from pitchlog.sync.wire_fingerprint import (
 )
 
 _ERROR = "E-1原本の閉形式又は期待値が一致しません"
+# 不変mappingの同一性だけで原wire JSONの再正規化を省く。
+_CANONICAL_CACHE_LIMIT = 64
+_CANONICAL_CACHE: OrderedDict[int, tuple[object, str]] = OrderedDict()
+_CANONICAL_CACHE_LOCK = threading.Lock()
 _KEYS = frozenset(
     {"format_version", "codec_version", "event_fingerprint", "wire_event_json"}
 )
@@ -53,6 +59,23 @@ def _constant(_: str) -> NoReturn:
     raise ValueError(_ERROR)
 
 
+def _cached_wire_json(wire: Mapping) -> str:
+    """同一の不変mappingなら既検証の原wire JSONを再利用する。"""
+    key = id(wire)
+    with _CANONICAL_CACHE_LOCK:
+        entry = _CANONICAL_CACHE.get(key)
+        if entry is not None and entry[0] is wire:
+            _CANONICAL_CACHE.move_to_end(key)
+            return entry[1]
+    result = _canonical(wire)
+    with _CANONICAL_CACHE_LOCK:
+        _CANONICAL_CACHE[key] = (wire, result)
+        _CANONICAL_CACHE.move_to_end(key)
+        while len(_CANONICAL_CACHE) > _CANONICAL_CACHE_LIMIT:
+            _CANONICAL_CACHE.popitem(last=False)
+    return result
+
+
 def encode_wire_original(event: WireEventValue) -> str:
     """既pure全値を版付き原本へ直列化する。DB保存成功を意味しない。"""
     try:
@@ -62,7 +85,7 @@ def encode_wire_original(event: WireEventValue) -> str:
                 "format_version": "e1-original-v1",
                 "codec_version": 1,
                 "event_fingerprint": fingerprint,
-                "wire_event_json": _canonical(event.wire_event),
+                "wire_event_json": _cached_wire_json(event.wire_event),
             }
         )
     except (AttributeError, KeyError, TypeError, ValueError, RecursionError):

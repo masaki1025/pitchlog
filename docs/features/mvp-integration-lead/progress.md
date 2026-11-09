@@ -1,6 +1,15 @@
 # 初回MVP 主担当引受・進捗台帳
 
-## 2026-11-10 05:30 JST：追加playはdomain TIME_LIMITを解消、30秒bindingの重複P3検証が次unit
+## 2026-11-10 06:50 JST：P3後28球目まで同一候補で成立、30秒はwire指紋の重複再計算が原因
+
+- **新たに通った**: 26球→P3 26件訂正→27球目→`lifecycle-prefix-v1` 200→終了受理→再開受理→**追加play（28球目）受理**→再終了→reload→公式成績/ゲームCSV/シーズンCSV。`test_actual_p3_26_lifecycle_end_reopen_add_reend_stats` は **1 passed 492.58秒**。DBは `play_rows=29`（26元+P3有効版1+27球目+追加）、有効版イベント行1、現在stats `source_count=28`/`confirmed_ended`/current版1、最大source_count 28、gate open、ゲームCSV 20行・シーズンCSV 10行を実測した。
+- **原因の確定**: 以前の`writer binding rejected`（binding_age 30.1秒）はP3 26件検証の重複ではなく、同一の不変wire sourceに対する`source_binding.read`/`assert_event_source`が117回、各回で全V7 activeStackの指紋・正規化・原本encodeを再実行していたこと。cProfileで当該apply 30.4秒のうち`source_binding.read` 23.25秒、`_flush_native_stats` 15.96秒、`_json_value` 15.08秒を実測した。
+- **是正**: `wire_event_fingerprint`と`wire_original`の正規化を、不変`MappingProxyType`の同一性で有界に再利用するcacheを追加した。seal/型/指紋一致の比較は毎回維持し、差替え/偽値の拒否試験は不変。P3 current/頁の全bytes keyによるプロセス内packet cacheも追加し、anchor CP行の`quoted_name` keyだけをkey生成時にplain strへ正規化した。**30秒DB writer bindingは延長せず、不変のまま**。
+- **実測**: P3 packet cacheはhit 27/miss 6/key error 0。hit時`verify_p3_current_packet`は約90ms、miss時約3.4秒。lifecycle readは約1.6〜2.0秒（以前約5.3秒）。追加playの最終binding ageは7.558秒で30秒内。**5秒目標は未達**（追加playは7.5秒超）だが、30秒期限拒否とは別測定として記録する。
+- **限定**: P3訂正直後（27球目前）のlifecycle readは503のまま（P3 current CPの物理行と論理next contentの差）。実機/実TLSブラウザ/3試合×10閲覧/バックアップ復旧/運用公開は未実施。
+- **既知赤の追加**: `test_sync_apply_writer_binding::test_void_adapter_preserves_every_other_registered_function` は固定registry期待が現行operation数に追随しておらずHEAD前から赤（本差分外）。既存の`save_primitive_source`本文不一致と`tenant_transaction_scope`欠落も継続。
+
+## 2026-11-10 05:30 JST（履歴）：追加playはdomain TIME_LIMITを解消、30秒bindingの原因切り分け
 
 - **新たに通った**: 26球→P3訂正→27球目→lifecycle read 200→終了受理→再開受理→**追加playのdomain評価**。27frame級の非play継続が`vmTimeoutMs=100`の`TIME_LIMIT`になったため、5秒応答目標・2秒reply期限の内側で`_VM_TIMEOUT_MS=500`へ有限上限を広げた（30秒DB bindingは不変）。
 - **現在失敗**: 追加playの`persist_accepted_play_export`で`writer binding rejected`（`precommit_failure.binding_age_ms=30145`、`expires_at<=now`）。DB writer bindingの30秒総保持を**延長せず**、server側`read_confirmed_nonplay_normal`がP3 capsuleの26-item T5/監査検証を再実行する重複で30秒を超えた。クライアント直後のlifecycle readと同一P3不変原本を二重検証している。

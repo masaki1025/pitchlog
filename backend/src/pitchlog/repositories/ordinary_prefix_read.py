@@ -1007,7 +1007,8 @@ def _evaluate_lineup_payload(raw, *, _host=None):
         read_lineup_pitch_payload,
     )
 
-    payload = LineupPitchPlayPayload.model_validate_json(_canonical_json(raw))
+    canonical = _canonical_json(raw)
+    payload = LineupPitchPlayPayload.model_validate_json(canonical)
     from pitchlog.sync.terminal_pitch_payload import LineupPitchCalculation
 
     if type(payload.calculation) is not LineupPitchCalculation:
@@ -1027,7 +1028,7 @@ def _evaluate_lineup_payload(raw, *, _host=None):
         raise OrdinaryPrefixError
     difference = payload.calculation.response.value.new_history_entry.difference
     return read_lineup_pitch_payload(
-        _canonical_json(raw),
+        canonical,
         difference.model_dump_json(by_alias=True, exclude_unset=True),
         expected_calculation=payload.calculation,
     )

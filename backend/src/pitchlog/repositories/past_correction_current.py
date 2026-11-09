@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import threading
+from collections import OrderedDict
 from dataclasses import dataclass
 from typing import cast
 from uuid import UUID
@@ -228,6 +230,75 @@ def _verify_p3_current_member(
     )
 
 
+_P3_PACKET_CACHE_LIMIT = 8
+_P3_PACKET_CACHE: OrderedDict[str, VerifiedP3Current] = OrderedDict()
+_P3_PACKET_CACHE_LOCK = threading.Lock()
+# 診断だけが読む件数。cacheの意味や保存資格には使わない。
+_P3_PACKET_CACHE_STATS: dict[str, int] = {
+    "hit": 0,
+    "miss": 0,
+    "key_error": 0,
+}
+
+
+def _cache_json(value: object) -> object:
+    """Cache key専用にstr subclassのkey/valueだけをplain strへ揃える。"""
+    from collections.abc import Mapping
+
+    if isinstance(value, Mapping):
+        return {
+            str(key) if isinstance(key, str) else key: _cache_json(member)
+            for key, member in value.items()
+        }
+    if isinstance(value, (tuple, list)):
+        return [_cache_json(member) for member in value]
+    if isinstance(value, str):
+        return str(value)
+    return value
+
+
+def _p3_packet_cache_key(
+    packet: object,
+    tenant: UUID,
+    game: UUID,
+    generation: int,
+    nonplay_checkpoint_row: dict[str, object] | None,
+) -> str:
+    """packet全bytesとscopeだけから再検証省略のkeyを作る。"""
+    return source_fingerprint(
+        cast(
+            dict[str, object],
+            _cache_json(
+                {
+                    "tenant": str(tenant),
+                    "game": str(game),
+                    "generation": generation,
+                    "packet": packet,
+                    "nonplay_checkpoint_row": nonplay_checkpoint_row,
+                }
+            ),
+        )
+    )
+
+
+def _p3_packet_cached(key: str) -> VerifiedP3Current | None:
+    """同一全bytesの検証済み結果をプロセス内有界cacheから返す。"""
+    with _P3_PACKET_CACHE_LOCK:
+        value = _P3_PACKET_CACHE.get(key)
+        if value is not None:
+            _P3_PACKET_CACHE.move_to_end(key)
+        return value
+
+
+def _remember_p3_packet(key: str, value: VerifiedP3Current) -> None:
+    """検証成功したpacketだけを有界に保持し、失敗結果は保持しない。"""
+    with _P3_PACKET_CACHE_LOCK:
+        _P3_PACKET_CACHE[key] = value
+        _P3_PACKET_CACHE.move_to_end(key)
+        while len(_P3_PACKET_CACHE) > _P3_PACKET_CACHE_LIMIT:
+            _P3_PACKET_CACHE.popitem(last=False)
+
+
 def verify_p3_current_packet(
     packet: object,
     *,
@@ -236,7 +307,52 @@ def verify_p3_current_packet(
     generation: int,
     nonplay_checkpoint_row: dict[str, object] | None = None,
 ) -> VerifiedP3Current:
-    """DB現head又はLC前anchor/元原本/有効数学/物理/T5を同値へ閉じる。"""
+    """DB現head又はLC前anchor/元原本/有効数学/物理/T5を同値へ閉じる。
+
+    同じpacket全bytesの成功結果だけをプロセス内に有界保持し、再読取で
+    唯一核の再実行を繰り返さない。1byteでも違えば全件を再検証する。
+    """
+    try:
+        key = _p3_packet_cache_key(
+            packet, tenant, game, generation, nonplay_checkpoint_row
+        )
+    except (TypeError, ValueError):
+        with _P3_PACKET_CACHE_LOCK:
+            _P3_PACKET_CACHE_STATS["key_error"] += 1
+        return _verify_p3_current_packet_uncached(
+            packet,
+            tenant=tenant,
+            game=game,
+            generation=generation,
+            nonplay_checkpoint_row=nonplay_checkpoint_row,
+        )
+    cached = _p3_packet_cached(key)
+    if cached is not None:
+        with _P3_PACKET_CACHE_LOCK:
+            _P3_PACKET_CACHE_STATS["hit"] += 1
+        return cached
+    result = _verify_p3_current_packet_uncached(
+        packet,
+        tenant=tenant,
+        game=game,
+        generation=generation,
+        nonplay_checkpoint_row=nonplay_checkpoint_row,
+    )
+    _remember_p3_packet(key, result)
+    with _P3_PACKET_CACHE_LOCK:
+        _P3_PACKET_CACHE_STATS["miss"] += 1
+    return result
+
+
+def _verify_p3_current_packet_uncached(
+    packet: object,
+    *,
+    tenant: UUID,
+    game: UUID,
+    generation: int,
+    nonplay_checkpoint_row: dict[str, object] | None = None,
+) -> VerifiedP3Current:
+    """検証本体。cache判定を通さず全itemとT5を毎回再実行する。"""
     if (
         type(tenant) is not UUID
         or type(game) is not UUID
@@ -343,11 +459,13 @@ def verify_p3_current_packet(
             or capsule["expected_version"] != 1
         ):
             raise PastCorrectionCurrentUnavailable("P3 current head/capsuleが不一致")
+        stats_source_count = stats_row["source_count"]
         if (
             (stats_row["id"] != head["stats_version_id"] and not historical_stats)
             or stats_row["tenant_id"] != str(tenant)
             or stats_row["game_id"] != str(game)
-            or stats_row["source_count"] < source_upper
+            or type(stats_source_count) is not int
+            or stats_source_count < source_upper
         ):
             raise PastCorrectionCurrentUnavailable("P3 current stats rowが不一致")
         if (
@@ -446,7 +564,7 @@ def verify_p3_current_packet(
 
             chain = "0" * 64
             for index, item in enumerate(items, start=1):
-                chain = _chain_step(chain, index, item["digest"])
+                chain = _chain_step(chain, index, cast(str, item["digest"]))
             paged_source = hashlib.sha256(
                 ":".join(
                     (

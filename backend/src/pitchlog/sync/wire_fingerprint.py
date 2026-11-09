@@ -6,6 +6,8 @@ HTTP/端末の読取・数値表現・耐久保持は変更しない。登録Por
 
 from __future__ import annotations
 
+import threading
+from collections import OrderedDict
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from types import MappingProxyType
@@ -21,6 +23,11 @@ from pitchlog.sync.model import (
 
 _ERROR = "E-1原wire指紋の入力又は不変値が不正"
 _VALUE_SEAL = object()
+# 不変mappingの同一性だけを頼りに、既検証の指紋再計算を省く。
+# entryはmappingを強参照し、id再利用と発行後の差替えを同時に防ぐ。
+_FINGERPRINT_CACHE_LIMIT = 64
+_FINGERPRINT_CACHE: OrderedDict[int, tuple[object, str]] = OrderedDict()
+_FINGERPRINT_CACHE_LOCK = threading.Lock()
 
 
 class WireFingerprintError(ValueError):
@@ -86,6 +93,23 @@ def _fingerprint(wire: Mapping[str, object]) -> str:
     )
 
 
+def _cached_fingerprint(wire: MappingProxyType) -> str:
+    """同一の不変mappingなら既検証の指紋を再利用する。"""
+    key = id(wire)
+    with _FINGERPRINT_CACHE_LOCK:
+        entry = _FINGERPRINT_CACHE.get(key)
+        if entry is not None and entry[0] is wire:
+            _FINGERPRINT_CACHE.move_to_end(key)
+            return entry[1]
+    actual = _fingerprint(wire)
+    with _FINGERPRINT_CACHE_LOCK:
+        _FINGERPRINT_CACHE[key] = (wire, actual)
+        _FINGERPRINT_CACHE.move_to_end(key)
+        while len(_FINGERPRINT_CACHE) > _FINGERPRINT_CACHE_LIMIT:
+            _FINGERPRINT_CACHE.popitem(last=False)
+    return actual
+
+
 def _checked(event: WireEventValue) -> WireEventValue:
     """実型/構造/発行時digestで強制差替えと偽instanceを拒否する。"""
     if type(event) is not WireEventValue or event._seal is not _VALUE_SEAL:
@@ -93,7 +117,7 @@ def _checked(event: WireEventValue) -> WireEventValue:
     if type(event._wire_event) is not MappingProxyType:
         raise TypeError("原eventは不変objectが必要")
     _frozen_json(event._wire_event)
-    actual = _fingerprint(event._wire_event)
+    actual = _cached_fingerprint(event._wire_event)
     if type(event._fingerprint) is not str or actual != event._fingerprint:
         raise ValueError("発行後の値が不一致")
     return event

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import hashlib
+import threading
+from collections import OrderedDict
 from dataclasses import dataclass
 from typing import Iterable, cast
 from uuid import UUID
@@ -146,6 +148,52 @@ def _sha_ascii(*values: str) -> str:
     return hashlib.sha256(":".join(values).encode("ascii")).hexdigest()
 
 
+_P3_PAGED_CACHE_LIMIT = 8
+_P3_PAGED_CACHE: OrderedDict[str, VerifiedP3PagedCurrent] = OrderedDict()
+_P3_PAGED_CACHE_LOCK = threading.Lock()
+
+
+def _p3_paged_cache_key(
+    header_packet: object,
+    pages: tuple[object, ...],
+    tenant: UUID,
+    game: UUID,
+    generation: int,
+    selected_after_d1: int,
+    selected_limit: int,
+) -> str:
+    """header/全頁/scope/要求範囲の全bytesから再検証省略のkeyを作る。"""
+    return source_fingerprint(
+        {
+            "tenant": str(tenant),
+            "game": str(game),
+            "generation": generation,
+            "selected_after_d1": selected_after_d1,
+            "selected_limit": selected_limit,
+            "header": header_packet,
+            "pages": list(pages),
+        }
+    )
+
+
+def _p3_paged_cached(key: str) -> VerifiedP3PagedCurrent | None:
+    """同一全頁の検証済み結果をプロセス内有界cacheから返す。"""
+    with _P3_PAGED_CACHE_LOCK:
+        value = _P3_PAGED_CACHE.get(key)
+        if value is not None:
+            _P3_PAGED_CACHE.move_to_end(key)
+        return value
+
+
+def _remember_p3_paged(key: str, value: VerifiedP3PagedCurrent) -> None:
+    """検証成功した全頁だけを有界に保持し、失敗結果は保持しない。"""
+    with _P3_PAGED_CACHE_LOCK:
+        _P3_PAGED_CACHE[key] = value
+        _P3_PAGED_CACHE.move_to_end(key)
+        while len(_P3_PAGED_CACHE) > _P3_PAGED_CACHE_LIMIT:
+            _P3_PAGED_CACHE.popitem(last=False)
+
+
 def verify_p3_paged_current(
     header_packet: object,
     pages: Iterable[object],
@@ -156,7 +204,53 @@ def verify_p3_paged_current(
     selected_after_d1: int,
     selected_limit: int,
 ) -> VerifiedP3PagedCurrent:
-    """25件ごとの原本/唯一計算/T5と全件chainを検査し要求頁だけ保持する。"""
+    """25件ごとの原本/唯一計算/T5と全件chainを検査し要求頁だけ保持する。
+
+    同じheader/全頁/要求範囲の成功結果だけをプロセス内に有界保持し、
+    再読取で唯一核の再実行を繰り返さない。1byteでも違えば全件を再検証する。
+    """
+    page_values = tuple(pages)
+    try:
+        key = _p3_paged_cache_key(
+            header_packet,
+            page_values,
+            tenant,
+            game,
+            generation,
+            selected_after_d1,
+            selected_limit,
+        )
+    except (TypeError, ValueError):
+        key = None
+    if key is not None:
+        cached = _p3_paged_cached(key)
+        if cached is not None:
+            return cached
+    result = _verify_p3_paged_current_uncached(
+        header_packet,
+        page_values,
+        tenant=tenant,
+        game=game,
+        generation=generation,
+        selected_after_d1=selected_after_d1,
+        selected_limit=selected_limit,
+    )
+    if key is not None:
+        _remember_p3_paged(key, result)
+    return result
+
+
+def _verify_p3_paged_current_uncached(
+    header_packet: object,
+    pages: Iterable[object],
+    *,
+    tenant: UUID,
+    game: UUID,
+    generation: int,
+    selected_after_d1: int,
+    selected_limit: int,
+) -> VerifiedP3PagedCurrent:
+    """検証本体。cache判定を通さず全頁とT5を毎回再実行する。"""
     if (
         type(tenant) is not UUID
         or type(game) is not UUID

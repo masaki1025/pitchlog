@@ -181,11 +181,12 @@ def test_p3_26_and_27_survive_initial_broker_restart(
             "WHERE tenant_id=%s AND game_id=%s",
             params,
         ).fetchall() == [(1, "normal", None, None, 1)]
+        # 26元 + P3有効版1 + 27球目 = 28行。元d1=26は監査用に残る。
         assert admin.execute(
             "SELECT count(*) FROM public.play_rows "
             "WHERE tenant_id=%s AND game_id=%s AND hidden_at IS NULL",
             params,
-        ).fetchone() == (27,)
+        ).fetchone() == (28,)
         assert admin.execute(
             "SELECT source_count,is_current FROM sync_fence.stats_fact_versions "
             "WHERE tenant_id=%s AND game_id=%s AND is_current",

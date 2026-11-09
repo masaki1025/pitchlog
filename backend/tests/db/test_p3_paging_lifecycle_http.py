@@ -211,10 +211,9 @@ def _p3_guard(*args, **kwargs):
         record["success"] = True
         return result
     finally:
-        if len(marks) < 200:
-            marks.append(record)
-        else:
-            runtime_diagnostics["page_binding_checks_truncated"] = True
+        marks.append(record)
+        if len(marks) > 200:
+            del marks[:len(marks) - 200]
 
 _p3_original_check = _p3_control._BindingLease.check
 _p3_original_assert_current = _p3_writer._LiveWriterBinding.assert_current
@@ -256,18 +255,18 @@ def _p3_assert_current(self):
         record["error_type"] = type(error).__name__
         record["failed_at"] = _p3_datetime.now(_p3_timezone.utc).isoformat()
         marks = runtime_diagnostics.setdefault("precommit_checks", [])
-        if len(marks) < 200:
-            marks.append(record)
+        marks.append(record)
+        if len(marks) > 200:
+            del marks[:len(marks) - 200]
         runtime_diagnostics["precommit_failed_at"] = record["failed_at"]
         runtime_diagnostics["precommit_failure"] = record
         raise
     record["elapsed_ms"] = round((monotonic() - started) * 1000)
     record["success"] = True
     marks = runtime_diagnostics.setdefault("precommit_checks", [])
-    if len(marks) < 200:
-        marks.append(record)
-    else:
-        runtime_diagnostics["precommit_checks_truncated"] = True
+    marks.append(record)
+    if len(marks) > 200:
+        del marks[:len(marks) - 200]
     return result
 
 _p3_control._BindingLease.__init__ = _p3_init
@@ -278,9 +277,64 @@ _p3_writer._LiveWriterBinding.assert_current = _p3_assert_current
 _p3_paged._assert_page_binding = _p3_guard
 
 """
+    timing_trace = """from time import monotonic as _p3_timing_clock
+
+def _p3_timed_step(name, original):
+    def traced(*args, **kwargs):
+        started = _p3_timing_clock()
+        try:
+            return original(*args, **kwargs)
+        finally:
+            marks = runtime_diagnostics.setdefault("p3_step_timings", [])
+            marks.append({"name": name,
+                          "ms": round((_p3_timing_clock() - started) * 1000)})
+            if len(marks) > 1200:
+                del marks[:len(marks) - 1200]
+            if name.endswith("verify_p3_current_packet"):
+                runtime_diagnostics["p3_cache_stats"] = dict(
+                    _p3_tc._P3_PACKET_CACHE_STATS)
+                runtime_diagnostics["p3_cache_size"] = len(
+                    _p3_tc._P3_PACKET_CACHE)
+    return traced
+
+def _p3_patch_step(module, name):
+    setattr(module, name, _p3_timed_step(
+        module.__name__ + "." + name, getattr(module, name)))
+
+from pitchlog.repositories import past_correction_current as _p3_tc
+from pitchlog.repositories import past_correction_nonplay as _p3_tn
+from pitchlog.repositories import past_correction_current_paged as _p3_tcp
+from pitchlog.repositories import ordinary_prefix_read as _p3_opr
+from pitchlog.sync import past_correction_http_service as _p3_tcs
+from pitchlog.sync import ordinary_pitch_execution as _p3_oe
+from pitchlog.sync import play_export_producer as _p3_pep
+from pitchlog.sync import past_correction_stats as _p3_pcs
+from pitchlog.repositories import nonplay_prefix_read as _p3_npr
+
+for _p3_module, _p3_name in (
+    (_p3_tc, "verify_p3_current_packet"),
+    (_p3_tn, "verify_p3_current_packet"),
+    (_p3_tn, "read_p3_nonplay_current"),
+    (_p3_tcs, "verify_p3_current_packet"),
+    (_p3_tcp, "read_verified_p3_paged_current"),
+    (_p3_tcp, "verify_p3_paged_current"),
+    (_p3_tc, "_evaluate_lineup_payload"),
+    (_p3_tcp, "_evaluate_lineup_payload"),
+    (_p3_opr, "_evaluate_lineup_payload"),
+    (_p3_oe, "_evaluate_lineup_prefix"),
+    (_p3_oe, "_evaluate_nonplay_normal_bound"),
+    (_p3_pep, "persist_accepted_play_export"),
+    (_p3_npr, "read_confirmed_nonplay_normal"),
+    (_p3_npr, "read_undo_prefix"),
+    (_p3_npr, "_read_legacy_undo_source"),
+    (_p3_tc, "_verify_p3_current_member"),
+    (_p3_pcs, "evaluate_p3_capsule_stats"),
+):
+    _p3_patch_step(_p3_module, _p3_name)
+"""
     marker = "async def run():"
     assert script.count(marker) == 1
-    script = script.replace(marker, trace + paged_trace + marker, 1)
+    script = script.replace(marker, trace + paged_trace + timing_trace + marker, 1)
     crash_start = script.index("            if index in (1, 9):")
     crash_end = script.index("            posted = await client.post(", crash_start)
     script = script[:crash_start] + script[crash_end:]
@@ -720,6 +774,14 @@ def build_p3_26_lifecycle_script() -> str:
         runtime_diagnostics["season_csv_rows"] = len(season_rows)
 '''
     script = script.replace(final, flow + final, 1)
+    # 追加play後の最終prefixを返し、26球時点の古いcurrentを証拠にしない。
+    old_prefix = '"prefix": current["prefix_ref"]["length"],'
+    assert script.count(old_prefix) == 1
+    script = script.replace(
+        old_prefix,
+        '"lifecycle_d3": reloaded["checkpoint"]["content"]["d3"],',
+        1,
+    )
     script = script.replace(
         '            "last_play_id": latest["page"]["items"][1]["play_row"]["id"],\n',
         '            "last_play_id": latest["page"]["items"][1]["play_row"]["id"],\n'
@@ -1289,18 +1351,27 @@ def test_actual_p3_26_lifecycle_end_reopen_add_reend_stats(
         result.get("runtime_diagnostics", {}).get("stage"),
         result.get("runtime_diagnostics", {}).get("cause_frames"),
     )
-    assert result["prefix"] == "27"
+    # P3後の終了/再開/再終了を含む非play checkpoint水位。play数ではない。
+    assert result["lifecycle_d3"] == "31"
     assert result["lifecycle_last_version"] == "2"
     assert result["stats_csv_rows"] > 0
     assert result["season_csv_rows"] > 0
     game = UUID(result["game"])
     with psycopg.connect(db.authority.database.business_admin) as admin:
         params = (db.tenant_id, game)
+        # P3訂正は元d1=26を監査用に残し、有効版を1行追加する。
+        # 26元 + 1有効 + 27球目 + 追加 = 29行（有効版は1行だけ）。
         assert admin.execute(
             "SELECT count(*) FROM public.play_rows "
             "WHERE tenant_id=%s AND game_id=%s AND hidden_at IS NULL",
             params,
-        ).fetchone() == (28,)
+        ).fetchone() == (29,)
+        assert admin.execute(
+            "SELECT count(*) FROM public.play_rows "
+            "WHERE tenant_id=%s AND game_id=%s AND hidden_at IS NULL "
+            "AND source_event_id=%s",
+            (*params, UUID(result["effective_event_id"])),
+        ).fetchone() == (1,)
         current = admin.execute(
             "SELECT v.source_count,v.completion_state,"
             "v.completion_receipt_id=h.active_receipt_id,"
