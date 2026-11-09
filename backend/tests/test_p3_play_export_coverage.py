@@ -505,3 +505,13 @@ def test_two_eligible_generations_keep_both_current_capsules():
                 p3_snapshots=(first.p3_snapshots[0], {**row, "internal_generation": 1}),
             )
         )
+
+
+def test_disk_spool_coverage_uses_disk_rows_api():
+    """実ZIP経路のDiskRowsでappend不在のcoverageを再発させない。"""
+    from pitchlog.repositories.play_export_spool import ExportRowStore
+
+    with ExportRowStore() as store, store.capture():
+        bundle = _bundle()
+        assert missing_supply_columns(bundle) == ()
+        assert type(bundle.effective_snapshots).__name__ == "DiskRows"

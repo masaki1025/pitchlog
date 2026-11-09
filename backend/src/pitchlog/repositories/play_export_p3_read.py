@@ -24,6 +24,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql.functions import Function
 
+from pitchlog.exports.p3_result import saved_result_id
 from pitchlog.exports.p3_snapshot import P3SnapshotIdentity
 from pitchlog.exports.play_rows import CSV_HEADERS, PlayExportSupplyError
 from pitchlog.repositories.function_operations import (
@@ -461,8 +462,7 @@ def validate_snapshot_row(row, game_id: UUID):
         key = row["reference_json"]["replacementResult"]["key"]
         _need(
             type(item.get("payload")) is dict
-            and type(item["payload"].get("observations")) is dict
-            and item["payload"]["observations"].get("resultId") == key
+            and saved_result_id(item["payload"]) == key
             and item["play_row"].get("batting_result_key") == key
         )
     physical = item.get("play_row")

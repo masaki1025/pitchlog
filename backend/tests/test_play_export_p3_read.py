@@ -17,8 +17,15 @@ from pitchlog.repositories.play_export_source_codec import SourceVersion
 from pitchlog.sync.idempotency import source_fingerprint
 
 
-def _page():
+def _page(*, drop_observation_result: bool = False):
     values, item, identity, reference = _inputs()
+    if drop_observation_result:
+        for payload_key in ("payload", "original_payload"):
+            item[payload_key]["observations"].pop("resultId", None)
+        item["digest"] = source_fingerprint(
+            {key: value for key, value in item.items() if key != "digest"}
+        )
+        identity = replace(identity, item_digest=item["digest"])
     aggregate = {
         CSV_HEADERS["plays.csv"][n]: values[CSV_HEADERS["plays.csv"][n]]
         for n in (34, 86, 87)
@@ -103,6 +110,15 @@ def test_exact_values_and_database_item_are_preserved():
         )
         == row["item_digest"]
     )
+
+
+def test_ordinary_pitch_target_without_observation_result_id_is_readable():
+    """通常投球V7はobservations.resultIdを持たず、T1 resultIdだけが正本。"""
+    row, version = _page(drop_observation_result=True)
+    count, values = read.decode_page(
+        (_wire(row, version),), read.ReadP3ExportPage(row["game_id"]), version
+    )
+    assert count == 2 and values == (row,)
 
 
 @pytest.mark.parametrize(

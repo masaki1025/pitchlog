@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from uuid import UUID
+
 from pitchlog.exports.play_rows import CSV_HEADERS, PlayExportSupplyError
 from pitchlog.repositories.play_export import _freeze_rows, _new_rows
 from pitchlog.repositories.play_export_p3_read import validate_snapshot_row
@@ -53,6 +55,7 @@ def resolve_p3_snapshots(bundle):
     )
     covered = _new_rows()
     current_overlays = _new_rows()
+    p3_original_ids: set[UUID] = set()
     for snapshot in bundle.snapshots:
         play = audit.get(snapshot.get("play_row_id"))
         _need(play is not None)
@@ -82,7 +85,7 @@ def resolve_p3_snapshots(bundle):
                 and snapshot[key] == wanted
             )
         _snapshot_value(snapshot.get("plays_csv_json"))
-        covered.append({"id": play["id"]})
+        covered.extend([{"id": play["id"]}])
     group = None
     previous_d1 = 0
     watermark = None
@@ -135,13 +138,23 @@ def resolve_p3_snapshots(bundle):
             and event.get("game_id") == game
             and event.get("ledger_kind") == "accepted"
             and event.get("is_tombstone") is False
-            and type(event.get("generation")) is int
-            and event["generation"] == row["internal_generation"]
+            and (
+                (
+                    type(event.get("generation")) is int
+                    and event["generation"] == row["internal_generation"]
+                )
+                or (
+                    event.get("event_kind") == "play_change"
+                    and type(event.get("target_generation")) is int
+                    and event["target_generation"] == row["internal_generation"]
+                )
+            )
         )
-        covered.append({"id": physical["id"]})
+        covered.extend([{"id": physical["id"]}])
+        p3_original_ids.add(row["original_play_row_id"])
         if row["current_head"]:
-            current_overlays.append(
-                {**row, "play_row_id": row["effective_play_row_id"]}
+            current_overlays.extend(
+                [{**row, "play_row_id": row["effective_play_row_id"]}]
             )
     _need(group is not None and previous_d1 == watermark)
     covered = _freeze_rows(covered)
@@ -155,6 +168,7 @@ def resolve_p3_snapshots(bundle):
                 play.get("hidden_at") is not None
                 or event.get("retired_at") is not None
                 or event.get("replaced_at") is not None
+                or play["id"] in p3_original_ids
             )
         else:
             _need(current.get(play["id"]) == play)
@@ -181,7 +195,7 @@ def resolve_p3_snapshots(bundle):
         if overlay is None:
             snapshot = normal.get(play["id"])
             _need(snapshot is not None)
-            resolved.append(snapshot)
+            resolved.extend([snapshot])
         else:
             _need(
                 (
@@ -199,17 +213,19 @@ def resolve_p3_snapshots(bundle):
                     source.play_row_version,
                 )
             )
-            resolved.append(
-                {
-                    "tenant_id": tenant,
-                    "game_id": game,
-                    "play_row_id": source.play_row_id,
-                    "source_event_id": source.source_event_id,
-                    "play_version": source.play_row_version,
-                    "recording_generation": source.recording_generation,
-                    "event_sequence": source.d2,
-                    "plays_csv_json": overlay["plays_csv_json"],
-                    "full_innings_json": overlay["full_innings_json"],
-                }
+            resolved.extend(
+                [
+                    {
+                        "tenant_id": tenant,
+                        "game_id": game,
+                        "play_row_id": source.play_row_id,
+                        "source_event_id": source.source_event_id,
+                        "play_version": source.play_row_version,
+                        "recording_generation": source.recording_generation,
+                        "event_sequence": source.d2,
+                        "plays_csv_json": overlay["plays_csv_json"],
+                        "full_innings_json": overlay["full_innings_json"],
+                    }
+                ]
             )
     return _freeze_rows(resolved)

@@ -10,6 +10,7 @@ from typing import Any, Mapping
 from uuid import UUID
 
 from pitchlog.exports.generated.coordinate_transform import plate_result_display
+from pitchlog.exports.p3_result import saved_result_id
 from pitchlog.exports.p3_snapshot import P3SnapshotIdentity
 from pitchlog.exports.play_rows import CSV_HEADERS, PlayExportSupplyError
 from pitchlog.exports.record_projection import _native_before, _native_completion, _text
@@ -44,26 +45,6 @@ def _need(condition: bool) -> None:
     """原本不足を推測値で埋めない。"""
     if not condition:
         raise PlayExportSupplyError("P3毎球CSVの直接表示原本が未供給です")
-
-
-def _saved_result_id(payload: dict[str, Any]) -> str | None:
-    """保存済native payloadの打席結果を実T1正本から取る。
-
-    V7 payloadの打席結果は ``calculation.request.t1.resultId`` が正本であり、
-    通常投球の ``observations`` にはresultIdが存在しない。観測側や
-    最上位のt1へ読み替えて比較条件を緩めない。
-    """
-    calculation = payload.get("calculation")
-    if type(calculation) is not dict:
-        return None
-    request = calculation.get("request")
-    if type(request) is not dict:
-        return None
-    t1 = request.get("t1")
-    if type(t1) is not dict:
-        return None
-    result = t1.get("resultId")
-    return result if type(result) is str else None
 
 
 @dataclass(frozen=True, slots=True)
@@ -345,8 +326,8 @@ def project_p3_direct(
         )
         # 打席結果の正本は保存済native payloadのT1 resultIdであり、
         # 旧batted variantだけobservations.resultIdへ退避する。
-        _need(_saved_result_id(before_payload) == old["batting_result_key"])
-        _need(_saved_result_id(payload) == new["batting_result_key"])
+        _need(saved_result_id(before_payload) == old["batting_result_key"])
+        _need(saved_result_id(payload) == new["batting_result_key"])
     else:
         _need(reference is None)
         _need(before_payload.get("observations") == payload.get("observations"))

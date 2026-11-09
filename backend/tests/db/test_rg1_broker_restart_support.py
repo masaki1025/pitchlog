@@ -31,32 +31,36 @@ def test_rg1_broker_supervisor_restarts_endpoint(vertical_database):
                 check=False,
             ).returncode == 0
 
+        def children() -> list[str]:
+            found = subprocess.run(
+                [
+                    "docker", "exec", name, "/runtime/bin/python3.12", "-c",
+                    (
+                        "import os;print(','.join(p for p in os.listdir('/proc') "
+                        "if p.isdigit() and p!='1' and "
+                        "open('/proc/'+p+'/stat').read().split()[3]=='1'))"
+                    ),
+                ],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            return [p for p in found.stdout.strip().split(",") if p]
+
         assert endpoint()
-        found = subprocess.run(
-            [
-                "docker", "exec", name, "/runtime/bin/python3.12", "-c",
-                (
-                    "import os;print(','.join(p for p in os.listdir('/proc') "
-                    "if p.isdigit() and p!='1' and "
-                    "open('/proc/'+p+'/stat').read().split()[3]=='1'))"
-                ),
-            ],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        children = [p for p in found.stdout.strip().split(',') if p]
-        assert len(children) == 1, found.stdout
+        old_children = children()
+        assert len(old_children) == 1, old_children
         subprocess.run(
             [
                 "docker", "exec", name, "/runtime/bin/python3.12", "-c",
-                f"import os,signal; os.kill({children[0]}, signal.SIGKILL)",
+                f"import os,signal; os.kill({old_children[0]}, signal.SIGKILL)",
             ],
             check=True,
         )
         deadline = time.monotonic() + 10
         while time.monotonic() < deadline:
-            if endpoint():
+            current = children()
+            if endpoint() and len(current) == 1 and current[0] != old_children[0]:
                 return
             time.sleep(0.2)
         raise AssertionError("broker endpoint did not return")

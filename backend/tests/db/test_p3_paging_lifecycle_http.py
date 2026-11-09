@@ -38,7 +38,7 @@ from .test_terminal_pitch_storage import _lineup_script
 pytestmark = pytest.mark.requires_db
 
 
-def build_p3_26_script() -> str:
+def build_p3_26_script(*, stop_after_p3: bool = False) -> str:
     """既create/start/実host/実POST脚本の有限改変だけを返す。"""
     script = _lineup_script()
     traced = _three_ball_p3_script()
@@ -56,6 +56,40 @@ def build_p3_26_script() -> str:
 actual_p3_execution = past_correction_execution
 _actual_p3_visit = actual_p3_execution.visit_p3_lineup_correction_pages
 _actual_p3_content_result = actual_p3_execution.p3_content_result
+
+from pitchlog.exports import p3_coverage as _p3_coverage
+_p3_actual_coverage_need = _p3_coverage._need
+
+def _p3_coverage_need(ok):
+    if not ok:
+        import inspect
+        runtime_diagnostics["coverage_fail_line"] = (
+            inspect.currentframe().f_back.f_lineno)
+    return _p3_actual_coverage_need(ok)
+
+_p3_coverage._need = _p3_coverage_need
+
+from pitchlog.api.routers import game_exports as _p3_exports
+_p3_actual_read_export = _p3_exports.read_play_export
+_p3_actual_build_tables = _p3_exports.build_play_export_tables
+_p3_actual_prepare_archive = _p3_exports.prepare_play_archive
+
+def _p3_trace_export(name, original):
+    def traced(*args, **kwargs):
+        try:
+            return original(*args, **kwargs)
+        except BaseException as error:
+            runtime_diagnostics["export_error"] = {
+                "stage": name, "type": type(error).__name__,
+                "message": str(error)[:160]}
+            raise
+    return traced
+
+_p3_exports.read_play_export = _p3_trace_export("read", _p3_actual_read_export)
+_p3_exports.build_play_export_tables = _p3_trace_export(
+    "tables", _p3_actual_build_tables)
+_p3_exports.prepare_play_archive = _p3_trace_export(
+    "archive", _p3_actual_prepare_archive)
 
 from pitchlog.api.routers import sync as _p3_sync_router
 _actual_recover_attempt = _p3_sync_router.recover_sync_attempt
@@ -531,7 +565,47 @@ __NEXT_PITCH__
 """
     assert next_pitch.count(old_post) == 1
     next_pitch = next_pitch.replace(old_post, new_post, 1)
-    p3 = p3.replace("__NEXT_PITCH__", next_pitch.rstrip(), 1)
+    if stop_after_p3:
+        cut = p3.index("__NEXT_PITCH__")
+        p3 = p3[:cut] + """
+        exported = await client.get(
+            "/games/" + game + "/exports/plays.zip", headers=headers())
+        assert exported.status_code == 200, ("p3-zip", exported.status_code)
+        import csv
+        import io
+        import zipfile
+        with zipfile.ZipFile(io.BytesIO(exported.content)) as archive:
+            name = next(
+                n for n in archive.namelist() if n.endswith("plays.csv"))
+            text = archive.read(name).decode("utf-8-sig")
+        csv_rows = list(csv.DictReader(io.StringIO(text)))
+        target_csv = next(
+            row for row in csv_rows
+            if row["入力項目"]
+            and json.loads(row["入力項目"])["sourceEventId"]
+            == effective["source_event_id"])
+        assert target_csv["打撃結果"] == "ボール"
+        runtime_diagnostics["p3_zip_rows"] = len(csv_rows)
+        runtime_diagnostics["p3_zip_label"] = target_csv["打撃結果"]
+        runtime_diagnostics.update(stage="complete", status=200)
+        return {
+            "game": game,
+            "prefix": current["prefix_ref"]["length"],
+            "p3_d5": change["d5"],
+            "old_play_id": target["id"],
+            "effective_play_id": effective["id"],
+            "effective_event_id": effective["source_event_id"],
+            "stats_version_id": confirmed["stats_version_id"],
+            "p3_zip_rows": len(csv_rows),
+            "p3_zip_label": target_csv["打撃結果"],
+            "source_origin": {
+                "sync_router": actual_sync_router.__file__,
+                "read_router": actual_started_router.__file__,
+            },
+        }
+"""
+    else:
+        p3 = p3.replace("__NEXT_PITCH__", next_pitch.rstrip(), 1)
     script = script.replace(old_return, p3, 1)
     # 通常v3 readerはlimit=100の26件を返し、P3完成版だけ25件窓へ入る。
     assert script.count('assert len(current["page"]["items"]) == min(index, 25)') == 1
@@ -551,6 +625,9 @@ __NEXT_PITCH__
         'assert len(pages) == 26 and pages == current["page"]["items"]',
         1,
     )
+    if stop_after_p3:
+        compile(script, "<p3-26-stop>", "exec")
+        return script
     initial_loop = "for index, result in enumerate(results, 1):\n"
     final_loop = 'for index, result in enumerate(["batting-result.ball"], 27):\n'
     assert script.count(initial_loop) == script.count(final_loop) == 1
@@ -881,3 +958,68 @@ def test_actual_p3_26_lifecycle_http(vertical_database, tmp_path) -> None:
             "WHERE tenant_id=%s AND d5=%s",
             (db.tenant_id, UUID(result["p3_d5"])),
         ).fetchone() == (1,)
+
+
+def test_actual_p3_26_csv_export_http(vertical_database, tmp_path) -> None:
+    """P3 26球訂正後の実CSV/ZIP取得を、27球目のgate復旧と切り離して照合する。"""
+    db = vertical_database
+    with psycopg.connect(db.authority.database.business_admin) as admin:
+        for key, label in (
+            ("batting-result.called-pitch", "見逃し"),
+            ("batting-result.called-strikeout", "見逃し三振"),
+            ("batting-result.foul", "ファウル"),
+        ):
+            admin.execute(
+                "INSERT INTO public.admin_vocabularies(key,category,display_name) "
+                "VALUES (%s,'batting_result',%s) ON CONFLICT(key) DO NOTHING",
+                (key, label),
+            )
+    case = {
+        "tenant": str(db.tenant_id),
+        "game": str(db.game_id),
+        "team_name": db.team_name,
+        "other_team_name": db.other_team_name,
+        "other_tenant_id": str(db.other_tenant_id),
+        "password": _PASSWORD,
+        "pitch_type": _PITCH_TYPE,
+    }
+    token = uuid4()
+    with db.broker_worker(token, auto_restart=True), binding_broker(db, token):
+        _prepare_app_configuration(db)
+        process = subprocess.run(
+            [
+                "docker",
+                *_app_arguments(db, case),
+                "-u",
+                "-c",
+                build_p3_26_script(stop_after_p3=True),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=900,
+        )
+    assert process.returncode == 0, "owned HTTP脚本が非成功終了"
+    result = json.loads(process.stdout)
+    (tmp_path / "p3-26-csv-result.json").write_text(json.dumps(result, indent=2))
+    assert "exception" not in result, result.get("runtime_diagnostics", {}).get("stage")
+    assert result["prefix"] == "26"
+    assert result["p3_zip_rows"] == 26
+    assert result["p3_zip_label"] == "ボール"
+    with psycopg.connect(db.authority.database.business_admin) as admin:
+        key = (db.tenant_id, UUID(result["game"]))
+        assert admin.execute(
+            "SELECT count(*) FROM sync_fence.p3_projection_capsules "
+            "WHERE tenant_id=%s AND game_id=%s",
+            key,
+        ).fetchone() == (1,)
+        assert admin.execute(
+            "SELECT count(*) FROM sync_fence.play_export_p3_snapshots "
+            "WHERE tenant_id=%s AND game_id=%s",
+            key,
+        ).fetchone() == (26,)
+        assert admin.execute(
+            "SELECT plays_csv_json->>'打撃結果' "
+            "FROM sync_fence.play_export_p3_snapshots "
+            "WHERE tenant_id=%s AND game_id=%s AND d1=26",
+            key,
+        ).fetchone() == (result["p3_zip_label"],)

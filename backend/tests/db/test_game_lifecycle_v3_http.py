@@ -64,7 +64,59 @@ def _v3_script():
         assert reopened["status"] == "in_progress"
         added = await additional_play()
         assert added["status"] == "in_progress"
-        final, _ = await lifecycle("end", added)
+        prior = copy.deepcopy(added)
+        original_project = lifecycle_prefix_bridge.project_game_lifecycle
+        fault_seen = []
+
+        def fail_after_actual_project(*args, **kwargs):
+            original_project(*args, **kwargs)
+            fault_seen.append(True)
+            raise RuntimeError("planned lifecycle rollback")
+
+        lifecycle_prefix_bridge.project_game_lifecycle = fail_after_actual_project
+        try:
+            try:
+                fault = await send(
+                    {
+                        "recording_right_proof": started["recording_right_proof"],
+                        "events": [
+                            {
+                                "game_id": game,
+                                "d4": prior["current_d4"],
+                                "d1": int(prior["next_position"]["d1"]),
+                                "d2": int(prior["next_position"]["d2"]),
+                                "d5": str(uuid4()),
+                                "event_kind": "game_end_declaration",
+                                "payload": {
+                                    "formatVersion": "native-game-lifecycle-v1",
+                                    "action": "end",
+                                    "checkpointRef": {
+                                        "kind": "confirmed",
+                                        **prior["checkpoint"]["ref"],
+                                    },
+                                    "target": None,
+                                    "event": {
+                                        "eventId": str(uuid4()),
+                                        "receiptId": str(uuid4()),
+                                    },
+                                },
+                            }
+                        ],
+                    }
+                )
+            except BaseException:
+                fault = None
+            assert fault is None or fault.status_code == 503, (
+                "fault",
+                None if fault is None else fault.status_code,
+            )
+            assert fault_seen == [True], "正規consume後の故障点まで到達していない"
+        finally:
+            lifecycle_prefix_bridge.project_game_lifecycle = original_project
+        rolled_back, _ = await read_full()
+        for key in ("checkpoint", "after", "next_position", "lifecycle"):
+            assert rolled_back[key] == prior[key], ("rollback", key)
+        final, _ = await lifecycle("end", rolled_back)
         assert final["status"] == "finished"
         assert final["lifecycle"]["lastVersion"] == "2"
 """

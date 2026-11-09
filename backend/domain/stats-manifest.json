@@ -9,11 +9,11 @@
     "backend/domain/play-export.model.json": "fa86a90914edd8c30432262464c6196cf8f968433b3d58ab723c1e8ba08b7813",
     "backend/domain/stats.model.json": "ed48245deae1aaeabca6dcf99a968189b44090f9614da992d64d464f23519fb7",
     "backend/src/pitchlog/domaingen/core.py": "1f790cbfb3081d60913196047ac959ddedd956521b411d518fadc0f26dcec8e0",
-    "backend/src/pitchlog/domaingen/pregen_checks.py": "7204dce977848430c2d9268d22ec88c3ef3f888a2c1f8a930a873d0bd3fbb52a",
+    "backend/src/pitchlog/domaingen/pregen_checks.py": "bfab48d7c76977f820be092bec5b3564b2222b775af60d224b076fdcbe1aadc5",
     "backend/src/pitchlog/domaingen/formatter.py": "024e19d69f1f02f90219e165c299ab860f981cf5a8ae0813668767214631abf0",
     "backend/src/pitchlog/domaingen/backends/python.py": "03db0f82a7a20e820274d48cdfc2ff4eb6ff385a2c56eb10d110601439811683",
     "backend/src/pitchlog/domaingen/backends/typescript.py": "b9c4458d10a3e872c45dcd5b5d24bbaf6f01f86df5ea71c84002b81b1213d468",
-    "backend/src/pitchlog/domaingen/backends/sql.py": "ca1aae6dd6738ada2d52bf4ec806a3a7ee17dd997f94cff9b6e4ade1c97091eb"
+    "backend/src/pitchlog/domaingen/backends/sql.py": "6b6eb7c7807aa30b94ab7f82ffc398783f1bbdd698a1a1b8d1e93f9f435ba775"
   },
   "generatedFiles": {
     "backend/src/pitchlog/stats/generated/facts.py": "d39e5caf86a44bd8a52bc9b7cdb61f4707376aac9b797de36530abd5fb3e9e9f",
