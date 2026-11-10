@@ -1,10 +1,10 @@
-# 実機リハーサル手順（候補 `feature/mvp-integration-20261109@85fdbfa5`）
+# 実機リハーサル手順（候補 `feature/mvp-integration-20261109`、実装HEAD `85fdbfa5`、台帳HEAD `aee6a43c`）
 
 実機・実ブラウザ・運用の成功を代記しないための準備票。候補環境の成功は、正式統合版・実機・運用公開の成功ではない。
 
 ## 接続先・環境
 
-- 候補: `feature/mvp-integration-20261109@85fdbfa5`（worktree）
+- 候補: `feature/mvp-integration-20261109`（実装HEAD `85fdbfa5`、台帳HEAD `aee6a43c`）
 - DB/権利worker: 隔離owned PostgreSQL + owned RG1/binding worker。共有DB・利用者データへ適用しない。
 - HTTPS: 既存のループバック証明書/鍵PATHを
   `PITCHLOG_E2E_TLS_CERT_PATH` / `PITCHLOG_E2E_TLS_KEY_PATH` に絶対PATHで渡す。
