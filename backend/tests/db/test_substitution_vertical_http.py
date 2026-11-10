@@ -249,12 +249,62 @@ actual_substitution_bridge._run = traced_nonplay_run
         reload, reload_frames = await read_full()
         assert reload["checkpoint"] == pitched["checkpoint"]
         assert len(reload_frames) == 3
+        current = pitched["checkpoint"]["content"]["restored"]
+        fields = current["current"]["stateFields"]
+        side = "away" if fields["state.half"] == "top" else "home"
+        slot = current["participants"]["battingOrder"]
+        outgoing_batter = current["participants"]["batterId"]
+        incoming_batter = "00000000-0000-0000-0000-0000000000d4"
+        hitter_event = {
+            "game_id": game,
+            "d4": before["current_d4"],
+            "d1": int(pitched["next_position"]["d1"]),
+            "d2": int(pitched["next_position"]["d2"]),
+            "d5": str(uuid4()),
+            "event_kind": "substitution",
+            "payload": {
+                "formatVersion": "substitution-event-v1",
+                "expectedCheckpoint": pitched["checkpoint"]["ref"],
+                "eventId": str(uuid4()),
+                "operation": {
+                    "kind": "pinch-hitter",
+                    "side": side,
+                    "outgoingId": outgoing_batter,
+                    "incomingId": incoming_batter,
+                    "battingSlot": slot,
+                },
+                "incomingSnapshots": [
+                    {"playerId": incoming_batter, "uniformNumber": "12"}
+                ],
+            },
+        }
+        hitter_body = {
+            "recording_right_proof": started["recording_right_proof"],
+            "events": [hitter_event],
+        }
+        hitter_attempt = str(uuid4())
+        hitter_posted = await send(hitter_body, hitter_attempt)
+        assert hitter_posted.status_code == 200, (
+            "pinch-hitter-http", hitter_posted.status_code, hitter_posted.text
+        )
+        assert hitter_posted.json()["eventResults"][0]["a5Result"] == "受理", (
+            "pinch-hitter-ack", hitter_posted.json(), runtime_diagnostics
+        )
+        hitter_after, _ = await read_full()
+        hitter_restored = hitter_after["checkpoint"]["content"]["restored"]
+        assert hitter_restored["participants"]["batterId"] == incoming_batter
+        assert (
+            hitter_restored["substitutionState"][side]["battingOrder"][slot]
+            == incoming_batter
+        )
         return {
             "game": game,
             "substitution_d5": event["d5"],
             "substitution_event_id": event["payload"]["eventId"],
             "pitcher": incoming,
-            "d3": reload["checkpoint"]["content"]["d3"],
+            "pinch_hitter": incoming_batter,
+            "pinch_hitter_event_id": hitter_event["payload"]["eventId"],
+            "d3": hitter_after["checkpoint"]["content"]["d3"],
         }
 """
     return (
@@ -277,16 +327,23 @@ def test_new_game_substitution_saved_get_next_pitch_reload(vertical_database):
             "VALUES ('batting-result.called-pitch','batting_result','見逃し') "
             "ON CONFLICT(key) DO NOTHING"
         )
-        home = admin.execute(
-            "SELECT home_team_record_id FROM public.games WHERE tenant_id=%s AND id=%s",
+        teams = admin.execute(
+            "SELECT away_team_record_id,home_team_record_id FROM public.games "
+            "WHERE tenant_id=%s AND id=%s",
             (db.tenant_id, db.game_id),
         ).fetchone()
-        assert home is not None
+        assert teams is not None
         admin.execute(
             "INSERT INTO public.players(tenant_id,id,team_record_id,name,"
             "uniform_number,roster_status_key) "
             "VALUES (%s,%s,%s,'交代試験選手','11','active')",
-            (db.tenant_id, UUID(int=211), home[0]),
+            (db.tenant_id, UUID(int=211), teams[1]),
+        )
+        admin.execute(
+            "INSERT INTO public.players(tenant_id,id,team_record_id,name,"
+            "uniform_number,roster_status_key) "
+            "VALUES (%s,%s,%s,'代打試験選手','12','active')",
+            (db.tenant_id, UUID(int=212), teams[0]),
         )
     case = {
         "tenant": str(db.tenant_id),
@@ -331,5 +388,9 @@ def test_new_game_substitution_saved_get_next_pitch_reload(vertical_database):
             "WHERE tenant_id=%s AND game_id=%s",
             (db.tenant_id, UUID(result["game"])),
         ).fetchall()
-        assert rows == [(UUID(result["substitution_event_id"]),)]
-    assert result["d3"] == "4"
+        assert {row[0] for row in rows} == {
+            UUID(result["substitution_event_id"]),
+            UUID(result["pinch_hitter_event_id"]),
+        }
+    assert result["d3"] == "5"
+    assert result["pinch_hitter"] == str(UUID(int=212))
