@@ -1,5 +1,13 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-10 20:50 JST：妨害7分岐の実画面E2Eが全分岐成立、artifactを再pin
+
+- **新たに通った**: `test_interference_screen_e2e` **1 passed / 183.66秒**（self-signed TLSの実Playwright/Chromium）。INT-02、INT-01+INT-03、通常三塁打+INT-02本盗、INT-04+INT-05、INT-06+通常単打+INT-07の**5試合・全7分岐**を実画面から保存し、各行のplay_row 41列・走者行・current stats version・source metric_states・facts・重複ACK・reloadを実DBで照合した。
+- **原因と是正（コア）**: 採用された妨害実プレイ（INT-01/03）のdomain ruleが通常打球へ委譲する際に`scoringEvidence`を落とし、server wire headが要求するtyped `runnerScoreEffects`を返していなかった。`battedHit.ts`で採用実プレイも明示裁定として空集合を含む根拠を必ず返すよう是正し、domain specを追加。artifactを`b565641886c758b81787baff95bdacceb3dea648781515cac39f868583c156ad`へ再生成し、7 manifest・D11/現行metadata・v6 witness/registry・開始投手SQL・固定test pinを自己識別子だけ再導出した（数学期待は不変）。v6 witnessのcurrent/registry digestを再封印。
+- **投影の是正**: 妨害裁定のperson object（`batter_id`/`runner_id`）を`prefix_path._resolve_payload`が生の選手ID文字列と誤認して422にしていた。入れ子person参照だけを再帰解決し、生IDの閉検査は維持。INT-04/05/06/07の保存が成立。
+- **E2E入力の是正**: INT-05は妨害対象を一塁走者にし、一塁前選択は打者妨害時だけ操作。reload中断応答の本文読取失敗を次応答待ちへ限定。live試合のcurrent stats versionはlifecycle headではなく`stats_fact_versions.is_current`で照合。`stolen_bases`の閉値は`source_unavailable`。
+- **限定**: 実ブラウザはheadlessで実機ではない。負荷・実機・本番TLS・バックアップ復旧・運用公開は未実施。
+
 ## 2026-11-10 08:40 JST：走者打球の実画面E2E成立、interferenceは2試合目で停止
 
 - **新たに通った**: `test_runners_batted_hits_screen_e2e` **1 passed 142.56秒**（self-signed TLSの実Playwright/Chromium）。開始直後の`?recording=play-prefix-v3`自動接続へ追随し、走者生還時のRBI因果`ordinary-play`を明示、結果ファイルの親ディレクトリを用意した。単打→三塁、二塁打→生還、一二塁→本塁打の3シナリオと別tenant prefix拒否を実DB/HTTPで照合。
