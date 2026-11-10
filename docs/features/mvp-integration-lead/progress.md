@@ -1,5 +1,13 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-11 01:20 JST：閲覧負荷の基準点を分離、1試合0閲覧は通過・10閲覧で保存503
+
+- **新たに通った基準点**: `PITCHLOG_VIEWER_LOAD_GAMES=1 PITCHLOG_VIEWER_LOAD_VIEWERS_PER_GAME=0` の同E2Eが **1 passed / 83.26秒**。wave 1の保存は約7.6秒で、単一writer・閲覧なしの縦断は通る。
+- **1試合10閲覧**: 初回閲覧loadは通過（fixtureの`applied_rules`を`cold/overtime`から正準`coldConditions/extensionLimit`へ是正し、`realLogin`後に認証済み画面のhydrateを待つ）。ただしwriter保存は約3秒で **503**。play_rows 0で原子性は維持。
+- **3試合30閲覧**: 同じ保存503が残り、NFR-004は未達。timeout延長・成功読み替えはしない。
+- **実施した是正**: 共有engineのpoolを20+20へ拡張（認証発行はNullPool）、閲覧負荷E2Eに`PITCHLOG_VIEWER_LOAD_GAMES`/`PITCHLOG_VIEWER_LOAD_VIEWERS_PER_GAME`の規模注入を追加（既定3/10）、fixtureの規則shapeを正準化、`realLogin`のhydrate待ち、初回cold startを60秒へ分離。
+- **残る停止点**: 10閲覧時の保存503。`sync_events`の503種別とplay export binding照合の実測を次のunitで行う。台帳・HEADは診断計装を含まない。
+
 ## 2026-11-11 00:05 JST：閲覧負荷の次の停止点はplay exportのwriter binding不一致
 
 - **逐次保存での再測**: 3 writer同時を逐次へ変えた診断では、rights 2.3秒、validate 0.04秒、projection 0.46秒まで進み、約12秒で `PlayExportWriterUnavailable`（原因 `ProgrammingError: writer binding rejected`）になった。30秒期限切れではなく、`save_writer_play_export_snapshot` の `assert_writer_binding` が同一TX内で拒否している。
