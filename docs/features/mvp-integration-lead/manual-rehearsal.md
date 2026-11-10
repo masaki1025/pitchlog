@@ -40,6 +40,13 @@
 - 期待: cold-end 49 `play_input` + `game_end_declaration`、limit-draw 54 + 終了宣言、tiebreak-required 54 `play_input`で`in_progress`のまま。記録画面には`ordinary-pitch-locked`で理由を表示する。
 - 7回規則・延長上限>9・タイブレーク開始操作・担当交代・その場登録は未接続であり、このE2Eの成功へ読み替えない。
 
+## 交代の現HEAD実測（2026-11-11）
+
+- 投手交代: `test_substitution_product_screen_e2e` **1 passed / 97.17秒**。
+- 守備変更: `test_defense_change_screen_e2e` **1 passed / 82.37秒**。控えを遊撃手へ変更し、受理・receipt・current fielding 6を照合。
+- 代打: `test_substitution_vertical_http` **1 passed / 91.43秒**（投手→代打、d3=5、receipt 2件）。**画面E2Eは未成立**。先頭打者が捕手のため、捕手を代打にすると捕手位置が空になり、serverが`continuationLineup=null`で拒否する。非捕手の代打はHTTPで成立。
+- 代走: 画面E2E未接続。
+
 ## 公式成績27項目・成績CSV（2026-11-11）
 
 - `test_stats_screen_e2e` **1 passed / 139.35秒**。新規試合7プレイ→終了宣言→`/games/{id}/stats`の公式モードで、打撃18列＋投手13列−選手/チーム4列＝**27項目**、CSV **5262 bytes** を実ダウンロード。
