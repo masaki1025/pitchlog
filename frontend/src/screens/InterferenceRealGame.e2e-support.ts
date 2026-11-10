@@ -176,6 +176,10 @@ export async function recordInterferenceStep(
   )
   let postStatus: number | null = null
   try {
+    // 2試合目以降のcold startでも、実readが保存可能へ進むまで待つ。
+    await expect(page.getByTestId('first-ball-save')).toBeEnabled({
+      timeout: 30_000,
+    })
     await page.getByTestId('first-ball-save').click()
     const response = await post
     postStatus = response.status()

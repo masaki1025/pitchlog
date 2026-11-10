@@ -159,6 +159,17 @@ function readHead(page: Page, gameId: string, length: string) {
   )
 }
 
+async function enterRecording(page: Page) {
+  // 開始直後はHostが?recording=play-prefix-v3へ自動接続する。
+  // 旧復元入口が表示された場合だけ旧ボタンで入る。
+  const enter = page.getByRole('button', {
+    name: '三振・攻守交代を含む投球の記録へ',
+    exact: true,
+  })
+  if (await enter.isVisible({ timeout: 5_000 }).catch(() => false))
+    await enter.click()
+}
+
 async function selectPitch(
   page: Page,
   result: string,
@@ -198,6 +209,10 @@ async function selectPitch(
     await page
       .getByTestId('batted-runner-1-destination')
       .selectOption(runnerDestination)
+    if (runnerDestination === '4' && result !== 'batting-result.home-run')
+      await page
+        .getByTestId('batted-runner-1-rbi-cause')
+        .selectOption('ordinary-play')
     await page.getByTestId('batted-runner-confirmed').check()
   }
   for (const key of ['scoring', 'interference', 'overrides', 'thirdOut'])
@@ -311,12 +326,7 @@ test('走者一塁の単打→三塁明示→再送→reload', async ({ page }) 
   const saved = await createGame(page, 'A')
   const requests = requestRecorder(page, saved.id)
   const zeroRead = readHead(page, saved.id, '0')
-  await page
-    .getByRole('button', {
-      name: '三振・攻守交代を含む投球の記録へ',
-      exact: true,
-    })
-    .click()
+  await enterRecording(page)
   const zero = (await (await zeroRead).json()) as Head
   const fielder = zero.roster.teams
     .find((t) => t.side === 'home')
@@ -427,12 +437,7 @@ test('走者一塁の二塁打→生還明示→得点1・打点1→reload', asy
   await login(page)
   const saved = await createGame(page, 'B')
   const zeroRead = readHead(page, saved.id, '0')
-  await page
-    .getByRole('button', {
-      name: '三振・攻守交代を含む投球の記録へ',
-      exact: true,
-    })
-    .click()
+  await enterRecording(page)
   const zero = (await (await zeroRead).json()) as Head
   const fielder = zero.roster.teams
     .find((t) => t.side === 'home')
@@ -513,12 +518,7 @@ test('一二塁から本塁打の全生還を保存し、再取得とreloadで3�
   await login(page)
   const saved = await createGame(page, 'C')
   const zeroRead = readHead(page, saved.id, '0')
-  await page
-    .getByRole('button', {
-      name: '三振・攻守交代を含む投球の記録へ',
-      exact: true,
-    })
-    .click()
+  await enterRecording(page)
   const zero = (await (await zeroRead).json()) as Head
   const fielder = zero.roster.teams
     .find((t) => t.side === 'home')

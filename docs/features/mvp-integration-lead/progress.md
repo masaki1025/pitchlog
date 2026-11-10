@@ -1,5 +1,11 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-10 08:40 JST：走者打球の実画面E2E成立、interferenceは2試合目で停止
+
+- **新たに通った**: `test_runners_batted_hits_screen_e2e` **1 passed 142.56秒**（self-signed TLSの実Playwright/Chromium）。開始直後の`?recording=play-prefix-v3`自動接続へ追随し、走者生還時のRBI因果`ordinary-play`を明示、結果ファイルの親ディレクトリを用意した。単打→三塁、二塁打→生還、一二塁→本塁打の3シナリオと別tenant prefix拒否を実DB/HTTPで照合。
+- **interferenceは未成立**: 1シナリオ目はINT-02まで1play保存。2シナリオ目は試合作成・開始後、`first-ball-save`クリックでPOST/GETが発生せず、`PITCHLOG_INTERFERENCE_READ_SAFE`は`uiStatus=blocked`/`startedRequests=0`。開始後画面が新試合のreadへ束縛されていない可能性があり、成功へ読み替えない。次unitは2試合目のcontext/game bindingとread-safe表示。
+- **限定**: 走者打球E2Eは実ブラウザ（headless）であり実機ではない。interference/3試合30閲覧/実機・運用は未実施。
+
 ## 2026-11-10 08:10 JST：P3直後lifecycle readをcapsule実効stackへ接続し200
 
 - **新たに通った**: `test_actual_p3_26_csv_export_http` **1 passed 331.56秒**（ZIP 26行・対象d1=26「ボール」）、`test_actual_p3_26_lifecycle_end_reopen_add_reend_stats` **1 passed 506.61秒**。`lifecycle_after_p3=200`（従来503）、`lifecycle_after_27=200`、lifecycle_d3=31、lastVersion=2、CSV 20/10、play_rows=29、stats current source_count=28/confirmed_ended、P3 cache hit 51/miss 6/key error 0。

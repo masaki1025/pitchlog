@@ -236,6 +236,10 @@ def test_screen_runner_batted_hits(vertical_database) -> None:
             "runners-batted-hits",
             https=True,
         ) as origin:
+            # 走者画面の結果ファイルはE2E specが書く。親ディレクトリだけを用意する。
+            Path("/tmp/opencode/pitchlog-runner-e2e").mkdir(
+                parents=True, exist_ok=True
+            )
             completed = _run_runner_playwright(
                 db,
                 origin,
