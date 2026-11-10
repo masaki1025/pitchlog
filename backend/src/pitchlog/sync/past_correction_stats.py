@@ -10,7 +10,10 @@ from uuid import UUID
 from pitchlog.stats.facts import evaluate_native_projection
 from pitchlog.stats.generated.receiver import SOURCE_MODEL_HASH
 from pitchlog.sync.idempotency import _json_value, source_fingerprint
-from pitchlog.sync.past_correction_capsule import P3CurrentCapsule
+from pitchlog.sync.past_correction_capsule import (
+    P3CurrentCapsule,
+    p3_item_digest_source,
+)
 
 
 class PastCorrectionStatsError(RuntimeError):
@@ -71,7 +74,7 @@ def evaluate_p3_current_item_stats(
         or type(item.get("payload")) is not dict
         or type(item.get("digest")) is not str
         or item["digest"]
-        != source_fingerprint({k: v for k, v in item.items() if k != "digest"})
+        != source_fingerprint(p3_item_digest_source(item))
     ):
         raise PastCorrectionStatsError("P3 T5 itemとdigestが不一致")
     try:

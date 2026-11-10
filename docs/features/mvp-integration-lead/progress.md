@@ -1,5 +1,12 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-10 08:10 JST：P3直後lifecycle readをcapsule実効stackへ接続し200
+
+- **新たに通った**: `test_actual_p3_26_csv_export_http` **1 passed 331.56秒**（ZIP 26行・対象d1=26「ボール」）、`test_actual_p3_26_lifecycle_end_reopen_add_reend_stats` **1 passed 506.61秒**。`lifecycle_after_p3=200`（従来503）、`lifecycle_after_27=200`、lifecycle_d3=31、lastVersion=2、CSV 20/10、play_rows=29、stats current source_count=28/confirmed_ended、P3 cache hit 51/miss 6/key error 0。
+- **原因**: P3訂正直後は物理CP列/contentと論理nextが過渡的に一致せず、`_legacy_undo_metadata`のlast payload照合と`read_started_nonplay_active_history`のCP tokenが不成立。P3 packet/stack自体は正常で、27球目後の祖先P3 readは従来どおり200。
+- **是正**: v3枝は`verified_p3.checkpoint == doc`のとき、anchor枝はanchor capsuleのwatermarkが現d3以上（同一論理current）のとき、`p3_effective_nonplay_frames`でcapsule 26 itemから実効ActiveFrameを再構成し、同じpublic nonplay viewへ写す。post-27の祖先P3は従来の物理history pathへ戻す。item_digestは派生key（`original_source`/`original_event_d2`）を除外する共有`p3_item_digest_source`へ寄せ、DB固定列のdigestを変えない。
+- **限定**: 5秒目標は追加playで未達のまま別測定。実機・3試合×10閲覧・バックアップ復旧・運用公開は未実施。既知赤（`save_primitive_source`、`tenant_transaction_scope`、固定registry期待、旧v2/candidate）は継続。
+
 ## 2026-11-10 07:40 JST：P3直後readの停止点を`read_undo_prefix`のanchor枝へ限定
 
 - **再測**: `test_actual_p3_26_csv_export_http` **1 passed 336.59秒**（ZIP 26行・対象d1=26「ボール」）。`lifecycle_after_p3` は503のままで、応答bodyは汎用エラー。

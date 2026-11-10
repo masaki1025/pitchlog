@@ -31,6 +31,7 @@ from pitchlog.sync.model import SyncEvent
 from pitchlog.sync.past_correction_capsule import (
     PastCorrectionCapsuleError,
     build_p3_current_item,
+    p3_item_digest_source,
 )
 from pitchlog.sync.past_correction_checkpoint import (
     PastCorrectionCheckpointError,
@@ -245,7 +246,7 @@ def _page_seal(previous: str, page: PreparedP3Page) -> str:
             or item.get("d1") != source.d1
             or item.get("digest")
             != source_fingerprint(
-                {key: value for key, value in item.items() if key != "digest"}
+                p3_item_digest_source(item)
             )
         ):
             raise PastCorrectionPageUnavailable("P3頁itemとT5候補が不一致")

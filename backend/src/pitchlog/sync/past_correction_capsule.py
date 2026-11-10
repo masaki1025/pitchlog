@@ -16,6 +16,20 @@ from pitchlog.sync.past_correction_physical import CorrectedPhysicalPitch
 from pitchlog.sync.past_correction_preparation import PreparedP3LineupCorrection
 from pitchlog.sync.terminal_pitch_payload import LineupPitchPlayPayload
 
+# item_digestはDB固定列だけを覆う。実効frame再構成用の派生keyは含めない。
+P3_ITEM_DERIVED_KEYS = frozenset(
+    {"digest", "original_source", "original_event_d2"}
+)
+
+
+def p3_item_digest_source(item: dict[str, object]) -> dict[str, object]:
+    """item_digestが覆うDB固定列だけを返す。"""
+    return {
+        key: value
+        for key, value in item.items()
+        if key not in P3_ITEM_DERIVED_KEYS
+    }
+
 
 class PastCorrectionCapsuleError(RuntimeError):
     """全履歴の有効投影を曖昧なく固定できない。"""

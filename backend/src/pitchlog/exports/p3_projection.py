@@ -15,6 +15,7 @@ from pitchlog.exports.p3_snapshot import P3SnapshotIdentity
 from pitchlog.exports.play_rows import CSV_HEADERS, PlayExportSupplyError
 from pitchlog.exports.record_projection import _native_before, _native_completion, _text
 from pitchlog.sync.idempotency import source_fingerprint
+from pitchlog.sync.past_correction_capsule import p3_item_digest_source
 
 _HEADERS = CSV_HEADERS["plays.csv"]
 _AGGREGATED = frozenset({_HEADERS[34], _HEADERS[86], _HEADERS[87]})
@@ -245,7 +246,7 @@ def project_p3_direct(
     _need(item["digest"] == expected.item_digest)
     _need(
         source_fingerprint(
-            {key: value for key, value in item.items() if key != "digest"}
+            p3_item_digest_source(item)
         )
         == item["digest"]
     )

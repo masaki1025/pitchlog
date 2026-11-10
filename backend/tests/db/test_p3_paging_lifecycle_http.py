@@ -67,6 +67,9 @@ def build_p3_26_script(*, stop_after_p3: bool = False) -> str:
         "            chain.append(type(cur).__name__ + ':' + str(cur)[:120])\n"
         "            cur=cur.__cause__ or cur.__context__\n"
         "        runtime_diagnostics['lifecycle_read_error']=chain\n"
+        "        runtime_diagnostics['lifecycle_read_frames']=[\n"
+        "            (f.name, f.lineno) for f in __import__('traceback')\n"
+        "            .extract_tb(error.__traceback__)[-16:]]\n"
         "        raise\n"
         "_lc_read.read_undo_prefix=_lc_traced\n"
         + trace
@@ -1095,6 +1098,7 @@ def test_actual_p3_26_lifecycle_http(vertical_database, tmp_path) -> None:
             json.dumps(diag, indent=2, default=str)
         )
     assert "exception" not in result, result.get("runtime_diagnostics", {}).get("stage")
+    assert result["runtime_diagnostics"]["lifecycle_after_p3"] == 200
     assert result["prefix"] == "27"
     assert UUID(result["game"]) != db.game_id
     assert result["old_play_id"] != result["effective_play_id"]
@@ -1216,6 +1220,7 @@ def test_actual_p3_26_csv_export_http(vertical_database, tmp_path) -> None:
     result = json.loads(process.stdout)
     (tmp_path / "p3-26-csv-result.json").write_text(json.dumps(result, indent=2))
     assert "exception" not in result, result.get("runtime_diagnostics", {}).get("stage")
+    assert result["runtime_diagnostics"]["lifecycle_after_p3"] == 200
     assert result["prefix"] == "26"
     assert result["p3_zip_rows"] == 26
     assert result["p3_zip_label"] == "ボール"
@@ -1351,6 +1356,7 @@ def test_actual_p3_26_lifecycle_end_reopen_add_reend_stats(
         result.get("runtime_diagnostics", {}).get("stage"),
         result.get("runtime_diagnostics", {}).get("cause_frames"),
     )
+    assert result["runtime_diagnostics"]["lifecycle_after_p3"] == 200
     # P3後の終了/再開/再終了を含む非play checkpoint水位。play数ではない。
     assert result["lifecycle_d3"] == "31"
     assert result["lifecycle_last_version"] == "2"

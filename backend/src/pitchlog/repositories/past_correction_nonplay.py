@@ -165,6 +165,37 @@ def p3_effective_nonplay_frame(original: dict, verified: VerifiedP3Current) -> d
     return effective
 
 
+def p3_effective_nonplay_frames(verified: VerifiedP3Current) -> list[dict]:
+    """P3 item 26件から、公開ActiveFrameの実効版を新しい順で再構成する。"""
+    if type(verified) is not VerifiedP3Current or not verified.items:
+        raise PastCorrectionCurrentUnavailable("P3 itemが欠落")
+    from pitchlog.repositories.nonplay_prefix import _stored_contexts
+
+    frames: list[dict] = []
+    for item in verified.items:
+        source_value = item.get("original_source")
+        play_value = item["original_play_row"]
+        if type(source_value) is not dict or type(play_value) is not dict:
+            raise PastCorrectionCurrentUnavailable("P3 item元eventが不正")
+        source = cast(dict[str, object], source_value)
+        play = cast(dict[str, object], play_value)
+        old_before, old_after = _stored_contexts(item["original_payload"])
+        original = {
+            "play": {
+                "source": dict(source),
+                "playId": item["original_play_row_id"],
+                "d2": item["original_event_d2"],
+                "physicalPlayNumber": str(play["play_number"]),
+            },
+            "historyEntry": item["original_history_entry"],
+            "beforeContext": old_before,
+            "afterContext": old_after,
+        }
+        frames.append(p3_effective_nonplay_frame(original, verified))
+    frames.reverse()
+    return frames
+
+
 def p3_effective_nonplay_stack(
     stack: list[dict],
     verified: VerifiedP3Current,

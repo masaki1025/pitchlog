@@ -16,7 +16,10 @@ from pitchlog.repositories.play_prefix import (
 )
 from pitchlog.sync.idempotency import source_fingerprint
 from pitchlog.sync.ordinary_pitch_physical import pitch_physical_row
-from pitchlog.sync.past_correction_capsule import P3CurrentCapsule
+from pitchlog.sync.past_correction_capsule import (
+    P3CurrentCapsule,
+    p3_item_digest_source,
+)
 from pitchlog.sync.past_correction_stats import evaluate_p3_capsule_stats
 from pitchlog.sync.terminal_pitch_payload import LineupPitchPlayPayload
 from pitchlog.sync.terminal_pitch_projection import runner_physical_rows
@@ -116,6 +119,19 @@ def _verify_p3_current_member(
     effective_runners = member["effective_play_runners"]
     item = {name: row[name] for name in _ITEM_COLUMNS}
     item["digest"] = row["item_digest"]
+    # P3実効frameの再構成に必要な元eventの公開識別だけを保持する。
+    from pitchlog.sync.d4_reference import encode_d4_reference
+
+    item["original_source"] = {
+        "eventId": original_event["id"],
+        "gameId": original_event["game_id"],
+        "generation": encode_d4_reference(tenant, game, generation),
+        "d1": str(original_event["d1"]),
+        "d5": original_event["d5"],
+        "fingerprint": original_ledger["source_fingerprint"],
+        "eventKind": original_event["event_kind"],
+    }
+    item["original_event_d2"] = str(original_event["d2"])
     old_payload = _evaluate_lineup_payload(item["original_payload"])
     effective_payload = _evaluate_lineup_payload(item["payload"])
     old_entry = old_payload.calculation.response.value.new_history_entry
@@ -132,7 +148,7 @@ def _verify_p3_current_member(
         or row["d1"] != d1
         or row["item_digest"]
         != source_fingerprint(
-            {key: value for key, value in item.items() if key != "digest"}
+            p3_item_digest_source(item)
         )
         or original_event["id"] != original_id
         or original_event["tenant_id"] != str(tenant)

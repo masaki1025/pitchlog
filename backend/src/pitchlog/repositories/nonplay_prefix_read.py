@@ -993,7 +993,7 @@ def _read_undo_snapshot(handle, game_id):
     }
 
 
-def _legacy_undo_metadata(handle, game_id, snapshot, doc):
+def _legacy_undo_metadata(handle, game_id, snapshot, doc, *, verify_last=True):
     """旧v3のpoint/head/開始名簿の既helperを使い、旧公開history pageは流用しない。"""
     from pitchlog.domainrt.initial_game_roster import InitialRosterProjection
     from pitchlog.domainrt.lineup_prefix_source import lineup_from_actual_roster
@@ -1047,12 +1047,15 @@ def _legacy_undo_metadata(handle, game_id, snapshot, doc):
     roster = InitialRosterProjection.model_validate_json(_canonical_json(row["roster"]))
     if lineup_from_actual_roster(roster) != doc.lineup:
         raise NonplaySourceUnavailable("取消GETの実開始名簿が不一致")
-    payload, _ = _read_native_lineup_head(
-        handle, game_id, handle._bound_tenant_id, row, doc
-    )
-    _evaluate_lineup_payload(
-        payload.model_dump(mode="json", by_alias=True, exclude_unset=True)
-    )
+    if verify_last:
+        # P3現行版は物理last payloadと論理next docが一致しない過渡状態を
+        # 取り得る。P3経路は下の全stack検証へ委ね、ここでは重複させない。
+        payload, _ = _read_native_lineup_head(
+            handle, game_id, handle._bound_tenant_id, row, doc
+        )
+        _evaluate_lineup_payload(
+            payload.model_dump(mode="json", by_alias=True, exclude_unset=True)
+        )
     saved = _rows(handle.run(StartedLineupsReadToken(game_id)), LINEUP_COLUMNS)
     if len(saved) != 2 or any(
         x["tenant_id"] != handle._bound_tenant_id or x["game_id"] != game_id
@@ -1065,6 +1068,122 @@ def _legacy_undo_metadata(handle, game_id, snapshot, doc):
         for key in ("away_team_record_id", "home_team_record_id")
     )
     return _prefix_metadata(snapshot["game"], game_id, snapshot["d4"], sides, roster)
+
+
+def _read_p3_logical_prefix(handle, game_id, snapshot, row, verified, *, limit, cursor):
+    """P3論理nextを実効stackで読み、物理historyの過渡差を二重実装しない。"""
+    from pitchlog.domainrt.host import open_domain_host
+    from pitchlog.domainrt.initial_game_roster import InitialRosterProjection
+    from pitchlog.repositories.nonplay_prefix import _checkpoint_from_legacy
+    from pitchlog.repositories.ordinary_prefix_read import (
+        OrdinaryPrefixView,
+        _prefix_metadata,
+    )
+    from pitchlog.repositories.past_correction_nonplay import (
+        p3_effective_nonplay_frames,
+    )
+    from pitchlog.repositories.started_snapshot import _rows, _saved_lineup
+    from pitchlog.repositories.started_snapshot_operations import (
+        LINEUP_COLUMNS,
+        StartedLineupsReadToken,
+    )
+
+    generation = row.get("internal_generation")
+    if type(generation) is not int:
+        return None
+    frames = p3_effective_nonplay_frames(verified)
+    doc = verified.checkpoint
+    if len(frames) != int(doc.history_depth):
+        raise NonplaySourceUnavailable("P3 anchor実効stack件数が不一致")
+    storage = {
+        "row": {
+            "id": doc.id,
+            "revision": int(doc.revision),
+            "content_digest": doc.content_digest,
+            "content": doc.model_dump(
+                mode="json", by_alias=True, exclude_unset=True
+            ),
+        },
+        "nextPhysicalPlayNumber": str(
+            int(frames[0]["play"]["physicalPlayNumber"]) + 1
+        ),
+    }
+    with open_domain_host() as host:
+        cp = _checkpoint_from_legacy(
+            doc, frames, storage, host.artifact_sha256
+        )
+        checked = checked_checkpoint(
+            cp,
+            tenant=handle._bound_tenant_id,
+            game=game_id,
+            generation=doc.wire_d4,
+            d3=int(doc.confirmed_watermark),
+            artifact=host.artifact_sha256,
+        )
+    public_anchor = _page_anchor(checked)
+    if cursor is None:
+        start = 0
+    else:
+        point = _read_page_cursor(cursor, public_anchor)
+        start = next(
+            (
+                index
+                for index, frame in enumerate(frames)
+                if int(frame["play"]["source"]["d1"]) < point[1]
+            ),
+            len(frames),
+        )
+    selected = frames[start : start + limit]
+    next_cursor = (
+        _make_page_cursor(
+            public_anchor,
+            (
+                0,
+                int(selected[-1]["play"]["source"]["d1"]),
+                UUID(selected[-1]["play"]["playId"]),
+            ),
+        )
+        if start + limit < len(frames) and selected
+        else None
+    )
+    saved = _rows(handle.run(StartedLineupsReadToken(game_id)), LINEUP_COLUMNS)
+    if len(saved) != 2 or any(
+        item["tenant_id"] != handle._bound_tenant_id
+        or item["game_id"] != game_id
+        for item in saved
+    ):
+        raise NonplaySourceUnavailable("P3 anchor実lineupが不一致")
+    lineups = tuple(_saved_lineup(item) for item in saved)
+    game = snapshot["game"]
+    sides = tuple(
+        next(item for item in lineups if item.team_id == game[key])
+        for key in ("away_team_record_id", "home_team_record_id")
+    )
+    roster = InitialRosterProjection.model_validate_json(
+        _canonical_json(row["roster"])
+    )
+    metadata = _prefix_metadata(game, game_id, snapshot["d4"], sides, roster)
+    return OrdinaryPrefixView(
+        metadata,
+        {
+            "profile": "nonplay-prefix-read-v1",
+            "checkpoint": checked,
+            "after": checked.content.restored.current,
+            "next_position": {
+                "d1": str(int(doc.confirmed_watermark) + 1),
+                "d2": str(snapshot["tail"]["d2"] + 1000),
+            },
+            "recovery_generation": str(snapshot["epoch"]),
+            "last_saved_at": row["saved_at"],
+            "page": {"items": selected, "next_cursor": next_cursor},
+            "append_policy": {
+                "version": "ordinary-append-v1",
+                "first_d2": "1",
+                "d2_gap": "1000",
+                "max_d2": "9007199254740991",
+            },
+        },
+    )
 
 
 def read_undo_prefix(handle, game_id, *, limit=25, cursor=None):
@@ -1085,6 +1204,28 @@ def read_undo_prefix(handle, game_id, *, limit=25, cursor=None):
         return snapshot
     row = snapshot["row"]
     if row["content"].get("formatVersion") == "nonplay-prefix-checkpoint-v1":
+        from pitchlog.repositories.past_correction_nonplay import (
+            read_p3_nonplay_current,
+        )
+
+        generation = row.get("internal_generation")
+        anchor_p3 = (
+            read_p3_nonplay_current(handle, game_id, generation)
+            if type(generation) is int
+            else None
+        )
+        if (
+            anchor_p3 is not None
+            and anchor_p3.historical_anchor
+            and int(anchor_p3.checkpoint.confirmed_watermark)
+            >= int(snapshot["d3"])
+        ):
+            result = _read_p3_logical_prefix(
+                handle, game_id, snapshot, row, anchor_p3,
+                limit=limit, cursor=cursor,
+            )
+            _live(handle, owner)
+            return result
         result = read_lineup_prefix(handle, game_id, limit=limit, cursor=cursor)
         _live(handle, owner)
         return result
@@ -1094,7 +1235,19 @@ def read_undo_prefix(handle, game_id, *, limit=25, cursor=None):
     from pitchlog.repositories.past_correction_nonplay import read_p3_nonplay_current
 
     verified_p3 = read_p3_nonplay_current(handle, game_id, int(doc.internal_generation))
-    metadata = _legacy_undo_metadata(handle, game_id, snapshot, doc)
+    if verified_p3 is not None and verified_p3.checkpoint == doc:
+        # P3訂正直後は物理CP列と論理next contentが過渡的に一致しない。
+        # capsule全itemの実効stackを同じ公開viewへ写し、物理historyの
+        # 不整合tokenへ依存しない。
+        result = _read_p3_logical_prefix(
+            handle, game_id, snapshot, row, verified_p3,
+            limit=limit, cursor=cursor,
+        )
+        _live(handle, owner)
+        return result
+    metadata = _legacy_undo_metadata(
+        handle, game_id, snapshot, doc, verify_last=True
+    )
     _live(handle, owner)
     with open_domain_host() as host:
         cp, values = _read_legacy_undo_source(
