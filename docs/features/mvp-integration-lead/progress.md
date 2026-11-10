@@ -1,5 +1,11 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-10 23:10 JST：artifact再pin後のP3 CSVも継続成功
+
+- **再測**: `test_actual_p3_26_csv_export_http` **1 passed / 322.78秒**。26球→P3訂正後の毎球ZIPが200・26行、対象d1=26「ボール」まで一致した。`test_actual_p3_26_lifecycle_end_reopen_add_reend_stats` は **1 passed / 478.54秒**。
+- **現在の固定点**: `feature/mvp-integration-20261109`、作業ツリーclean。artifactは`b565641886c758b81787baff95bdacceb3dea648781515cac39f868583c156ad`。
+- **未達**: 3試合×30閲覧のwave 1保存は30秒binding超過（rights 9〜10秒）。P3 baselineの`save_primitive_source`本文不一致、stats候補DDL前提の既知赤は残る。
+
 ## 2026-11-10 22:55 JST：artifact再pin後もP3 26球lifecycle縦断は継続成功
 
 - **再測**: `test_actual_p3_26_lifecycle_end_reopen_add_reend_stats` **1 passed / 478.54秒**。新しいdomain artifact `b5656418` で26球→P3 26件訂正→27球目→終了→再開→追加play→再終了→lifecycle read→成績/CSVの縦断が通った。妨害修正の再pinは既存P3経路の数学・保存を変えていない。
