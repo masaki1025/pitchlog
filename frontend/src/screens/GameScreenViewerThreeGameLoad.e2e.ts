@@ -81,6 +81,8 @@ test('3試合の実記録と30閲覧が保存から10秒以内で同じ状態へ
     game: number
     viewer: number
     milliseconds: number
+    /** ACK起点は補助指標。合否はサーバー保存時刻からの経過で判定する。 */
+    ackMilliseconds: number | null
   }> = []
   async function ownedPage(): Promise<Page> {
     const context = await browser.newContext({ ignoreHTTPSErrors: true })
@@ -315,18 +317,26 @@ test('3試合の実記録と30閲覧が保存から10秒以内で同じ状態へ
         const item = viewers[viewer]!
         const head = saved[item.game]!.head
         expect(snapshot.savedAt).toBe(head.last_saved_at)
-        // last_saved_atは保存TX内の刻印でcommit前。利用者の「保存から」は
-        // writerのACK応答時刻を起点に測る。
+        // 合否はサーバー保存時刻から測る。ACK起点は監査用の補助値に留める。
+        const serverSavedAt = Date.parse(head.last_saved_at)
         const acknowledged = traffic.find(
           (row) => row.wave === wave && row.game === item.game,
         )
-        if (!acknowledged) throw new Error('保存ACKの時刻がありません')
-        const elapsed = snapshot.at - acknowledged.end
-        if (elapsed < 0 || elapsed > 10_000)
+        const ackMilliseconds = acknowledged
+          ? snapshot.at - acknowledged.end
+          : null
+        const elapsed = snapshot.at - serverSavedAt
+        if (!Number.isFinite(serverSavedAt) || elapsed < 0 || elapsed > 10_000)
           throw new Error(
             `閲覧全表示10秒条件未達 game=${item.game} viewer=${viewer} ms=${elapsed}`,
           )
-        timings.push({ wave, game: item.game, viewer, milliseconds: elapsed })
+        timings.push({
+          wave,
+          game: item.game,
+          viewer,
+          milliseconds: elapsed,
+          ackMilliseconds,
+        })
         const state = head.after.stateFields
         expect(snapshot.status).toBe('更新済み')
         expect(snapshot.score).toContain(
