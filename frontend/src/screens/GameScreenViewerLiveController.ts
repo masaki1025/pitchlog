@@ -188,7 +188,7 @@ export class GameScreenViewerLiveController {
       readHead: options.readHead ?? readViewerHead,
       readGame: options.readGame ?? readViewerGame,
       now: options.now ?? Date.now,
-      pollMs: options.pollMs ?? 3000,
+      pollMs: options.pollMs ?? 5000,
       staleMs: options.staleMs ?? 10000,
     }
   }
