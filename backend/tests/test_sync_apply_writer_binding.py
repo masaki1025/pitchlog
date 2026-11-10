@@ -915,6 +915,45 @@ def test_void_adapter_preserves_every_other_registered_function():
             _EXPECTED_SOURCE_PINS["SYNC_WRITER_BINDING:read_writer_identity"]
         ),
     }
+    # 2026-11-10 時点の現行registry追加分。void adapterが他関数を
+    # 落とさないことを、固定した明示pinで照合する。
+    expected.update(
+        {
+            "GAME_LIFECYCLE:read_display": "51f0b671736fc86c4d650a085f6c04bff69a9c04cf5954bb09c8be68065ae6da",  # noqa: E501
+            "PLAY_EXPORT_P3:read_snapshots": "cc40e6f133a1716cecf1db57d7e0f13d553661cf3aa028c785ec677390233bad",  # noqa: E501
+            "PLAY_EXPORT_SOURCES:read_page": "40a1f22f224516018bd8ff5cfb920f9d16340a531f2211b4ffd474930befe595",  # noqa: E501
+            "PLAY_EXPORT_WRITER:save_snapshot": "f36969e189fb22603b53b4d2160fec6cafd6b4aeb1dead50a4fcd42397ba4c07",  # noqa: E501
+            "STARTED_SNAPSHOT:read_started_nonplay_active_history": "fe72180ea26db8e4466797ee2bac486fc60930bebb69e3e9354d616ab6af1ad2",  # noqa: E501
+            "STARTED_SNAPSHOT:read_started_ordinary_history_page": "0eed894b34b2178f1d1568ca4a110424cdb5a0bef06e508ff1ca9cb4915ddb42",  # noqa: E501
+            "STARTED_SNAPSHOT:read_started_play_prefix_history_page": "3e35d44c049e8a7e4146f236d82754d82afd4dc510efa77dd84b7f305d6a1696",  # noqa: E501
+            "STATS_BASIC:read": "4cd9eaec7f12fac77ae490501d7b2946414e3c63a2188d4bb1ce0a9dadb01adb",  # noqa: E501
+            "SYNC_FIRST_BALL:verify_replay_device": "dcc542cf426ee5f6a9c592b12a3629a9db448b86095fecb212f6b57a68ee555e",  # noqa: E501
+            "SYNC_LIFECYCLE:bind_nonplay_device": "6be1c8a83f47ace44b5e80239ef9669f3cbd2f8bbf7485186815380180e67f4e",  # noqa: E501
+            "SYNC_LIFECYCLE:check_nonplay_right": "36a78ed891ae5701686f4c59bbd2755862fe7d1ae98c62292ca920b84e6c7f6e",  # noqa: E501
+            "SYNC_LIFECYCLE:consume_game_lifecycle": "14e62fdfda5970db06b5f829be5270f844f13a7998a5e8fe1c24087704b11c66",  # noqa: E501
+            "SYNC_LIFECYCLE:prepare_game_lifecycle": "b156c488c275862815f93dfb5bc8f3f5e82140af3a7b7f019d46ab494773d00c",  # noqa: E501
+            "SYNC_LIFECYCLE:read_lifecycle_state": "8973d8e94963a816bdac6ca6993cb7aca9fc924053a0e412edf6fb7460755809",  # noqa: E501
+            "SYNC_NONPLAY:bind_nonplay_device": "8425679c78fc5e5257f4ad68cb677b9d229ca1cf37f8f9ddaebfe9410a24d1a5",  # noqa: E501
+            "SYNC_NONPLAY:check_nonplay_right": "70c2f3689db23a76ebacce987abac15ca7053f01f95260121c0d9766ecfb1ece",  # noqa: E501
+            "SYNC_NONPLAY:consume_nonplay_substitution": "d70bf8d1a84de85a36f15ae85831a8ac75a99c591c11ccc2c273d55f175fa246",  # noqa: E501
+            "SYNC_NONPLAY:consume_nonplay_undo": "30da852db3d6de62c2a14bc81b9cda15764ad248ca779be5284c010d45b530e6",  # noqa: E501
+            "SYNC_NONPLAY:lock_nonplay_checkpoint": "b077fe5972471ba4e408ef80bea50165c316b6905d4471b768a748dd030be53c",  # noqa: E501
+            "SYNC_NONPLAY:prepare_nonplay_undo": "9efada7358b89c0df7857df722804b64df49e08b1b562a784af2f0de96a96397",  # noqa: E501
+            "SYNC_NONPLAY:read_nonplay_history_page": "5b4239444bccc6eded24d492008da4feffb2c96f5dff3f50d707ecd7a55ae0e1",  # noqa: E501
+            "SYNC_ORDINARY_PITCH:read_nonplay_active_history": "5d1eb31dfcd85a9334bee4a3b23077efe7c0c8cd8d7f135e1c751d7b44a8852a",  # noqa: E501
+            "SYNC_P3:append_p3_projection_page": "33e663528794aca9d024b489b6a400ec9a6e893f23deac1d1144ae1033a87b07",  # noqa: E501
+            "SYNC_P3:begin_p3_projection_page": "882bc1962c3b809ec8d1128403e5b7112400df0e825e86cc7629d540c36ec7c2",  # noqa: E501
+            "SYNC_P3:bind_p3_device": "9f69777675b7112ebcc7e7676343b247b10ae809a1fadd044fbef66ca5acb53c",  # noqa: E501
+            "SYNC_P3:check_p3_right": "ec568bcb8e64901c5884e7c9527cb83e8114a59e39e19ebd3779da8e883d0a21",  # noqa: E501
+            "SYNC_P3:finalize_p3_projection_page": "9147282163d2dbd5daf322e630383f78c7c95a94235327cc2e1bcab465bc820e",  # noqa: E501
+            "SYNC_P3:persist_p3_projection": "2935b0d9afc9009c81515db1757b875cd38c045f676d49d7d1caf8ab614a4ca5",  # noqa: E501
+            "SYNC_P3:read_p3_current": "dd231331680dd3de1b6b469a0750a740ab3e12b4a2c0ea2fd42c27ef086c3ca4",  # noqa: E501
+            "SYNC_P3:read_p3_current_header": "ffd926a7920b8a0df8de1fb2c637a9350e226100efd708afe3e61908ddda9120",  # noqa: E501
+            "SYNC_P3:read_p3_current_page": "d8474451393d437de92caa3e06fc95f2baeeee74a7ffcd63600f98c151b69451",  # noqa: E501
+            "SYNC_PLAY_PREFIX:read_viewer_effective_version": "50b90d0cc6992ccb14f8ecf2647286cf2de10faffd78ca1350510aaf29b02b6e",  # noqa: E501
+            "SYNC_PLAY_PREFIX:read_viewer_play_prefix_history_page": "33b11dbbd5258728e0262a51df51dd78080dbf9b8c5ebc7db6497642069d504b",  # noqa: E501
+        }
+    )
     expected.update(
         {
             key: _EXPECTED_SOURCE_PINS[key]
