@@ -731,6 +731,48 @@ def test_player_reference_never_depends_on_caller_supplied_list() -> None:
         _projection_event(cast(_TenantTransaction, MissingPlayer()), event, {})
 
 
+def test_interference_person_reference_resolves_nested_player_id() -> None:
+    """妨害裁定のperson objectを生IDと誤認せず、入れ子のIDだけを解決する。"""
+    temporary = str(uuid4())
+    official = str(uuid4())
+
+    class NoPlayerLookup:
+        """一時写像だけで解決できるため、正式選手のreadを要求しない。"""
+
+        def run(self, token: TenantOperationToken) -> TenantOperationResult:
+            raise AssertionError(f"unexpected token: {type(token).__name__}")
+
+    person = {
+        "kind": "batter",
+        "batter_id": {"kind": "official", "player_id": temporary},
+    }
+    event = SyncEvent(
+        D5,
+        GAME,
+        1,
+        "epoch",
+        v5="play_input",
+        v7={
+            "t1": {
+                "interferenceRuling": {
+                    "kind": "obstruction",
+                    "obstructed": person,
+                    "awarded_destinations": [
+                        {"person": person, "destination": "first"}
+                    ],
+                }
+            }
+        },
+    )
+    projected = _projection_event(
+        cast(_TenantTransaction, NoPlayerLookup()), event, {temporary: official}
+    )
+    ruling = projected.v7["t1"]["interferenceRuling"]
+    assert ruling["obstructed"]["batter_id"]["player_id"] == official
+    awarded = ruling["awarded_destinations"][0]["person"]
+    assert awarded["batter_id"]["player_id"] == official
+
+
 def test_d5_stored_result_and_conflict_do_not_start_new_writes() -> None:
     """再掲の写像を返し、異内容なら B3b に切り替える。"""
     stored = D5Candidate(

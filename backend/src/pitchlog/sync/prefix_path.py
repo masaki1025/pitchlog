@@ -572,6 +572,19 @@ def _resolve_player_reference(
     return resolved
 
 
+def _is_person_reference(value: object) -> bool:
+    """審判裁定の人物参照を、生の選手ID文字列と区別する。"""
+    if not isinstance(value, Mapping):
+        return False
+    if value.get("kind") not in {"official", "temporary"}:
+        return False
+    return frozenset(value) in (
+        frozenset({"kind", "player_id"}),
+        frozenset({"kind", "batter_id"}),
+        frozenset({"kind", "runner_id"}),
+    )
+
+
 def _resolve_payload(
     scope: _TenantTransaction,
     value: object,
@@ -588,6 +601,11 @@ def _resolve_payload(
                     result[key] = tuple(
                         _resolve_player_reference(scope, entry, own_mapping, cache)
                         for entry in item
+                    )
+                elif _is_person_reference(item):
+                    # 妨害裁定のpersonは入れ子のIDを解決し、object自体をIDと見ない。
+                    result[key] = _resolve_payload(
+                        scope, item, kind, own_mapping, cache
                     )
                 else:
                     result[key] = _resolve_player_reference(
