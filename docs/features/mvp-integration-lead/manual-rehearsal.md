@@ -1,10 +1,10 @@
-# 実機リハーサル手順（候補 `feature/mvp-integration-20261109@563b6c3a`）
+# 実機リハーサル手順（候補 `feature/mvp-integration-20261109@85fdbfa5`）
 
 実機・実ブラウザ・運用の成功を代記しないための準備票。候補環境の成功は、正式統合版・実機・運用公開の成功ではない。
 
 ## 接続先・環境
 
-- 候補: `feature/mvp-integration-20261109@563b6c3a`（worktree）
+- 候補: `feature/mvp-integration-20261109@85fdbfa5`（worktree）
 - DB/権利worker: 隔離owned PostgreSQL + owned RG1/binding worker。共有DB・利用者データへ適用しない。
 - HTTPS: 既存のループバック証明書/鍵PATHを
   `PITCHLOG_E2E_TLS_CERT_PATH` / `PITCHLOG_E2E_TLS_KEY_PATH` に絶対PATHで渡す。
@@ -33,6 +33,13 @@
 | 6 | 終了→再開→追加→再終了 | 候補実測 **受理**（追加play=28球目、`lastVersion=2`）。追加playのbinding ageは7.558秒で30秒内、**5秒目標は未達**。broker再起動を挟む場合は別試験の非0 epoch復旧条件に従う |
 | 7 | reload・成績27項目・成績CSV | 候補実測 200。play_rows=29、stats current `source_count=28`/`confirmed_ended`/current版1、ゲームCSV 20行・シーズンCSV 10行。旧版/訂正前を二重加算しない |
 
+## 終了条件の候補E2E（2026-11-11追加）
+
+- 実行: `cd backend && PITCHLOG_E2E_TLS_CERT_PATH=... PITCHLOG_E2E_TLS_KEY_PATH=... uv run pytest -q tests/db/test_end_conditions_screen_e2e.py`
+- シナリオ: `game_semi_official`の7点差7回コールド、`game_other`の9回同点limit-draw、`game_official`の10回タイブレーク発動ロック。**候補実測: 1 passed / 1491.83秒（Playwright 3 passed / 23.9分）**。
+- 期待: cold-end 49 `play_input` + `game_end_declaration`、limit-draw 54 + 終了宣言、tiebreak-required 54 `play_input`で`in_progress`のまま。記録画面には`ordinary-pitch-locked`で理由を表示する。
+- 7回規則・延長上限>9・タイブレーク開始操作・担当交代・その場登録は未接続であり、このE2Eの成功へ読み替えない。
+
 ## 記録する証拠
 
 - 固定HEAD、画面操作の時刻、HTTP status、ACK boundary。
@@ -48,3 +55,4 @@
 - TLS資材・実機・共有DB・運用公開は未提供。候補環境の成功を実機成功へ拡張しない。
 - 3試合×記録1台＋閲覧10台、バックアップ復旧は未実施。
 - D11 `rbi` と旧v2/candidate DDL前提の試験、固定registry期待の`test_void_adapter_preserves_every_other_registered_function`に既知赤が残る。
+- 2026-11-11追記: 通常球が終了条件/タイブレーク開始で閉じたとき、記録画面に`ordinary-pitch-locked`で理由を表示する。コールド/引き分け/タイブレーク発動回の実画面E2Eは候補環境で追加したが、7回規則・延長上限>9・タイブレーク開始操作・担当交代・その場登録は未接続。実機ではこれらを成功扱いにしない。

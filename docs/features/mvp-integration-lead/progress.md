@@ -1,5 +1,66 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-11 02:30 JST：試合操作の在庫を実画面証拠で分類
+
+既存台帳・コード・spike・E2Eを突き合わせ、利用者操作の現在地を次へ固定する。**実画面実証済み**は実HTTPS/実ブラウザ/owned DBで保存・再取得まで確認したもの、**実装済み未接続**は計算核・受理・保存部品はあるが製品入口/実画面が未接続のもの、**未実装**は製品経路がないもの、**意味判断待ち**はPO回答なしに確定しないもの。
+
+| 操作 | 状態 | 根拠・停止点 |
+| --- | --- | --- |
+| 投球・打席 | 実画面実証済み | `GameScreenFullGame` 163球、`GameScreenFirstBall`、通常投球E2E |
+| 打球（単打/長打/本塁打/犠打/犠飛/併殺/失策/FC） | 実画面実証済み | `test_batted_operations_batch_screen_e2e` 59プレイ、`test_batted_hits_screen_e2e`、`test_batted_out_screen_e2e` |
+| 走者アウト（牽制/盗塁死/振り逃げ併殺） | 実画面実証済み | `test_runner_operations_screen_e2e`（投手・捕手牽制、caught-stealing、strikeout-double-play） |
+| 走塁（盗塁/WP/PB/ボーク） | 実画面実証済み | 同runner operations（非投球盗塁、wild-pitch、passed-ball、balk） |
+| 妨害7分岐 | 実画面実証済み | `test_interference_screen_e2e` INT-01〜07、5試合 |
+| 交代（投手） | 実画面実証済み | `test_substitution_product_screen_e2e` **1 passed / 95.70秒**（2026-11-11再測） |
+| 交代（代打/代走/守備変更） | 実装済み未接続 | domain/HTTP/payloadは4種、画面供給も4種。実画面E2Eは投手のみ。代打/代走/守備変更の実画面は初球がclient `blocked`（POST 0）で停止し、未成立 |
+| 選手のその場登録 | 実装済み未接続 | backendの`player_registration`受理・一時ID mappingはある。画面は「登録はまだ行われません」で、参加登録API/UIが未接続 |
+| 取消 | 実画面実証済み | `test_undo_product_screen_e2e`、ACK喪失→新attempt |
+| 過去訂正 | 実画面実証済み | `test_p3_product_screen_e2e`、26球→P3→27球目→CSV |
+| 9回 | 実画面実証済み | `test_full_game_screen_e2e` 163球・normal-end |
+| 7回 | 実装済み未接続 | 規則schema/domainは規定回を可変。`resolve_stage_a_rule`が固定5組（すべて9回）で、大会割当/上書き/規則管理UIが未接続 |
+| コールド | 実画面実証済み | 新`test_end_conditions_screen_e2e`のcold-end（9回・7点差7回、49 play_input + 終了宣言）。**1 passed / 1491.83秒** |
+| 引き分け | 実画面実証済み | 同E2Eのlimit-draw（9回同点・延長上限9、54 play_input + 終了宣言）。**同日再測で通過** |
+| 延長 | 実装済み未接続（到達不能） | 固定5組で延長上限>9は`game_official`だけだが、同規則は10回タイブレーク発動。タイブレーク開始が未接続のため10回以降へ進めない。`game_other`は上限9でlimit-draw |
+| タイブレーク | 意味判断待ち | 純状態効果step1（`174fb346`）のみ。画面の「配置と回を記録」はdisabled。実画面では10回の発動ロック（54 play_input、`in_progress`）まで確認。TB-P1〜P3未回答 |
+| 終了・再開・再終了 | 実画面実証済み | `test_game_lifecycle_product_screen_e2e`、P3後26球lifecycle |
+| 入力ロックの理由表示 | 実装・単体試験済み | `GameScreenOrdinaryPitch`に`ordinary-pitch-locked`を追加。終了条件/タイブレーク開始の理由を表示。`ordinaryPitchLock.spec.ts` 3 passed |
+| 通信断継続・再起動・再送 | 実画面実証済み | `GameScreenOfflineRecording`、`GameScreenAttemptRecovery`、lifecycle ACK喪失。担当交代は別 |
+| 担当交代（記録権引き継ぎ） | 未実装 | 製品API/画面がない。server側の世代・退避部品だけではFR-013の通常/緊急引き継ぎを満たさない |
+| 成績27項目 | 実装済み（HTTP/DB） | `test_stats_native_*`、D11。公式27項目の実画面一覧は未確認 |
+| 毎球CSV・成績CSV | 実画面実証済み | `test_play_export_screen_e2e`、P3 CSV、ゲーム/シーズン成績CSV |
+
+### 2026-11-11 03:25 終了条件E2Eの最終通過
+
+- `test_end_conditions_screen_e2e` は **1 passed / 1491.83秒**（Playwright **3 passed / 23.9分**）。実HTTPS/実ブラウザ/owned DBで、次の3シナリオを保存・終了宣言・DB照合した。
+  - **cold-end**: `game_semi_official`、9回・7点差7回。**49 play_input + game_end_declaration**、`finished`/v1/source_count 49。記録画面の`ordinary-pitch-locked`に「終了条件」を表示。
+  - **limit-draw**: `game_other`、9回同点・延長上限9。**54 play_input + game_end_declaration**、`finished`/v1/source_count 54。
+  - **tiebreak-required**: `game_official`、9回同点。**54 play_inputのみ**、`in_progress`のまま終了イベントなし。10回表で`tiebreakStartRequired=true`、通常球フォームを閉じ「タイブレーク開始」を表示。
+- **到達不能の確定**: 固定5規則では7回・延長上限>9を製品から作れない。`game_official`だけが延長上限12だが10回タイブレーク発動で、開始操作が未接続のため10回以降へ進めない。`game_other`は上限9でlimit-draw。7回は`resolve_stage_a_rule`の固定9回/defaultのみで、大会割当・上書き・規則管理UIが未接続。
+- **限定**: 実機・本番TLS・バックアップ復旧・運用公開は未実施。候補環境の成功を実機成功へ読み替えない。
+
+### 2026-11-11 03:15 既知赤の再確認
+
+- `backend/tests/test_p3_function_product.py::test_normal_profile_contains_the_same_full_p3_publishers` は **1 failed / 6.34秒**。差分は`save_primitive_source`本文のD03投手出場フック（`persist_writer_pitcher_entry`）がP3 baseline側に無いこと。P3の数学・保存経路の失敗ではなく、baseline/正式資産の追随待ちとして分離する。
+- `tests/domainrt/test_game_lifecycle.py` + `tests/test_game_state_models.py` は **133 passed / 1.96秒**。終了条件核と規則snapshotの固定値は維持。
+- `test_p3_verification_cache` / viewer probe/route は **22 passed**、viewer specs **16 passed**、substitution specs **28 passed**。今回のE2E/表示変更の範囲で回帰なし。
+
+### 2026-11-11 02:40 追記：閲覧10秒の測定起点
+
+- 先行する1試合10閲覧の測定はwriter ACK起点だった。要件の「サーバー保存から10秒」と混同しないよう、`GameScreenViewerThreeGameLoad.e2e.ts`の合否を**サーバー保存時刻（`last_saved_at`）起点**へ戻した。ACK起点は`ackMilliseconds`として補助記録だけに残す。
+- したがって10.0秒台の既測値は**ACK起点の補助値**であり、サーバー保存起点の10秒合格へ読み替えない。サーバー保存起点の3試合30閲覧は未再測・未達。
+- 30秒DB writer bindingは延長していない。
+
+### 未回答の意味判断（タイブレーク製品接続）
+
+`docs/features/mvp-integration-lead/decision-sheet.md`のTB-P1〜P3は未回答。推奨は採用扱いにしない。依存しないコールド/引き分け/タイブレーク検知までは実画面で確認し、開始操作の保存・次球・成績は回答後に接続する。
+
+| ID | 具体例 | 選択肢 | 回答が必要な時点 |
+| --- | --- | --- | --- |
+| TB-P1 | 10回表、継続打順4、無死一二塁。配置走者の個人IDをどう決めるか | A=記録者が現在出場中の攻撃選手を各塁へ明示指定（推奨候補）/ B=継続打順の直前2枠を自動配置 | 実runner IDを保存し次球へ渡す前 |
+| TB-P2 | 配置走者が生還し、その間に投手交代。責任投手をどうするか | A=配置時点の実投手を責任投手として固定（推奨候補）/ B=配置走者を投手個人失点の対象外にする専用区分 | 配置走者の失点計上前 |
+| TB-P3 | 10回表3out後、10回裏/11回表へ進む。再配置するか | A=発動後は各半回に規則どおり再配置し、半回別イベントを記録（推奨候補）/ B=最初の半回だけ配置 | 次半回の記録実装前 |
+
+
 ## 2026-11-11 00:30 JST：1試合10閲覧は10.0秒台まで到達、RG1 controller livenessと表示経路が残る
 
 - **1試合0閲覧**: 同E2Eが **1 passed / 83.26秒**。wave 1保存は約7.6秒。
