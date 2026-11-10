@@ -1,5 +1,15 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-10 22:20 JST：妨害7分岐は全通し、閲覧負荷は接続枯渇を解消したが30秒内保存は未達
+
+- **新たに通った**: `test_interference_screen_e2e` **1 passed / 183.66秒**。INT-02、INT-01+INT-03、通常三塁打+INT-02本盗、INT-04+INT-05、INT-06+通常単打+INT-07の5試合・全7分岐を実画面から保存し、play_row 41列・走者・current stats version・source metric_states・facts・重複ACK・reloadを実DBで照合した。
+- **コア是正**: 採用妨害のdomain ruleが`scoringEvidence`を落としていたためtyped `runnerScoreEffects`を返さず、server wire headで停止していた。`battedHit.ts`を是正しartifactを`b565641886c758b81787baff95bdacceb3dea648781515cac39f868583c156ad`へ再生成、manifest/D11/現行metadata/v6 witness/開始投手SQL/test pinを自己識別子だけ再導出した。妨害personの`batter_id`/`runner_id`を生IDと誤認していた投影も入れ子解決へ是正した。
+- **負荷の新計測**: `test_viewer_three_game_load_owned` は未達。writerのclick handlerは即時（heartbeat最大gap 476ms）、POSTは実送信され、約41秒後に503 `writer binding rejected`。stage実測は scope 0.1秒 → bound 1.8秒 → gated 6.8秒 → device 8.5秒 → preflight 12.4秒 → game lock 0.1秒 → **rights 9〜10秒** → 30秒binding失効。3 writerすべて同じ10秒rightsを示し、同時刻押下を1秒ずらしても変わらない。DB activityはapp role最大45 session、待機は`authn.verify_token`のtuple/transactionidで、rg1/record rowの待機ではない。
+- **実施した是正**: 業務engineをプロセス内で共有し（`create_database_engine`の設定key付きcache、認証発行だけisolated engine）、要求ごとのengine生成による接続枠枯渇を解消。閲覧poll既定を3秒→5秒へ広げ、10秒更新の余裕と負荷低減を両立。30秒DB bindingは延長していない。
+- **残る失敗**: 3試合×30閲覧のwave 1保存は、`rights` stageの約10秒とpre-apply約13秒で30秒を超える。timeout延長・成功読み替えはしない。次unitはrights/authorityの10秒（`binding_check`/`check_current_right`）の内訳を削る製品修正。
+- **既知赤**: `test_p3_function_product`の`save_primitive_source`本文不一致（P3 baselineがD03投手出場hookより前に取得される順序）は継続。`test_stats_queries`/`test_stats_appearance_http`の候補DDL前提も継続。`test_sync_apply_writer_binding`の固定registry pinは現行33操作を明示pinして通した。
+- **限定**: 実機・本番TLS・バックアップ復旧・運用公開は未実施。負荷はheadless Chromiumの候補環境。
+
 ## 2026-11-10 20:50 JST：妨害7分岐の実画面E2Eが全分岐成立、artifactを再pin
 
 - **新たに通った**: `test_interference_screen_e2e` **1 passed / 183.66秒**（self-signed TLSの実Playwright/Chromium）。INT-02、INT-01+INT-03、通常三塁打+INT-02本盗、INT-04+INT-05、INT-06+通常単打+INT-07の**5試合・全7分岐**を実画面から保存し、各行のplay_row 41列・走者行・current stats version・source metric_states・facts・重複ACK・reloadを実DBで照合した。
