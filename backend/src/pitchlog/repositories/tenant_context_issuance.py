@@ -4,7 +4,7 @@ from datetime import datetime
 
 from pitchlog.authz.token_presentation import TokenPresentation
 from pitchlog.authz.verified_tenant import verify_tenant_id
-from pitchlog.db.engine import create_database_engine
+from pitchlog.db.engine import create_isolated_database_engine
 from pitchlog.repositories.context import _ISSUANCE_CAPABILITY, TenantContext
 
 __all__ = ("issue_tenant_context_from_presented_token",)
@@ -24,7 +24,7 @@ def issue_tenant_context_from_presented_token(
     """
     if type(value) is not str:
         return None
-    engine = create_database_engine()
+    engine = create_isolated_database_engine()
     try:
         verified = verify_tenant_id(value, presentation, engine)
     finally:

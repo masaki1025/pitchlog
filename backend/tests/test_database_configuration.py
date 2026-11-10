@@ -13,6 +13,7 @@ from sqlalchemy import Engine, event
 from pitchlog.db.config import DatabaseConfigurationError
 from pitchlog.db.engine import (
     create_database_engine,
+    create_isolated_database_engine,
     engine_connect_args,
     engine_connect_args_violations,
 )
@@ -212,6 +213,25 @@ def test_pooled_engine_has_prepare_threshold_none(
         assert engine_connect_args_violations(True, connect_args) == []
     finally:
         engine.dispose()
+
+
+def test_engine_factory_reuses_one_process_engine(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """同一設定の通常engineを共有し、dispose前提のisolatedだけ分離する。"""
+    _clear_database_settings(monkeypatch)
+    monkeypatch.setenv("PITCHLOG_DATABASE_URL", _DIRECT_DATABASE_URL)
+    monkeypatch.setenv("PITCHLOG_DATABASE_POOLED", "false")
+    shared = create_database_engine()
+    try:
+        assert create_database_engine() is shared
+        isolated = create_isolated_database_engine()
+        try:
+            assert isolated is not shared
+        finally:
+            isolated.dispose()
+    finally:
+        shared.dispose()
 
 
 def test_missing_prepare_threshold_is_reported_as_a_violation() -> None:

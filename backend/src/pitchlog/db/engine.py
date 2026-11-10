@@ -3,6 +3,7 @@
 import os
 from collections.abc import Mapping
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Any
 
 import psycopg
@@ -424,23 +425,8 @@ def _database_is_pooled(value: str) -> bool:
     )
 
 
-def create_database_engine() -> Engine:
-    """アプリケーション用 URL から SQLAlchemy engine を生成する。
-
-    プール済み接続も業務利用のたびに真正性を再検査する。外部管理経路による
-    ロール変更を見逃さない安全性のため、checkout ごとの往復コストを受け入れる。
-
-    Returns:
-        psycopg 3 を使用する同期 engine。
-    """
-    database_url = require_database_configuration(
-        _DATABASE_URL_VARIABLE,
-        os.environ.get(_DATABASE_URL_VARIABLE),
-    )
-    pooled_value = require_database_configuration(
-        _DATABASE_POOLED_VARIABLE,
-        os.environ.get(_DATABASE_POOLED_VARIABLE),
-    )
+def _build_database_engine(database_url: str, pooled_value: str) -> Engine:
+    """検証済み設定から新しい engine を一度だけ組み立てる。"""
     connect_args = engine_connect_args(_database_is_pooled(pooled_value))
     connect_args["gssencmode"] = "disable"
     normalized_url = normalize_postgresql_url(database_url)
@@ -451,3 +437,52 @@ def create_database_engine() -> Engine:
     )
     event.listen(engine, "checkout", _verify_application_role_on_checkout)
     return engine
+
+
+@lru_cache(maxsize=8)
+def _cached_database_engine(database_url: str, pooled_value: str) -> Engine:
+    """同一設定の要求ごとに engine/pool を作り直さない。
+
+    要求ごとに新しい engine を作ると、短時間の同時閲覧で PostgreSQL の
+    接続枠を使い切り、writer の保存まで巻き込む。プロセス内で設定が同じ
+    間は同じ pool を共有し、checkout 時の真正性検査は毎回維持する。
+    """
+    return _build_database_engine(database_url, pooled_value)
+
+
+def _database_settings() -> tuple[str, str]:
+    """必須の DB 設定を読み、値を返す。"""
+    return (
+        require_database_configuration(
+            _DATABASE_URL_VARIABLE,
+            os.environ.get(_DATABASE_URL_VARIABLE),
+        ),
+        require_database_configuration(
+            _DATABASE_POOLED_VARIABLE,
+            os.environ.get(_DATABASE_POOLED_VARIABLE),
+        ),
+    )
+
+
+def create_database_engine() -> Engine:
+    """同一設定で共有するアプリケーション用 SQLAlchemy engine を返す。
+
+    プール済み接続も業務利用のたびに真正性を再検査する。外部管理経路による
+    ロール変更を見逃さない安全性のため、checkout ごとの往復コストを受け入れる。
+
+    Returns:
+        psycopg 3 を使用する同期 engine。
+    """
+    return _cached_database_engine(*_database_settings())
+
+
+def create_isolated_database_engine() -> Engine:
+    """呼出側が dispose する一回限りの engine を生成する。
+
+    認証文脈の発行のように毎回破棄する経路が共有 pool を閉じないよう、
+    キャッシュ済み engine とは別の実体を返す。
+
+    Returns:
+        psycopg 3 を使用する同期 engine。
+    """
+    return _build_database_engine(*_database_settings())
