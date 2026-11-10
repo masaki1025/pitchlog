@@ -179,7 +179,8 @@ class InitialGrantDatabase:
                 "SELECT %s,%s,CURRENT_TIMESTAMP,'game_official',"
                 "'initial_scope_tournament',%s,%s,pg_catalog.jsonb_build_object("
                 "'ruleSetId',r.id,'regulationInnings',r.regulation_innings,"
-                "'cold',r.called_game_conditions,'overtime',r.extra_innings_limit,"
+                "'coldConditions',r.called_game_conditions,"
+                "'extensionLimit',r.extra_innings_limit,"
                 "'tiebreak',r.tiebreak_rule,'dh',r.uses_dh) "
                 "FROM public.rule_sets r JOIN public.game_type_rule_defaults d "
                 "ON d.rule_set_id=r.id WHERE d.game_type_key='game_official'",

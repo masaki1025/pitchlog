@@ -9,7 +9,7 @@ from typing import Any
 import psycopg
 from psycopg.pq import TransactionStatus
 from sqlalchemy import Engine, create_engine, event
-from sqlalchemy.pool import ConnectionPoolEntry, PoolProxiedConnection
+from sqlalchemy.pool import ConnectionPoolEntry, NullPool, PoolProxiedConnection
 
 from pitchlog.authz.database_transport import require_database_transport
 from pitchlog.authz.runtime_contract import (
@@ -425,15 +425,31 @@ def _database_is_pooled(value: str) -> bool:
     )
 
 
-def _build_database_engine(database_url: str, pooled_value: str) -> Engine:
+def _build_database_engine(
+    database_url: str,
+    pooled_value: str,
+    *,
+    pool_size: int | None = 5,
+    max_overflow: int = 10,
+    null_pool: bool = False,
+) -> Engine:
     """検証済み設定から新しい engine を一度だけ組み立てる。"""
     connect_args = engine_connect_args(_database_is_pooled(pooled_value))
     connect_args["gssencmode"] = "disable"
     normalized_url = normalize_postgresql_url(database_url)
     require_database_transport(normalized_url, connect_args)
     # 認証 ID を含む束縛値を SQLAlchemy のログと例外から隠す。
+    options: dict[str, object] = {}
+    if null_pool:
+        options["poolclass"] = NullPool
+    else:
+        options["pool_size"] = pool_size
+        options["max_overflow"] = max_overflow
     engine = create_engine(
-        normalized_url, connect_args=connect_args, hide_parameters=True
+        normalized_url,
+        connect_args=connect_args,
+        hide_parameters=True,
+        **options,
     )
     event.listen(engine, "checkout", _verify_application_role_on_checkout)
     return engine
@@ -447,7 +463,10 @@ def _cached_database_engine(database_url: str, pooled_value: str) -> Engine:
     接続枠を使い切り、writer の保存まで巻き込む。プロセス内で設定が同じ
     間は同じ pool を共有し、checkout 時の真正性検査は毎回維持する。
     """
-    return _build_database_engine(database_url, pooled_value)
+    # 3試合×30閲覧の同時read/writeを同じプロセスで処理できる有限枠。
+    return _build_database_engine(
+        database_url, pooled_value, pool_size=20, max_overflow=20
+    )
 
 
 def _database_settings() -> tuple[str, str]:
@@ -485,4 +504,4 @@ def create_isolated_database_engine() -> Engine:
     Returns:
         psycopg 3 を使用する同期 engine。
     """
-    return _build_database_engine(*_database_settings())
+    return _build_database_engine(*_database_settings(), null_pool=True)

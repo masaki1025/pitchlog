@@ -78,6 +78,11 @@ def test_three_games_and_thirty_viewers(
             (db.tenant_id, db.game_id),
         ).fetchone()
     assert teams is not None
+    games = int(os.environ.get("PITCHLOG_VIEWER_LOAD_GAMES", "3"))
+    viewers_per_game = int(
+        os.environ.get("PITCHLOG_VIEWER_LOAD_VIEWERS_PER_GAME", "10")
+    )
+    assert games > 0 and viewers_per_game >= 0
     game_path = tmp_path / "created-games.json"
     token = uuid4()
     with db.broker_worker(token), binding_broker(db, token):
@@ -96,6 +101,10 @@ def test_three_games_and_thirty_viewers(
                     "PITCHLOG_E2E_AWAY_TEAM": str(teams[0]),
                     "PITCHLOG_E2E_HOME_TEAM": str(teams[1]),
                     "PITCHLOG_VIEWER_LOAD_GAME_PATH": str(game_path),
+                    "PITCHLOG_VIEWER_LOAD_GAMES": str(games),
+                    "PITCHLOG_VIEWER_LOAD_VIEWERS_PER_GAME": str(
+                        viewers_per_game
+                    ),
                 },
                 timeout_seconds=960,
             )
@@ -144,20 +153,31 @@ def test_three_games_and_thirty_viewers(
                 actual["viewers"],
                 actual["independentContexts"],
                 actual["waves"],
-            ) == (3, 30, 33, 2)
-            assert len(actual["gameIds"]) == len(set(actual["gameIds"])) == 3
-            assert len(actual["timings"]) == 60
+            ) == (
+                games,
+                games * viewers_per_game,
+                games + games * viewers_per_game,
+                2,
+            )
+            assert (
+                len(actual["gameIds"])
+                == len(set(actual["gameIds"]))
+                == games
+            )
+            assert len(actual["timings"]) == games * viewers_per_game * 2
             assert {(r["wave"], r["viewer"]) for r in actual["timings"]} == {
-                (wave, viewer) for wave in (1, 2) for viewer in range(30)
+                (wave, viewer)
+                for wave in (1, 2)
+                for viewer in range(games * viewers_per_game)
             }
             assert all(
                 type(r["milliseconds"]) is int and 0 <= r["milliseconds"] <= 10000
                 for r in actual["timings"]
             )
-            assert len(actual["writeTraffic"]) == 6
+            assert len(actual["writeTraffic"]) == games * 2
             for wave in (1, 2):
                 traffic = [row for row in actual["writeTraffic"] if row["wave"] == wave]
-                assert {row["game"] for row in traffic} == {0, 1, 2}
+                assert {row["game"] for row in traffic} == set(range(games))
                 assert max(row["start"] for row in traffic) < min(
                     row["end"] for row in traffic
                 )

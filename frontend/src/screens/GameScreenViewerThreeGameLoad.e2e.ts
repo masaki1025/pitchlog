@@ -15,6 +15,17 @@ import {
   recordRealPitch,
 } from './RealGameRecording.e2e-support'
 
+function loadCount(name: string, fallback: number): number {
+  const raw = process.env[name]
+  if (raw === undefined) return fallback
+  const value = Number(raw)
+  if (!Number.isInteger(value) || value < 0)
+    throw new Error(`${name} は0以上の整数が必要`)
+  return value
+}
+const gameCount = loadCount('PITCHLOG_VIEWER_LOAD_GAMES', 3)
+const viewersPerGame = loadCount('PITCHLOG_VIEWER_LOAD_VIEWERS_PER_GAME', 10)
+
 const results = [
   ['batting-result.ball', 'batting-result.ball'],
   ['batting-result.called-pitch', 'batting-result.called-pitch'],
@@ -76,6 +87,18 @@ test('3試合の実記録と30閲覧が保存から10秒以内で同じ状態へ
     contexts.push(context)
     const page = await context.newPage()
     page.setDefaultTimeout(45_000)
+    page.on('pageerror', (error) =>
+      console.log('PITCHLOG_VIEWER_PAGEERROR=' + error.message),
+    )
+    page.on('console', (message) => {
+      if (message.type() === 'error')
+        console.log(
+          'PITCHLOG_VIEWER_CONSOLE=' +
+            message.text().slice(0, 300) +
+            ' url=' +
+            message.location().url,
+        )
+    })
     await page.addInitScript(() => {
       const scope = globalThis as {
         __pitchlogE2eDiagnostics?: boolean
@@ -103,7 +126,7 @@ test('3試合の実記録と30閲覧が保存から10秒以内で同じ状態へ
   }
   try {
     // 三つとも画面で新規作成する。fixture試合の読取で代用しない。
-    for (let game = 0; game < 3; game++) {
+    for (let game = 0; game < gameCount; game++) {
       const page = await ownedPage()
       const created = await createAndStartRealGame(
         page,
@@ -116,9 +139,9 @@ test('3試合の実記録と30閲覧が保存から10秒以内で同じ状態へ
         JSON.stringify({ gameIds: writers.map((writer) => writer.head.id) }),
       )
     }
-    expect(new Set(writers.map((w) => w.head.id)).size).toBe(3)
-    for (let game = 0; game < 3; game++) {
-      for (let index = 0; index < 10; index++) {
+    expect(new Set(writers.map((w) => w.head.id)).size).toBe(gameCount)
+    for (let game = 0; game < gameCount; game++) {
+      for (let index = 0; index < viewersPerGame; index++) {
         const page = await ownedPage()
         await realLogin(page)
         await distinctCookie(page)
@@ -130,14 +153,15 @@ test('3試合の実記録と30閲覧が保存から10秒以内で同じ状態へ
         viewers.push({ page, game, requests })
       }
     }
-    expect(cookies.size).toBe(33)
+    expect(cookies.size).toBe(gameCount + gameCount * viewersPerGame)
     await Promise.all(
       viewers.map(async ({ page, game }) => {
         await page.goto(`${baseURL}/games/${writers[game]!.head.id}/view`)
         // 30閲覧の初回loadはcold startを含む。保存後10秒の更新期限は
         // completeViewerSnapshot側で別に測る。
         await expect(page.getByTestId('viewer-status')).toHaveText('更新済み', {
-          timeout: 30_000,
+          // 初回cold startは10秒更新条件と別。artifact再pin後のVite初回変換を含む。
+          timeout: 60_000,
         })
         await expect(
           page.getByTestId('viewer-server-only-notice'),
@@ -285,8 +309,8 @@ test('3試合の実記録と30閲覧が保存から10秒以内で同じ状態へ
         Math.min(...traffic.map((row) => row.end)),
       )
       writeTraffic.push(...traffic)
-      expect(seen).toHaveLength(30)
-      expect(saved).toHaveLength(3)
+      expect(seen).toHaveLength(gameCount * viewersPerGame)
+      expect(saved).toHaveLength(gameCount)
       for (const { viewer, snapshot } of seen) {
         const item = viewers[viewer]!
         const head = saved[item.game]!.head
@@ -329,14 +353,14 @@ test('3試合の実記録と30閲覧が保存から10秒以内で同じ状態へ
         ),
       ).toEqual([])
     }
-    expect(timings).toHaveLength(60)
+    expect(timings).toHaveLength(gameCount * viewersPerGame * 2)
     console.log(
       'PITCHLOG_VIEWER_THREE_GAME_RESULT=' +
         JSON.stringify({
           gameIds: writers.map((writer) => writer.head.id),
-          gameResults: results,
-          writers: 3,
-          viewers: 30,
+          gameResults: results.slice(0, gameCount),
+          writers: gameCount,
+          viewers: gameCount * viewersPerGame,
           independentContexts: contexts.length,
           waves: 2,
           timings,
