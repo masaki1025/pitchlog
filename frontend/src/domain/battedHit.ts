@@ -455,7 +455,11 @@ export function battedHitRule(
     const ordinary = Object.assign({}, value, {
       interferenceRuling: 'not-required',
     })
-    return battedHitRule(before, board, ordinary, cursors)
+    const delegated = battedHitRule(before, board, ordinary, cursors)
+    if (delegated === null) return null
+    // 採用された実プレイも明示裁定としてtyped effect集合を必ず返す。
+    // 空集合でも「算入根拠なし」と区別し、server wire headの封印対象にする。
+    return Object.assign({}, delegated, { scoringEvidence: true })
   }
   const errorRecorded = value.officialScoringPayload === 'error-recorded'
   if (

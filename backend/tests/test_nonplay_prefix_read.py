@@ -831,7 +831,9 @@ def _bootstrap_service_setup(r, monkeypatch, *, count):
         "game": {},
     }
     monkeypatch.setattr(api, "_read_undo_snapshot", lambda *a: snapshot)
-    monkeypatch.setattr(api, "_legacy_undo_metadata", lambda *a: metadata)
+    monkeypatch.setattr(
+        api, "_legacy_undo_metadata", lambda *a, **kw: metadata
+    )
     monkeypatch.setattr(
         ordinary,
         "read_lineup_prefix",
@@ -935,7 +937,7 @@ async def test_bootstrap_http_legacy_returns_np_checkpoint_and_bounded_pages(
         assert context is r.handle._context
         yield r.handle
 
-    monkeypatch.setattr(started_games, "tenant_transaction_scope", scope)
+    monkeypatch.setattr(started_games, "started_snapshot_read_scope", scope)
     game = setup.doc.prefix_ref.game_id
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="https://test"

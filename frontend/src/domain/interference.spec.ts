@@ -196,8 +196,16 @@ it('妨害headの原裁定とtyped効果をFE封印でも落とさない', () =>
       resolve('../contracts/state-transition/batted_hit_prefix_cases_v1.json'),
       'utf8',
     ),
-  ) as { cases: Array<{ request: Record<string, unknown>; expected: Record<string, unknown> }> }
-  const request = structuredClone(cases.cases[0]!.request) as Record<string, unknown> & {
+  ) as {
+    cases: Array<{
+      request: Record<string, unknown>
+      expected: Record<string, unknown>
+    }>
+  }
+  const request = structuredClone(cases.cases[0]!.request) as Record<
+    string,
+    unknown
+  > & {
     t1: Record<string, unknown>
   }
   request.t1 = {
@@ -215,16 +223,19 @@ it('妨害headの原裁定とtyped効果をFE封印でも落とさない', () =>
     value: Record<string, unknown>
   }
   response.value.runnerScoreEffects = []
-  const head = lineupWireHead(request as unknown as Request, response as Success)
+  const head = lineupWireHead(
+    request as unknown as Request,
+    response as Success,
+  )
   expect(head).toMatchObject({
     interferenceRuling: request.t1.interferenceRuling,
     runnerScoreEffects: [],
   })
   expect(isLineupDefinition(head, 'WireHead')).toBe(true)
   delete response.value.runnerScoreEffects
-  expect(() => lineupWireHead(request as unknown as Request, response as Success)).toThrow(
-    '妨害裁定の算入根拠を確認できません',
-  )
+  expect(() =>
+    lineupWireHead(request as unknown as Request, response as Success),
+  ).toThrow('妨害裁定の算入根拠を確認できません')
 })
 
 describe('INT-01/03 の実プレイ採用', () => {
@@ -249,9 +260,23 @@ describe('INT-01/03 の実プレイ採用', () => {
         third_base_scoring_attempt: { kind: 'not-required' },
       },
     }
-    expect(
-      deriveBattedHit(before('first'), board, adopted, cursors),
-    ).toEqual(deriveBattedHit(before('first'), board, ordinary, cursors))
+    const adoptedResult = deriveBattedHit(
+      before('first'),
+      board,
+      adopted,
+      cursors,
+    )!
+    const ordinaryResult = deriveBattedHit(
+      before('first'),
+      board,
+      ordinary,
+      cursors,
+    )!
+    expect(adoptedResult.runnerScoreEffects).toEqual([])
+    expect({ ...adoptedResult, runnerScoreEffects: undefined }).toEqual({
+      ...ordinaryResult,
+      runnerScoreEffects: undefined,
+    })
     expect(
       deriveBattedHit(
         before('first'),
@@ -267,6 +292,37 @@ describe('INT-01/03 の実プレイ採用', () => {
         cursors,
       ),
     ).toBeNull()
+  })
+  it('採用された実プレイの生還をtyped効果として残す', () => {
+    const adopted: BattedHitObservation = {
+      eventKind: 'batting-result',
+      resultId: 'batting-result.single',
+      pitchEventKind: 'pitch-event',
+      officialScoringPayload: 'no-error',
+      interferenceRuling: {
+        kind: 'batting-interference',
+        adopted: { kind: 'play-result', resultId: 'batting-result.single' },
+        third_base_scoring_attempt: { kind: 'observed', value: 'none' },
+      },
+      runnerAdvanceOverrides: {
+        kind: 'applied',
+        overrides: [
+          { runnerBase: '1', destination: '2' },
+          { runnerBase: '3', destination: '4' },
+        ],
+      },
+      thirdOutObservation: 'none',
+    }
+    const result = deriveBattedHit(
+      before('first-third'),
+      board,
+      adopted,
+      cursors,
+    )!
+    expect(result.runnerScoreEffects).toEqual([
+      { base: 3n, validRun: true, rbiCredited: true },
+    ])
+    expect(result.statFlags).toMatchObject({ 得点: true, 打点: true })
   })
   it('INT-03では三塁停止の実プレイを選んでも罰則出塁へ読み替えない', () => {
     const observed: BattedHitObservation = {
@@ -288,7 +344,12 @@ describe('INT-01/03 の実プレイ採用', () => {
       },
       thirdOutObservation: 'none',
     }
-    const result = deriveBattedHit(before('first-third'), board, observed, cursors)!
+    const result = deriveBattedHit(
+      before('first-third'),
+      board,
+      observed,
+      cursors,
+    )!
     expect(result.after.stateFields.runners).toBe('loaded')
     expect(result.statFlags).toMatchObject({
       安打: true,
@@ -339,9 +400,18 @@ const batterId = '11111111-1111-4111-8111-111111111111'
 const firstId = '22222222-2222-4222-8222-222222222222'
 const thirdId = '33333333-3333-4333-8333-333333333333'
 const pitcherId = '44444444-4444-4444-8444-444444444444'
-const batterRef = { kind: 'batter', batter_id: { kind: 'official', player_id: batterId } }
-const firstRef = { kind: 'runner', runner_id: { kind: 'official', player_id: firstId } }
-const thirdRef = { kind: 'runner', runner_id: { kind: 'official', player_id: thirdId } }
+const batterRef = {
+  kind: 'batter',
+  batter_id: { kind: 'official', player_id: batterId },
+}
+const firstRef = {
+  kind: 'runner',
+  runner_id: { kind: 'official', player_id: firstId },
+}
+const thirdRef = {
+  kind: 'runner',
+  runner_id: { kind: 'official', player_id: thirdId },
+}
 const live = [
   { base: '1' as const, runnerId: firstId, responsiblePitcherId: pitcherId },
   { base: '3' as const, runnerId: thirdId, responsiblePitcherId: pitcherId },
@@ -373,34 +443,71 @@ describe('INT-04〜07 の実参照つき裁定', () => {
       out_targets: [],
       batter_before_first: 'not-required',
     })
-    const result = deriveInterference(before('first-third'), board, observed, cursors)!
-    const official = matrix.matrixRows.find((row) => row.resultId === observed.resultId)!
+    const result = deriveInterference(
+      before('first-third'),
+      board,
+      observed,
+      cursors,
+    )!
+    const official = matrix.matrixRows.find(
+      (row) => row.resultId === observed.resultId,
+    )!
     expect(result.statFlags).toEqual(official.statFlags)
-    expect(result.runnerDefaultAdvance.first).toEqual({ modality: 'forced', destination: 2n })
-    expect(result.runnerDefaultAdvance.third).toEqual({ modality: 'hold', destination: null })
+    expect(result.runnerDefaultAdvance.first).toEqual({
+      modality: 'forced',
+      destination: 2n,
+    })
+    expect(result.runnerDefaultAdvance.third).toEqual({
+      modality: 'hold',
+      destination: null,
+    })
     expect(result.after.stateFields.runners).toBe('loaded')
-    expect(deriveInterference(before('first-third'), board, {
-      ...observed,
-      interferenceRuling: { ...observed.interferenceRuling as object, out_targets: [firstRef] },
-    }, cursors)).toBeNull()
-    expect(deriveInterference(before('first-third'), board, {
-      ...observed,
-      interferenceRuling: {
-        ...observed.interferenceRuling as object,
-        awarded_destinations: [
-          { person: batterRef, destination: 'second' },
-          { person: firstRef, destination: 'first' },
-          { person: thirdRef, destination: 'third' },
-        ],
-      },
-    }, cursors)).toBeNull()
-    expect(deriveInterference(before('first-third'), board, {
-      ...observed,
-      liveRunners: [
-        { ...live[0]!, runnerId: '55555555-5555-4555-8555-555555555555' },
-        live[1]!,
-      ],
-    }, cursors)).toBeNull()
+    expect(
+      deriveInterference(
+        before('first-third'),
+        board,
+        {
+          ...observed,
+          interferenceRuling: {
+            ...(observed.interferenceRuling as object),
+            out_targets: [firstRef],
+          },
+        },
+        cursors,
+      ),
+    ).toBeNull()
+    expect(
+      deriveInterference(
+        before('first-third'),
+        board,
+        {
+          ...observed,
+          interferenceRuling: {
+            ...(observed.interferenceRuling as object),
+            awarded_destinations: [
+              { person: batterRef, destination: 'second' },
+              { person: firstRef, destination: 'first' },
+              { person: thirdRef, destination: 'third' },
+            ],
+          },
+        },
+        cursors,
+      ),
+    ).toBeNull()
+    expect(
+      deriveInterference(
+        before('first-third'),
+        board,
+        {
+          ...observed,
+          liveRunners: [
+            { ...live[0]!, runnerId: '55555555-5555-4555-8555-555555555555' },
+            live[1]!,
+          ],
+        },
+        cursors,
+      ),
+    ).toBeNull()
   })
   it('INT-06の打者アウトとINT-07の走者のみアウトを分ける', () => {
     const withBatter = interference('secondary-result.offensive-interference', {
@@ -411,8 +518,15 @@ describe('INT-04〜07 の実参照つき裁定', () => {
         { person: thirdRef, destination: 'third' },
       ],
     })
-    const result = deriveInterference(before('first-third'), board, withBatter, cursors)!
-    const official = matrix.matrixRows.find((row) => row.resultId === withBatter.resultId)!
+    const result = deriveInterference(
+      before('first-third'),
+      board,
+      withBatter,
+      cursors,
+    )!
+    const official = matrix.matrixRows.find(
+      (row) => row.resultId === withBatter.resultId,
+    )!
     expect(result.statFlags).toEqual(official.statFlags)
     expect(result.batterDestination).toEqual({ kind: 'out' })
     expect(result.outEffect.targets).toEqual([{ kind: 'batter' }])
@@ -421,7 +535,12 @@ describe('INT-04〜07 の実参照つき裁定', () => {
       out_targets: [firstRef],
       return_bases: [{ person: thirdRef, destination: 'third' }],
     })
-    const continued = deriveInterference(before('first-third'), board, runnerOnly, cursors)!
+    const continued = deriveInterference(
+      before('first-third'),
+      board,
+      runnerOnly,
+      cursors,
+    )!
     expect(continued.batterDestination).toEqual({ kind: 'continue' })
     expect(continued.plateAppearanceEnded).toBe(false)
     expect(continued.outEffect.targets).toEqual([{ kind: 'runner', base: 1n }])
@@ -429,10 +548,15 @@ describe('INT-04〜07 の実参照つき裁定', () => {
   })
   it('公開閉T1は実IDを受け、欠落/別IDの裁定を成功させない', () => {
     const fixture = JSON.parse(
-      readFileSync(resolve('../contracts/state-transition/batted_hit_cases_v1.json'), 'utf8'),
+      readFileSync(
+        resolve('../contracts/state-transition/batted_hit_cases_v1.json'),
+        'utf8',
+      ),
     ) as { cases: Array<{ request: Record<string, unknown> }> }
     const request = structuredClone(fixture.cases[0]!.request)
-    const beforeWire = request.before as { stateFields: Record<string, unknown> }
+    const beforeWire = request.before as {
+      stateFields: Record<string, unknown>
+    }
     beforeWire.stateFields['state.runners'] = 'first-third'
     delete request.officialScoringPayload
     delete request.runnerAdvanceOverrides
@@ -453,10 +577,14 @@ describe('INT-04〜07 の実参照つき裁定', () => {
       out_targets: [],
       batter_before_first: 'not-required',
     }
-    const accepted = JSON.parse(domainOperations.deriveInterference(JSON.stringify(request))) as { ok: boolean }
+    const accepted = JSON.parse(
+      domainOperations.deriveInterference(JSON.stringify(request)),
+    ) as { ok: boolean }
     expect(accepted.ok).toBe(true)
     request.liveRunners = [live[0]]
-    expect(JSON.parse(domainOperations.deriveInterference(JSON.stringify(request)))).toMatchObject({ ok: false })
+    expect(
+      JSON.parse(domainOperations.deriveInterference(JSON.stringify(request))),
+    ).toMatchObject({ ok: false })
   })
   it('INT-05は実プレイ後の被妨害走者アウト裁定だけを採用する', () => {
     const observed = interference('secondary-result.obstruction', {
@@ -467,7 +595,12 @@ describe('INT-04〜07 の実参照つき裁定', () => {
       out_targets: [firstRef],
       batter_before_first: 'not-required',
     })
-    const result = deriveInterference(before('first-third'), board, observed, cursors)!
+    const result = deriveInterference(
+      before('first-third'),
+      board,
+      observed,
+      cursors,
+    )!
     expect(result.outEffect.targets).toEqual([{ kind: 'runner', base: 1n }])
     expect(result.after.stateFields).toMatchObject({
       runners: 'third',
@@ -489,27 +622,42 @@ describe('INT-04〜07 の実参照つき裁定', () => {
       batter_before_first: true,
     }
     const input = interference('secondary-result.obstruction', ruling)
-    const accepted = deriveInterference(before('first-third'), board, input, cursors)!
+    const accepted = deriveInterference(
+      before('first-third'),
+      board,
+      input,
+      cursors,
+    )!
     expect(accepted.outEffect.count).toBe(0n)
     expect(accepted.batterDestination).toEqual({ kind: 'reach', base: 1n })
     expect(accepted.after.stateFields.outs).toBe(0n)
     const withoutBatterAward = ruling.awarded_destinations.slice(1)
     for (const outTargets of [[batterRef], []]) {
-      expect(deriveInterference(before('first-third'), board, {
-        ...input,
-        interferenceRuling: {
-          ...ruling,
-          awarded_destinations: withoutBatterAward,
-          out_targets: outTargets,
-        },
-      }, cursors)).toBeNull()
+      expect(
+        deriveInterference(
+          before('first-third'),
+          board,
+          {
+            ...input,
+            interferenceRuling: {
+              ...ruling,
+              awarded_destinations: withoutBatterAward,
+              out_targets: outTargets,
+            },
+          },
+          cursors,
+        ),
+      ).toBeNull()
     }
   })
 })
 
 it('v3継続は打撃妨害の真正sourceを独立T1入口へ渡す', () => {
   const vectors = JSON.parse(
-    readFileSync(resolve('../contracts/state-transition/batted_hit_prefix_cases_v1.json'), 'utf8'),
+    readFileSync(
+      resolve('../contracts/state-transition/batted_hit_prefix_cases_v1.json'),
+      'utf8',
+    ),
   ) as { cases: Array<{ request: { t1: Record<string, unknown> } }> }
   const request = structuredClone(vectors.cases[0]!.request)
   request.t1.eventKind = 'secondary-result'
@@ -520,8 +668,17 @@ it('v3継続は打撃妨害の真正sourceを独立T1入口へ渡す', () => {
     third_base_scoring_attempt: { kind: 'not-required' },
   }
   const result = JSON.parse(
-    domainOperations.deriveLineupPlayPrefixWithContinuation(JSON.stringify(request)),
-  ) as { ok: boolean; value?: { t1: { statFlags: Record<string, boolean> }; runnerScoreEffects: unknown[] }; error?: unknown }
+    domainOperations.deriveLineupPlayPrefixWithContinuation(
+      JSON.stringify(request),
+    ),
+  ) as {
+    ok: boolean
+    value?: {
+      t1: { statFlags: Record<string, boolean> }
+      runnerScoreEffects: unknown[]
+    }
+    error?: unknown
+  }
   expect(result.ok).toBe(true)
   expect(result.value?.t1.statFlags.打撃妨害出塁).toBe(true)
   expect(result.value?.runnerScoreEffects).toEqual([])
@@ -529,8 +686,18 @@ it('v3継続は打撃妨害の真正sourceを独立T1入口へ渡す', () => {
 
 it('v3継続は走塁妨害の打者実IDをsourceから束縛する', () => {
   const vectors = JSON.parse(
-    readFileSync(resolve('../contracts/state-transition/batted_hit_prefix_cases_v1.json'), 'utf8'),
-  ) as { cases: Array<{ request: { t1: Record<string, unknown>; source: { participants: { batterId: string } } } }> }
+    readFileSync(
+      resolve('../contracts/state-transition/batted_hit_prefix_cases_v1.json'),
+      'utf8',
+    ),
+  ) as {
+    cases: Array<{
+      request: {
+        t1: Record<string, unknown>
+        source: { participants: { batterId: string } }
+      }
+    }>
+  }
   const request = structuredClone(vectors.cases[0]!.request)
   const actualBatter = request.source.participants.batterId
   request.t1 = {
@@ -541,15 +708,35 @@ it('v3継続は走塁妨害の打者実IDをsourceから束縛する', () => {
     interferenceRuling: {
       kind: 'obstruction',
       play_kind: 'play-on-obstructed-runner',
-      obstructed: { kind: 'batter', batter_id: { kind: 'official', player_id: actualBatter } },
-      awarded_destinations: [{ person: { kind: 'batter', batter_id: { kind: 'official', player_id: actualBatter } }, destination: 'first' }],
+      obstructed: {
+        kind: 'batter',
+        batter_id: { kind: 'official', player_id: actualBatter },
+      },
+      awarded_destinations: [
+        {
+          person: {
+            kind: 'batter',
+            batter_id: { kind: 'official', player_id: actualBatter },
+          },
+          destination: 'first',
+        },
+      ],
       out_targets: [],
       batter_before_first: true,
     },
   }
   const result = JSON.parse(
-    domainOperations.deriveLineupPlayPrefixWithContinuation(JSON.stringify(request)),
-  ) as { ok: boolean; value?: { t1: { statFlags: Record<string, boolean> }; runnerScoreEffects: unknown[] }; error?: unknown }
+    domainOperations.deriveLineupPlayPrefixWithContinuation(
+      JSON.stringify(request),
+    ),
+  ) as {
+    ok: boolean
+    value?: {
+      t1: { statFlags: Record<string, boolean> }
+      runnerScoreEffects: unknown[]
+    }
+    error?: unknown
+  }
   expect(result.ok).toBe(true)
   expect(result.value?.t1.statFlags.走塁妨害出塁).toBe(true)
   expect(result.value?.runnerScoreEffects).toEqual([])
@@ -560,16 +747,26 @@ it('v3継続は走塁妨害の打者実IDをsourceから束縛する', () => {
     awarded_destinations: [],
     out_targets: [original.obstructed],
   }
-  expect(JSON.parse(
-    domainOperations.deriveLineupPlayPrefixWithContinuation(JSON.stringify(request)),
-  )).toMatchObject({ ok: false })
+  expect(
+    JSON.parse(
+      domainOperations.deriveLineupPlayPrefixWithContinuation(
+        JSON.stringify(request),
+      ),
+    ),
+  ).toMatchObject({ ok: false })
   request.t1.interferenceRuling = {
     ...original,
     play_kind: 'no-play-on-obstructed-runner',
-    awarded_destinations: [{ person: original.obstructed, destination: 'first' }],
+    awarded_destinations: [
+      { person: original.obstructed, destination: 'first' },
+    ],
     out_targets: [],
   }
-  expect(JSON.parse(
-    domainOperations.deriveLineupPlayPrefixWithContinuation(JSON.stringify(request)),
-  )).toMatchObject({ ok: true })
+  expect(
+    JSON.parse(
+      domainOperations.deriveLineupPlayPrefixWithContinuation(
+        JSON.stringify(request),
+      ),
+    ),
+  ).toMatchObject({ ok: true })
 })

@@ -1161,7 +1161,7 @@ def _require_v3_compatibility(root, prior, execution):
     )
     if declaration.get("sha256") != current or execution != current:
         raise ValueError
-    if current == "859986408d75994d6f1530ce99c0331da1644da9d5ae6339bb479e3926ee7f2e":
+    if current == "b565641886c758b81787baff95bdacceb3dea648781515cac39f868583c156ad":
         _require_v3_compatibility_v6(root, prior, current, raw, anchor)
         return
     if current == "71f2726a288dfcfaff4c2fcdf293651dda0fb610b9ead325b352bd4f23a07aff":
@@ -1296,10 +1296,11 @@ def _require_v3_compatibility_v6(root, prior, current, old_raw, anchor_raw):
     previous = "ab8e9de1e9a2b602b998b485cb44133ab7cd703309a1e5d72e2c5b8ceca2ff8c"
     fourth = "0db3c87d156e290b71d13a31baa5dc5f240ea38a0a84b660428d7dc687b72fff"
     fifth = "71f2726a288dfcfaff4c2fcdf293651dda0fb610b9ead325b352bd4f23a07aff"
-    expected = "859986408d75994d6f1530ce99c0331da1644da9d5ae6339bb479e3926ee7f2e"
+    expected = "b565641886c758b81787baff95bdacceb3dea648781515cac39f868583c156ad"
+    old_current = "859986408d75994d6f1530ce99c0331da1644da9d5ae6339bb479e3926ee7f2e"
     if (
         current != expected
-        or prior not in {legacy, second, previous, fourth, fifth, expected}
+        or prior not in {legacy, second, previous, fourth, fifth, old_current, expected}
         or hashlib.sha256(old_raw).hexdigest()
         != "cd21ba1138c37820a6b80e8f3c506a462d961a8a745c537012cb72ca876c6df4"
     ):
@@ -1364,9 +1365,9 @@ def _require_v3_compatibility_v6(root, prior, current, old_raw, anchor_raw):
     registry_raw = (base / "play_prefix_v3_source_compatibility_v6.json").read_bytes()
     if (
         hashlib.sha256(raw).hexdigest()
-        != "bb2ee39e52005fed27dff830546f5ad26f2f8756ffb29e64e30763ddff04ba63"
+        != "afa3e4ca6b5b34f3e6c1f71a87e20ff3c11375cac9d2f7829329137c27df27ec"
         or hashlib.sha256(registry_raw).hexdigest()
-        != "f00fe64c79a728ec4d6f0eca0205135050412a220cdca99b493aa5719f348261"
+        != "0c5c7b7edc3725202e8d43f096bee629274b680e61dd374e277507dc73559d8f"
     ):
         raise ValueError
     _validated_v3_witness_v6(raw, registry_raw, fifth_raw, current)

@@ -7,7 +7,7 @@ from pitchlog.authz import product_provisioning as provisioning
 
 FID = "FUNCTION:initial_right_api:persist_start_pitcher_entry(uuid, uuid, bigint)"
 OLD = "71f2726a288dfcfaff4c2fcdf293651dda0fb610b9ead325b352bd4f23a07aff"
-NEW = "859986408d75994d6f1530ce99c0331da1644da9d5ae6339bb479e3926ee7f2e"
+NEW = "b565641886c758b81787baff95bdacceb3dea648781515cac39f868583c156ad"
 
 
 def test_every_selected_first_ball_function_matches_canonical_before_owned_pg():
