@@ -1,5 +1,13 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-11 00:30 JST：1試合10閲覧は10.0秒台まで到達、RG1 controller livenessと表示経路が残る
+
+- **1試合0閲覧**: 同E2Eが **1 passed / 83.26秒**。wave 1保存は約7.6秒。
+- **1試合10閲覧**: 保存自体は成立する回があり、閲覧更新は **10040ms / 10167ms / 10558ms** と10秒直後まで到達した。ただし安定せず、再実行では `RG1:RG1ControlUnavailable` の503、または `閲覧全表示の同時成立が未達`（120秒observer）で失敗。**成功扱いにしない**。
+- **是正**: 閲覧loginを`/games/{id}/view`へ直接向け、記録画面の一覧/詳細readを挟まない。writer ACK時刻を「保存から10秒」の起点へ変更（`last_saved_at`は保存TX内刻印でcommit前）。同一P3 packetの同時検証を単一inflightへ集約し、閲覧名簿の同一選手二重取得を抑止。閲覧pollは3秒へ戻した。
+- **残る停止点**: 10閲覧下のRG1 controller liveness（`RG1ControlUnavailable`）と、閲覧ページが記録画面APIを読む経路。3試合30閲覧は未再測・未達。
+- **限定**: 3試合30閲覧、実機、本番TLS、バックアップ復旧、運用公開は未実施。30秒DB bindingは延長していない。
+
 ## 2026-11-11 01:20 JST：閲覧負荷の基準点を分離、1試合0閲覧は通過・10閲覧で保存503
 
 - **新たに通った基準点**: `PITCHLOG_VIEWER_LOAD_GAMES=1 PITCHLOG_VIEWER_LOAD_VIEWERS_PER_GAME=0` の同E2Eが **1 passed / 83.26秒**。wave 1の保存は約7.6秒で、単一writer・閲覧なしの縦断は通る。
