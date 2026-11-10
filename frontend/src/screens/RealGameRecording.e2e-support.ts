@@ -45,7 +45,12 @@ export async function realLogin(
   return body.tenant_id
 }
 
-export async function createAndStartRealGame(page: Page, label: string) {
+export async function createAndStartRealGame(
+  page: Page,
+  label: string,
+  expectedRegulationInnings = 9,
+  gameType = 'game_other',
+) {
   await realLogin(page)
   await page.getByRole('button', { name: '新規作成', exact: true }).click()
   const form = page.getByRole('region', {
@@ -54,7 +59,7 @@ export async function createAndStartRealGame(page: Page, label: string) {
   })
   await expect(form.getByLabel('日時（日本時間）')).toBeEnabled()
   await form.getByLabel('日時（日本時間）').fill('2026-10-31T10:00')
-  await form.getByTestId('game-type').selectOption('game_other')
+  await form.getByTestId('game-type').selectOption(gameType)
   await form.getByTestId('away').selectOption(away!)
   await form.getByTestId('home').selectOption(home!)
   await form.getByTestId('tournament-kind').selectOption('new')
@@ -137,7 +142,7 @@ export async function createAndStartRealGame(page: Page, label: string) {
     `${baseURL}/games/${saved.id}/record?recording=play-prefix-v3`,
   )
   const head = (await (await zeroRead).json()) as LineupPrefixGame
-  expect(saved.applied_rules.regulationInnings).toBe(9)
+  expect(saved.applied_rules.regulationInnings).toBe(expectedRegulationInnings)
   return { game: saved, head }
 }
 
@@ -184,6 +189,11 @@ export async function recordRealPitch(
   )
   for (const name of ['profile', 'mode', 'bucket', 'lockdown'])
     await page.getByTestId(`first-ball-env-${name}`).check()
+  // 開始直後のcontroller再読取が終わる前に結果を選ぶとblockedのままになる。
+  await expect(page.getByTestId('first-ball-status')).toHaveText(
+    '投球を記録できます',
+    { timeout: 30_000 },
+  )
   const pitch = page.getByTestId('first-ball-pitch-type')
   await expect(pitch.locator('option')).not.toHaveCount(1)
   await pitch.selectOption({ index: 1 })
