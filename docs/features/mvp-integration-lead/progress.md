@@ -12,7 +12,7 @@
 | 走塁（盗塁/WP/PB/ボーク） | 実画面実証済み | 同runner operations（非投球盗塁、wild-pitch、passed-ball、balk） |
 | 妨害7分岐 | 実画面実証済み | `test_interference_screen_e2e` INT-01〜07、5試合 |
 | 交代（投手） | 実画面実証済み | `test_substitution_product_screen_e2e` **1 passed / 95.70秒**（2026-11-11再測） |
-| 交代（代打/代走/守備変更） | 実装済み未接続 | domain/HTTP/payloadは4種。**代打のHTTP縦断は追加で通過**（投手→代打、d3=5、receipt 2件、次打者更新）。実画面E2Eは投手のみで、代打の画面POSTはserver内容不一致により未成立 |
+| 交代（代打/代走/守備変更） | 実装済み未接続 | domain/HTTP/payloadは4種。**代打のHTTP縦断は追加で通過**（投手→代打、d3=5、receipt 2件、次打者更新）。実画面E2Eは投手のみ。先頭打者が捕手のため、捕手を代打にすると捕手位置が空になり、serverが`continuationLineup=null`で拒否する。非捕手の代打はHTTPで成立 |
 | 選手のその場登録 | 実装済み未接続 | backendの`player_registration`受理・一時ID mappingはある。画面は「登録はまだ行われません」で、参加登録API/UIが未接続 |
 | 取消 | 実画面実証済み | `test_undo_product_screen_e2e`、ACK喪失→新attempt |
 | 過去訂正 | 実画面実証済み | `test_p3_product_screen_e2e`、26球→P3→27球目→CSV |
@@ -32,7 +32,7 @@
 ### 2026-11-11 05:10 代打のHTTP縦断を追加
 
 - `test_substitution_vertical_http` を投手交代→次球→**代打**へ拡張し、**1 passed / 91.43秒**。代打は `pinch-hitter`（side=away、現在打者・打順、控え選手212）で **受理**、D3=5、`substitution_write_receipts` 2件、次打者と`substitutionState.away.battingOrder[slot]`が212へ更新されたことを実DBで照合した。
-- これで代打の**server/domain/保存**は成立。実画面の代打POSTが拒否される差分は、画面側の`readSubstitutionContext`（undo-prefix読取）とserverの現非play状態の差、または画面が選ぶ控え選手の差に限定できる。次はその2点を切り分ける。
+- これで代打の**server/domain/保存**は成立。実画面の代打POSTが拒否される原因は、**先頭打者が捕手**であり、捕手を代打にすると`fielding['2']`が空になり、serverの`transitionSubstitutionV1`が`continuationLineup=null`で`afterContext`を返せないこと。**非捕手の代打はHTTPで成立**しており、画面E2Eは打順を進めるか、捕手以外を対象にする必要がある（捕手の代打＋捕手交代を同一操作で扱うかは別の意味判断）。
 - 既存の投手交代画面E2Eは **1 passed / 97.17秒** を維持。
 
 ### 2026-11-11 04:40 公式成績27項目・成績CSVの実画面通過
