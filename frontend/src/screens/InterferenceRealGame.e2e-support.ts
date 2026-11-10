@@ -82,12 +82,12 @@ async function interferenceObservation(page: Page, step: InterferenceStep) {
   } else if (step.kind === 'obstruction') {
     await commonPitch(page, 'secondary-result.obstruction')
     await page.getByTestId('obstruction-play-kind').selectOption(step.play)
-    await page
-      .getByTestId('obstruction-person')
-      .selectOption(step.obstructed ?? 'batter')
-    await page
-      .getByTestId('obstruction-before-first')
-      .selectOption(step.beforeFirst ? 'yes' : 'no')
+    const obstructed = step.obstructed ?? 'batter'
+    await page.getByTestId('obstruction-person').selectOption(obstructed)
+    if (obstructed === 'batter')
+      await page
+        .getByTestId('obstruction-before-first')
+        .selectOption(step.beforeFirst ? 'yes' : 'no')
     for (const [person, award] of Object.entries(step.awards))
       await page.getByTestId(`obstruction-award-${person}`).selectOption(award)
   } else if (step.kind === 'offensive') {

@@ -57,10 +57,9 @@ _READ_SQL: dict[str, LiteralString] = {
         "AND p.game_id=%s AND p.hidden_at IS NULL ORDER BY p.play_number,r.base"
     ),
     "active_version": (
-        "SELECT v.id,v.source_count,v.is_current FROM "
-        "sync_fence.game_lifecycle_heads h JOIN sync_fence.stats_fact_versions v "
-        "ON v.tenant_id=h.tenant_id AND v.game_id=h.game_id AND "
-        "v.id=h.active_stats_version_id WHERE h.tenant_id=%s AND h.game_id=%s"
+        "SELECT id,source_count,is_current FROM "
+        "sync_fence.stats_fact_versions WHERE tenant_id=%s AND game_id=%s "
+        "AND is_current"
     ),
     "sources": (
         "SELECT source_event_id,metric_states,computed_metric_keys FROM "
@@ -231,9 +230,18 @@ def _assert_saved_game(
                 "offensive-interference",
             )
             assert raw["calculation"]["request"]["t1"]["interferenceRuling"] == ruling
-        evaluation = evaluate_native_projection(raw, source_event_id=event_id)
+        evaluation = {
+            **evaluate_native_projection(raw, source_event_id=event_id),
+            # 保存側は規則snapshot digestを同じmetric_statesへ束縛する。
+            "native_rule_sha256": raw["calculation"]["request"]["source"][
+                "rulesDigest"
+            ],
+        }
         if branches[number - 1] == "INT-02-steal-home":
-            assert evaluation["metrics"]["stolen_bases"]["state"] == "unavailable"
+            assert (
+                evaluation["metrics"]["stolen_bases"]["state"]
+                == "source_unavailable"
+            )
             assert evaluation["metrics"]["stolen_bases"]["credits"] == []
         evaluations.append((event_id, evaluation))
     actual_runners = [
@@ -245,7 +253,25 @@ def _assert_saved_game(
     fact_id = version[0][0]
     sources = admin.execute(_READ_SQL["sources"], (tenant, game, fact_id)).fetchall()
     assert len(sources) == plays
-    assert [(row[0], row[1]) for row in sources] == evaluations
+    for (source_event_id, states, _), (expected_id, expected) in zip(
+        sources, evaluations, strict=True
+    ):
+        if states != expected:
+            keys = set(states) | set(expected)
+            changed = {
+                key: (states.get(key), expected.get(key))
+                for key in sorted(keys)
+                if states.get(key) != expected.get(key)
+            }
+            raise AssertionError(
+                {
+                    "game": str(game),
+                    "branches": branches,
+                    "sourceEventId": str(source_event_id),
+                    "expectedId": str(expected_id),
+                    "changed": changed,
+                }
+            )
     for _, states, computed in sources:
         assert set(states["metrics"]) == set(evaluations[0][1]["metrics"])
         assert set(computed) <= set(states["metrics"])
