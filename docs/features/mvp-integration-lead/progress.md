@@ -29,6 +29,12 @@
 | 成績27項目 | 実装済み（HTTP/DB） | `test_stats_native_*`、D11。公式27項目の実画面一覧は未確認 |
 | 毎球CSV・成績CSV | 実画面実証済み | `test_play_export_screen_e2e`、P3 CSV、ゲーム/シーズン成績CSV |
 
+### 2026-11-11 04:05 代打・代走・守備変更の実画面接続を試行
+
+- 既存の投手交代E2Eへ代打・守備変更を追加する試行を行った。投手交代と次球は成立し、代打のPOSTは **200/a5拒否**。`idempotency_ledger`の理由は **「交代内容が保存済み原本または実評価値と不一致」** で、D3は3へ進み内容拒否として固定された。
+- 代打候補は実`/api/players`から**先発に含まれない控え**を選び、側・打順・現在打者を保存readと一致させた。クライアントの`substitution-validation`はvalid、サーバーの`transitionSubstitutionV1`だけが不一致だった。**製品欠陥か、投手交代後の非play readとserver保存状態の差かは未確定**。
+- 試行差分は破棄し、既存の投手交代E2Eを再実行して **1 passed / 97.17秒** を維持した。代打/代走/守備変更の実画面E2Eは未成立のまま残す。domain/payload/providerの単体は **28 passed**。
+
 ### 2026-11-11 03:25 終了条件E2Eの最終通過
 
 - `test_end_conditions_screen_e2e` は **1 passed / 1491.83秒**（Playwright **3 passed / 23.9分**）。実HTTPS/実ブラウザ/owned DBで、次の3シナリオを保存・終了宣言・DB照合した。
