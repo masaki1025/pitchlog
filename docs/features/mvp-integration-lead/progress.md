@@ -26,8 +26,15 @@
 | 入力ロックの理由表示 | 実装・単体試験済み | `GameScreenOrdinaryPitch`に`ordinary-pitch-locked`を追加。終了条件/タイブレーク開始の理由を表示。`ordinaryPitchLock.spec.ts` 3 passed |
 | 通信断継続・再起動・再送 | 実画面実証済み | `GameScreenOfflineRecording`、`GameScreenAttemptRecovery`、lifecycle ACK喪失。担当交代は別 |
 | 担当交代（記録権引き継ぎ） | 未実装 | 製品API/画面がない。server側の世代・退避部品だけではFR-013の通常/緊急引き継ぎを満たさない |
-| 成績27項目 | 実装済み（HTTP/DB） | `test_stats_native_*`、D11。公式27項目の実画面一覧は未確認 |
+| 成績27項目 | 実画面実証済み | 新`test_stats_screen_e2e` **1 passed / 139.35秒**。公式モードで打撃18列＋投手13列−選手/チーム4列＝**27項目**、成績CSV 5262 bytesを実ダウンロード |
 | 毎球CSV・成績CSV | 実画面実証済み | `test_play_export_screen_e2e`、P3 CSV、ゲーム/シーズン成績CSV |
+
+### 2026-11-11 04:40 公式成績27項目・成績CSVの実画面通過
+
+- `test_stats_screen_e2e` は **1 passed / 139.35秒**。新規試合で7プレイ（本塁打1＋6アウト）を保存し、終了宣言後に `/games/{id}/stats` の公式モードを表示した。
+- 実画面の表は **打撃18列 + 投手13列 − 選手/チーム4列 = 27項目**。`CSVダウンロード` は実ファイル **5262 bytes** を保存した。
+- DBは `operation_events` 7 play_input + game_end_declaration、current stats `source_count=7`/`confirmed_ended`/`is_current=true`。
+- これで「成績27項目はHTTP/DBのみ」の留保を解消した。実機・本番TLS・バックアップ復旧は別。
 
 ### 2026-11-11 04:15 9回163球の現HEAD再測
 
