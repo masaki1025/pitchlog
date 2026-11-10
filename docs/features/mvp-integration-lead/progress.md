@@ -1,5 +1,12 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-11 00:05 JST：閲覧負荷の次の停止点はplay exportのwriter binding不一致
+
+- **逐次保存での再測**: 3 writer同時を逐次へ変えた診断では、rights 2.3秒、validate 0.04秒、projection 0.46秒まで進み、約12秒で `PlayExportWriterUnavailable`（原因 `ProgrammingError: writer binding rejected`）になった。30秒期限切れではなく、`save_writer_play_export_snapshot` の `assert_writer_binding` が同一TX内で拒否している。
+- **同時保存では**: 同じ経路が約41秒まで延び、30秒DB binding期限切れの503にもなる。rightsは同時3 writerで9〜10秒、逐次では2.3秒。負荷の主因はwriter間/閲覧pollの競合とplay export保存のbinding照合。
+- **維持した修正**: 業務engineのプロセス内共有（接続枠枯渇の解消）、閲覧poll 5秒。30秒bindingは延長していない。
+- **未達**: 3試合×30閲覧の保存完了。`PlayExportWriterUnavailable` のbinding不一致を解消するまでNFR-004を成功扱いにしない。診断用の一時計装はHEADへ残していない。
+
 ## 2026-11-10 23:10 JST：artifact再pin後のP3 CSVも継続成功
 
 - **再測**: `test_actual_p3_26_csv_export_http` **1 passed / 322.78秒**。26球→P3訂正後の毎球ZIPが200・26行、対象d1=26「ボール」まで一致した。`test_actual_p3_26_lifecycle_end_reopen_add_reend_stats` は **1 passed / 478.54秒**。
