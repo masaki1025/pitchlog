@@ -29,6 +29,7 @@ type CandidateBattedResult =
   | 'batting-result.double-play'
   | BattedOtherResult
 import StrikeZone from '../components/zone/StrikeZone.vue'
+import { ordinaryPitchLockReason } from './ordinaryPitchLock'
 import { useAuthStore } from '../stores/authStore'
 import {
   GameScreenOrdinaryPitchController,
@@ -337,7 +338,17 @@ const identity = () =>
   props.suspended
     ? { ...baseIdentity(), tenantId: null, verified: false }
     : baseIdentity()
+const locked = computed(() =>
+  canAppend.value ? null : ordinaryPitchLockReason(displayed.value.t2),
+)
+const lockMessage = computed(() => {
+  if (props.suspended || locked.value === null) return null
+  return locked.value === 'tiebreak'
+    ? 'タイブレーク開始の配置・先頭打者・回を記録するまで、通常球は入力できません。'
+    : '終了条件を検知しました。試合終了を宣言するまで、通常球は入力できません。'
+})
 const message = computed(() => {
+  if (lockMessage.value) return '通常球の入力は停止しています'
   if (props.suspended)
     return 'サーバーの最新記録を確認しています。入力と再送を一時停止します'
   if (retryEvidenceUnavailable.value)
@@ -789,6 +800,14 @@ onScopeDispose(() => {
       記録にはHTTPSで直接開いた画面が必要です。
     </p>
     <p role="status" data-testid="first-ball-status">{{ message }}</p>
+    <p
+      v-if="lockMessage"
+      role="alert"
+      data-testid="ordinary-pitch-locked"
+      class="rounded-lg border border-amber-500 bg-amber-50 p-2 font-bold dark:bg-amber-950/40"
+    >
+      {{ lockMessage }}
+    </p>
     <p v-if="isLocalMode" data-testid="ordinary-local-notice">
       通信断中は端末へ未送信の投球だけを記録します。安打の詳細観測はこの入口で確定できません。
     </p>
