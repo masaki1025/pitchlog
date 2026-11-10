@@ -40,6 +40,12 @@
 - 期待: cold-end 49 `play_input` + `game_end_declaration`、limit-draw 54 + 終了宣言、tiebreak-required 54 `play_input`で`in_progress`のまま。記録画面には`ordinary-pitch-locked`で理由を表示する。
 - 7回規則・延長上限>9・タイブレーク開始操作・担当交代・その場登録は未接続であり、このE2Eの成功へ読み替えない。
 
+## 公式成績27項目・成績CSV（2026-11-11）
+
+- `test_stats_screen_e2e` **1 passed / 139.35秒**。新規試合7プレイ→終了宣言→`/games/{id}/stats`の公式モードで、打撃18列＋投手13列−選手/チーム4列＝**27項目**、CSV **5262 bytes** を実ダウンロード。
+- DBは `operation_events` 7 play_input + 終了宣言、current stats `source_count=7`/`confirmed_ended`/`is_current=true`。
+- 実機の画面幅・端末・本番TLSでの確認は別。
+
 ## 9回通常試合の現HEAD再測（2026-11-11）
 
 - `test_full_game_screen_e2e` **1 passed / 1653.21秒**。163球、18半回、1–0、normal-end、終了版v1。
