@@ -3,7 +3,8 @@
 ## 2026-11-10 08:40 JST：走者打球の実画面E2E成立、interferenceは2試合目で停止
 
 - **新たに通った**: `test_runners_batted_hits_screen_e2e` **1 passed 142.56秒**（self-signed TLSの実Playwright/Chromium）。開始直後の`?recording=play-prefix-v3`自動接続へ追随し、走者生還時のRBI因果`ordinary-play`を明示、結果ファイルの親ディレクトリを用意した。単打→三塁、二塁打→生還、一二塁→本塁打の3シナリオと別tenant prefix拒否を実DB/HTTPで照合。
-- **interferenceは未成立**: 1シナリオ目はINT-02まで1play保存。2シナリオ目は試合作成・開始後、`first-ball-save`クリックでPOST/GETが発生せず、`PITCHLOG_INTERFERENCE_READ_SAFE`は`uiStatus=blocked`/`startedRequests=0`。開始後画面が新試合のreadへ束縛されていない可能性があり、成功へ読み替えない。次unitは2試合目のcontext/game bindingとread-safe表示。
+- **interferenceは未成立**: 1シナリオ目はINT-02まで1play保存。2シナリオ目は**INT-01の`adopted: single`**で、UIが「この入力を確定できません。結果・打者と最新の記録を確認してください」を表示して送信前に遮断（`first-ball-status=blocked`、POST/GET 0）。試合bindingではなく、当該分岐の結果/打者整合が次の停止点。成功へ読み替えない。
+- **全pure一括**: `pytest tests/ --ignore=tests/db` は15分超で未完了（21%で打切り）。全件成功とは書かない。変更範囲はP3/CSV/wire/bindingの個別スイート（151 passed、1188 passed等）で確認した。
 - **限定**: 走者打球E2Eは実ブラウザ（headless）であり実機ではない。interference/3試合30閲覧/実機・運用は未実施。
 
 ## 2026-11-10 08:10 JST：P3直後lifecycle readをcapsule実効stackへ接続し200
