@@ -15,6 +15,7 @@ export type InterferenceStep =
       kind: 'obstruction'
       play: 'play-on-obstructed-runner' | 'no-play-on-obstructed-runner'
       beforeFirst: boolean
+      obstructed?: 'batter' | '1' | '2' | '3'
       awards: Readonly<
         Record<string, 'none' | 'first' | 'second' | 'third' | 'home'>
       >
@@ -81,7 +82,9 @@ async function interferenceObservation(page: Page, step: InterferenceStep) {
   } else if (step.kind === 'obstruction') {
     await commonPitch(page, 'secondary-result.obstruction')
     await page.getByTestId('obstruction-play-kind').selectOption(step.play)
-    await page.getByTestId('obstruction-person').selectOption('batter')
+    await page
+      .getByTestId('obstruction-person')
+      .selectOption(step.obstructed ?? 'batter')
     await page
       .getByTestId('obstruction-before-first')
       .selectOption(step.beforeFirst ? 'yes' : 'no')
@@ -188,6 +191,19 @@ export async function recordInterferenceStep(
     await page.getByTestId('first-ball-save').click()
     const response = await post
     postStatus = response.status()
+    if (postStatus !== 200) {
+      const body = await response.text().catch(() => null)
+      console.log(
+        'PITCHLOG_INTERFERENCE_ERROR_BODY=' +
+          JSON.stringify(body === null ? null : body.slice(0, 8000)),
+      )
+      console.log(
+        'PITCHLOG_INTERFERENCE_REQUEST_BODY=' +
+          JSON.stringify(
+            response.request().postData()?.slice(0, 20000) ?? null,
+          ),
+      )
+    }
     expect(postStatus).toBe(200)
     const ack = await response.json()
     expect(ack.eventResults?.[0]?.a5Result).toBe('受理')
@@ -210,9 +226,27 @@ export async function recordInterferenceStep(
               'この入力を確定できません。結果・打者と最新の記録を確認してください'
             ? 'blocked'
             : 'other-or-absent'
+    const submitError = await page
+      .evaluate(() => {
+        const scope = globalThis as {
+          __pitchlogSubmitError?: string
+          __pitchlogSubmitDetail?: string
+        }
+        return {
+          error: scope.__pitchlogSubmitError ?? null,
+          detail: scope.__pitchlogSubmitDetail ?? null,
+        }
+      })
+      .catch(() => null)
     console.log(
       'PITCHLOG_INTERFERENCE_READ_SAFE=' +
-        JSON.stringify({ postStatus, startedRequests, startedReads, uiStatus }),
+        JSON.stringify({
+          postStatus,
+          startedRequests,
+          startedReads,
+          uiStatus,
+          submitError,
+        }),
     )
     throw error
   } finally {

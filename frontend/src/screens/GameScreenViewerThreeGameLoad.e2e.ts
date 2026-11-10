@@ -76,6 +76,21 @@ test('3試合の実記録と30閲覧が保存から10秒以内で同じ状態へ
     contexts.push(context)
     const page = await context.newPage()
     page.setDefaultTimeout(45_000)
+    await page.addInitScript(() => {
+      const scope = globalThis as {
+        __pitchlogE2eDiagnostics?: boolean
+        __pitchlogHeartbeat?: { last: number; maxGap: number }
+      }
+      scope.__pitchlogE2eDiagnostics = true
+      scope.__pitchlogHeartbeat = { last: Date.now(), maxGap: 0 }
+      window.setInterval(() => {
+        const heartbeat = scope.__pitchlogHeartbeat
+        if (!heartbeat) return
+        const now = Date.now()
+        heartbeat.maxGap = Math.max(heartbeat.maxGap, now - heartbeat.last)
+        heartbeat.last = now
+      }, 200)
+    })
     return page
   }
   async function distinctCookie(page: Page) {
@@ -173,14 +188,92 @@ test('3試合の実記録と30閲覧が保存から10秒以内で同じ状態へ
       )
       const recorded = Promise.all(
         writers.map(async (writer, game) => {
-          const result = await recordRealPitch(
-            writer.page,
-            writer.head,
-            results[game]![wave - 1]!,
-            wave,
-          )
-          writer.head = result.head
-          return result
+          const traffic: {
+            request: number | null
+            response: number | null
+            failure: string | null
+          } = { request: null, response: null, failure: null }
+          const onRequest = (request: import('@playwright/test').Request) => {
+            if (
+              request.method() === 'POST' &&
+              apiPath(request.url()) ===
+                `/api/games/${writer.head.id}/sync/events`
+            )
+              traffic.request = Date.now()
+          }
+          const onResponse = (
+            response: import('@playwright/test').Response,
+          ) => {
+            if (
+              response.request().method() === 'POST' &&
+              apiPath(response.url()) ===
+                `/api/games/${writer.head.id}/sync/events`
+            )
+              traffic.response = Date.now()
+          }
+          const onFailed = (request: import('@playwright/test').Request) => {
+            if (
+              request.method() === 'POST' &&
+              apiPath(request.url()) ===
+                `/api/games/${writer.head.id}/sync/events`
+            )
+              traffic.failure = request.failure()?.errorText ?? 'unknown'
+          }
+          writer.page.on('request', onRequest)
+          writer.page.on('response', onResponse)
+          writer.page.on('requestfailed', onFailed)
+          try {
+            const result = await recordRealPitch(
+              writer.page,
+              writer.head,
+              results[game]![wave - 1]!,
+              wave,
+            )
+            writer.head = result.head
+            return result
+          } catch (error) {
+            // 45秒の内訳を、送信前停止・main thread starvation・HTTP待ちへ分ける。
+            const diagnostic = await writer.page
+              .evaluate(() => {
+                const scope = globalThis as {
+                  __pitchlogSaveEnteredAt?: number
+                  __pitchlogSaveEnteredStatus?: Record<string, unknown>
+                  __pitchlogSubmitError?: string
+                  __pitchlogSubmitDetail?: string
+                  __pitchlogLastObservation?: string
+                  __pitchlogHeartbeat?: { last: number; maxGap: number }
+                }
+                return {
+                  saveEnteredAt: scope.__pitchlogSaveEnteredAt ?? null,
+                  saveEnteredStatus: scope.__pitchlogSaveEnteredStatus ?? null,
+                  submitError: scope.__pitchlogSubmitError ?? null,
+                  submitDetail: scope.__pitchlogSubmitDetail ?? null,
+                  observation: scope.__pitchlogLastObservation ?? null,
+                  heartbeat: scope.__pitchlogHeartbeat ?? null,
+                  now: Date.now(),
+                  status:
+                    document.querySelector('[data-testid="first-ball-status"]')
+                      ?.textContent ?? null,
+                  stateSource:
+                    document.querySelector(
+                      '[data-testid="ordinary-state-source"]',
+                    )?.textContent ?? null,
+                  readyState: document.readyState,
+                }
+              })
+              .catch((reason: unknown) => ({ evaluateError: String(reason) }))
+            throw new Error(
+              `wave ${wave} game ${game} writer save failed: ${String(error)}\n` +
+                `PITCHLOG_VIEWER_LOAD_WRITER_DIAGNOSTIC=${JSON.stringify({
+                  ...diagnostic,
+                  http: traffic,
+                })}`,
+            )
+          } finally {
+            writer.page.off('request', onRequest)
+            writer.page.off('response', onResponse)
+            writer.page.off('requestfailed', onFailed)
+          }
         }),
       )
       const [seen, saved, traffic] = await Promise.all([

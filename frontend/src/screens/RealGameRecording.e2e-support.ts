@@ -145,10 +145,16 @@ export function nextRecordedHead(page: Page, gameId: string, count: number) {
       response.status() !== 200
     )
       return false
-    const value = await response.json()
+    // reloadで中断された旧応答は本文を読めない。別の実GETだけを待つ。
+    let value: { read_kind?: unknown; prefix_ref?: { length?: unknown } }
+    try {
+      value = (await response.json()) as typeof value
+    } catch {
+      return false
+    }
     return (
       value.read_kind === 'lineup-prefix' &&
-      value.prefix_ref.length === String(count)
+      value.prefix_ref?.length === String(count)
     )
   })
 }
@@ -221,6 +227,16 @@ export async function recordRealPitch(
       response.request().method() === 'POST' &&
       apiPath(response.url()) === `/api/games/${head.id}/sync/events`,
   )
+  await page
+    .evaluate(() => {
+      const scope = globalThis as {
+        __pitchlogE2eDiagnostics?: boolean
+        __pitchlogClickDispatchedAt?: number
+      }
+      if (scope.__pitchlogE2eDiagnostics === true)
+        scope.__pitchlogClickDispatchedAt = Date.now()
+    })
+    .catch(() => undefined)
   const started = Date.now()
   await page.getByTestId('first-ball-save').click()
   const response = await posted

@@ -428,6 +428,24 @@ async function previous() {
   if (history.value.length > 0) await load(history.value.pop() ?? null)
 }
 async function save() {
+  const diagnostic = globalThis as {
+    __pitchlogE2eDiagnostics?: boolean
+    __pitchlogSaveEnteredAt?: number
+    __pitchlogSaveEnteredStatus?: Record<string, unknown>
+  }
+  if (diagnostic.__pitchlogE2eDiagnostics === true) {
+    diagnostic.__pitchlogSaveEnteredAt = Date.now()
+    diagnostic.__pitchlogSaveEnteredStatus = {
+      status: status.value,
+      busy: busy.value,
+      canAppend: canAppend.value,
+      confirmed: confirmed.value,
+      point: point.value,
+      selected: selected.value,
+      loading: loading.value,
+      failed: failed.value,
+    }
+  }
   if (
     !controller ||
     props.suspended ||
@@ -491,6 +509,12 @@ async function save() {
         battingSide: null,
       }
     }
+    const diagnostic = globalThis as {
+      __pitchlogE2eDiagnostics?: boolean
+      __pitchlogLastObservation?: string
+    }
+    if (diagnostic.__pitchlogE2eDiagnostics === true)
+      diagnostic.__pitchlogLastObservation = JSON.stringify(observation)
     const tenantId = identity().tenantId
     if (!tenantId) return
     const vocabulary = {
@@ -673,6 +697,20 @@ watch(
         identity,
         localRequested.value ? localWriter : writer,
         localRequested.value ? activeLocalSession() : null,
+        (error, detail) => {
+          // E2Eが初期化時にだけ立てる観測フラグ。通常の製品操作では何もしない。
+          const scope = globalThis as {
+            __pitchlogE2eDiagnostics?: boolean
+            __pitchlogSubmitError?: string
+            __pitchlogSubmitDetail?: string
+          }
+          if (scope.__pitchlogE2eDiagnostics !== true) return
+          scope.__pitchlogSubmitError =
+            error instanceof Error
+              ? `${error.name}: ${error.message}\n${error.stack ?? ''}`
+              : String(error)
+          scope.__pitchlogSubmitDetail = JSON.stringify(detail)
+        },
       )
       controller = current
       // 最終チェック前のlocal inspectは開始しない。最後のチェックで一度だけ再評価する。

@@ -87,6 +87,7 @@ const scenarios: readonly Scenario[] = [
           kind: 'obstruction',
           play: 'no-play-on-obstructed-runner',
           beforeFirst: false,
+          obstructed: '1',
           awards: { batter: 'first', '1': 'second' },
         },
         outs: '0',
@@ -145,6 +146,10 @@ test('妨害7分岐を実画面から保存し原本再掲とreloadを確認す�
       const page = await context.newPage()
       page.setDefaultTimeout(30_000)
       await page.addInitScript(() => {
+        // 送信前catchの原因だけをE2Eへ公開する。製品経路は既定で無効。
+        ;(
+          window as unknown as { __pitchlogE2eDiagnostics?: boolean }
+        ).__pitchlogE2eDiagnostics = true
         const original = window.fetch.bind(window)
         let saved: { input: RequestInfo | URL; init: RequestInit } | null = null
         window.fetch = async (input, init) => {

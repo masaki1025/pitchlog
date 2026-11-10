@@ -125,11 +125,13 @@ export class GameScreenOrdinaryPitchController {
   #retryEvidenceUnavailable = false
   #localBoundary: LocalAcceptanceBoundary | null
   #localAcceptanceActive = false
+  #onSubmitError: ((error: unknown, detail: unknown) => void) | undefined
   constructor(
     context: RecordingContext,
     readIdentity: () => FirstBallIdentity,
     writer: SingleWriterInjections = {},
     localBoundary: LocalAcceptanceBoundary | null = null,
+    onSubmitError?: (error: unknown, detail: unknown) => void,
   ) {
     this.#context = structuredClone(context)
     if (
@@ -141,6 +143,7 @@ export class GameScreenOrdinaryPitchController {
     this.#identity = { ...readIdentity() }
     this.#writer = writer
     this.#localBoundary = localBoundary
+    this.#onSubmitError = onSubmitError
     this.#head = sequence(context.nextPosition.d1)
   }
   get context(): RecordingContext {
@@ -817,10 +820,12 @@ export class GameScreenOrdinaryPitchController {
       return 'blocked'
     if (this.#busy || !this.#canAppend) return 'blocked'
     this.#busy = true
+    let stage = 'open'
     try {
       await this.#open()
       this.#assert()
       if (!this.#canAppend) return 'blocked'
+      stage = 'prepare'
       const r = this.#resources!,
         d5 = crypto.randomUUID()
       const prepared = isLineupRecordingContext(this.#context)
@@ -855,6 +860,7 @@ export class GameScreenOrdinaryPitchController {
               this.#identity.tenantId!,
             )
       this.#assert()
+      stage = 'commit'
       const expected = sequence(prepared.nextPosition.d1)
       let key: { d4: string; d1: number; d5: string } | null = null
       const result = await commitPitchEvent(
@@ -903,6 +909,7 @@ export class GameScreenOrdinaryPitchController {
               : undefined,
         },
       )
+      stage = 'after-ack'
       this.#assert()
       if (
         result.outcome === 'attempted' &&
@@ -914,7 +921,18 @@ export class GameScreenOrdinaryPitchController {
       return (await r.queue.readSlot(this.#scope(), expected))
         ? 'pending'
         : 'blocked'
-    } catch {
+    } catch (error) {
+      // 実画面E2Eが送信前停止の原因を観測できるよう、試験時だけsinkへ渡す。
+      this.#onSubmitError?.(error, {
+        stage,
+        captured: this.#identity,
+        current: this.#readIdentity(),
+        contextTenant: this.#context.prefixRef.tenantId,
+        disposed: this.#disposed,
+        busy: this.#busy,
+        canAppend: this.#canAppend,
+        head: this.#head,
+      })
       return this.#context.source === 'local-provisional'
         ? 'pending'
         : 'blocked'
