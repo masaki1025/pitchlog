@@ -16,7 +16,7 @@
 | 選手のその場登録 | 実装済み未接続 | backendの`player_registration`受理・一時ID mappingはある。画面は「登録はまだ行われません」で、参加登録API/UIが未接続 |
 | 取消 | 実画面実証済み | `test_undo_product_screen_e2e`、ACK喪失→新attempt |
 | 過去訂正 | 実画面実証済み | `test_p3_product_screen_e2e`、26球→P3→27球目→CSV |
-| 9回 | 実画面実証済み | `test_full_game_screen_e2e` 163球・normal-end |
+| 9回 | 実画面実証済み（機能） | `test_full_game_screen_e2e` **1 passed / 1653.21秒**、163球・normal-end/v1。**5秒応答目標は未達**（最大10736ms、163/163が5秒超） |
 | 7回 | 実装済み未接続 | 規則schema/domainは規定回を可変。`resolve_stage_a_rule`が固定5組（すべて9回）で、大会割当/上書き/規則管理UIが未接続 |
 | コールド | 実画面実証済み | 新`test_end_conditions_screen_e2e`のcold-end（9回・7点差7回、49 play_input + 終了宣言）。**1 passed / 1491.83秒** |
 | 引き分け | 実画面実証済み | 同E2Eのlimit-draw（9回同点・延長上限9、54 play_input + 終了宣言）。**同日再測で通過** |
@@ -28,6 +28,12 @@
 | 担当交代（記録権引き継ぎ） | 未実装 | 製品API/画面がない。server側の世代・退避部品だけではFR-013の通常/緊急引き継ぎを満たさない |
 | 成績27項目 | 実装済み（HTTP/DB） | `test_stats_native_*`、D11。公式27項目の実画面一覧は未確認 |
 | 毎球CSV・成績CSV | 実画面実証済み | `test_play_export_screen_e2e`、P3 CSV、ゲーム/シーズン成績CSV |
+
+### 2026-11-11 04:15 9回163球の現HEAD再測
+
+- `test_full_game_screen_e2e` は **1 passed / 1653.21秒**。実画面で163球を保存し、18半回完了、1–0、`normal-end`、終了版v1、reload後の確定版一致を確認した。
+- **性能は未達**: 1球あたりの保存時間は最大 **10736ms**、163球すべてが5秒目標を超過。機能完走とNFR-002の5秒目標を分離して記録する。timeoutは延長していない。
+- 今回の表示変更（`ordinary-pitch-locked`）とE2E補助の待機は、通常進行の163球を妨げなかった。
 
 ### 2026-11-11 04:05 代打・代走・守備変更の実画面接続を試行
 

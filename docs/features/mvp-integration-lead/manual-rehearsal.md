@@ -40,6 +40,11 @@
 - 期待: cold-end 49 `play_input` + `game_end_declaration`、limit-draw 54 + 終了宣言、tiebreak-required 54 `play_input`で`in_progress`のまま。記録画面には`ordinary-pitch-locked`で理由を表示する。
 - 7回規則・延長上限>9・タイブレーク開始操作・担当交代・その場登録は未接続であり、このE2Eの成功へ読み替えない。
 
+## 9回通常試合の現HEAD再測（2026-11-11）
+
+- `test_full_game_screen_e2e` **1 passed / 1653.21秒**。163球、18半回、1–0、normal-end、終了版v1。
+- 性能は **最大10736ms / 163球すべて5秒超**。機能完走をNFR-002の5秒達成へ読み替えない。
+
 ## 記録する証拠
 
 - 固定HEAD、画面操作の時刻、HTTP status、ACK boundary。
