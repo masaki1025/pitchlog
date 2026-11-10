@@ -1,5 +1,11 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-10 22:55 JST：artifact再pin後もP3 26球lifecycle縦断は継続成功
+
+- **再測**: `test_actual_p3_26_lifecycle_end_reopen_add_reend_stats` **1 passed / 478.54秒**。新しいdomain artifact `b5656418` で26球→P3 26件訂正→27球目→終了→再開→追加play→再終了→lifecycle read→成績/CSVの縦断が通った。妨害修正の再pinは既存P3経路の数学・保存を変えていない。
+- **併走確認**: backend対象 **672 passed**（engine共有・registry pin・interference v6・batted/interference schema・nonplay prefix等）、frontend domain/api/viewer **1007 passed**。Ruff/Ty/ESLint/vue-tscは対象変更で0。
+- **未達**: 3試合×30閲覧のwave 1保存は引き続き30秒binding超過（rights 9〜10秒）。成功へ読み替えない。
+
 ## 2026-11-10 22:20 JST：妨害7分岐は全通し、閲覧負荷は接続枯渇を解消したが30秒内保存は未達
 
 - **新たに通った**: `test_interference_screen_e2e` **1 passed / 183.66秒**。INT-02、INT-01+INT-03、通常三塁打+INT-02本盗、INT-04+INT-05、INT-06+通常単打+INT-07の5試合・全7分岐を実画面から保存し、play_row 41列・走者・current stats version・source metric_states・facts・重複ACK・reloadを実DBで照合した。
