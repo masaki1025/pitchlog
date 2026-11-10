@@ -12,7 +12,7 @@
 | 走塁（盗塁/WP/PB/ボーク） | 実画面実証済み | 同runner operations（非投球盗塁、wild-pitch、passed-ball、balk） |
 | 妨害7分岐 | 実画面実証済み | `test_interference_screen_e2e` INT-01〜07、5試合 |
 | 交代（投手） | 実画面実証済み | `test_substitution_product_screen_e2e` **1 passed / 95.70秒**（2026-11-11再測） |
-| 交代（代打/代走/守備変更） | 実装済み未接続 | domain/HTTP/payloadは4種。**代打のHTTP縦断は追加で通過**（投手→代打、d3=5、receipt 2件、次打者更新）。実画面E2Eは投手のみ。先頭打者が捕手のため、捕手を代打にすると捕手位置が空になり、serverが`continuationLineup=null`で拒否する。非捕手の代打はHTTPで成立 |
+| 交代（代打/代走/守備変更） | 一部実画面実証済み | domain/HTTP/payloadは4種。**守備変更の実画面E2Eは通過**（1 passed / 82.37秒、fielding 6更新）。**代打のHTTP縦断は通過**（投手→代打、d3=5、receipt 2件）。捕手を代打にすると捕手位置が空になりserverが`continuationLineup=null`で拒否。代走は未接続 |
 | 選手のその場登録 | 実装済み未接続 | backendの`player_registration`受理・一時ID mappingはある。画面は「登録はまだ行われません」で、参加登録API/UIが未接続 |
 | 取消 | 実画面実証済み | `test_undo_product_screen_e2e`、ACK喪失→新attempt |
 | 過去訂正 | 実画面実証済み | `test_p3_product_screen_e2e`、26球→P3→27球目→CSV |
@@ -28,6 +28,11 @@
 | 担当交代（記録権引き継ぎ） | 未実装 | 製品API/画面がない。server側の世代・退避部品だけではFR-013の通常/緊急引き継ぎを満たさない |
 | 成績27項目 | 実画面実証済み | 新`test_stats_screen_e2e` **1 passed / 139.35秒**。公式モードで打撃18列＋投手13列−選手/チーム4列＝**27項目**、成績CSV 5262 bytesを実ダウンロード |
 | 毎球CSV・成績CSV | 実画面実証済み | `test_play_export_screen_e2e`、P3 CSV、ゲーム/シーズン成績CSV |
+
+### 2026-11-11 05:35 守備変更の実画面縦断を追加
+
+- `test_defense_change_screen_e2e` は **1 passed / 82.37秒**。新規試合で1球保存後、控え選手213を遊撃手（position 6）へ守備変更し、**200/受理**、receipt 1件、current checkpointの`substitutionState.home.fielding['6']=213`を実DBで照合した。
+- これで交代4種のうち**投手・守備変更が実画面通過**、**代打がHTTP通過**、代走が未接続。捕手を代打にする場合は捕手位置の補充が必要で、serverは`continuationLineup=null`のまま受理しない（別の意味判断・複合操作）。
 
 ### 2026-11-11 05:10 代打のHTTP縦断を追加
 
