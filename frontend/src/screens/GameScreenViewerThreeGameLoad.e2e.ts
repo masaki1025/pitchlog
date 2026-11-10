@@ -143,7 +143,7 @@ test('3試合の実記録と30閲覧が保存から10秒以内で同じ状態へ
     for (let game = 0; game < gameCount; game++) {
       for (let index = 0; index < viewersPerGame; index++) {
         const page = await ownedPage()
-        await realLogin(page)
+        await realLogin(page, `/games/${writers[game]!.head.id}/view`)
         await distinctCookie(page)
         const requests: string[] = []
         page.on('request', (request) => {
@@ -155,8 +155,8 @@ test('3試合の実記録と30閲覧が保存から10秒以内で同じ状態へ
     }
     expect(cookies.size).toBe(gameCount + gameCount * viewersPerGame)
     await Promise.all(
-      viewers.map(async ({ page, game }) => {
-        await page.goto(`${baseURL}/games/${writers[game]!.head.id}/view`)
+      viewers.map(async ({ page }) => {
+        // loginのredirect先をviewerへ向け、記録画面の一覧/詳細readを挟まない。
         // 30閲覧の初回loadはcold startを含む。保存後10秒の更新期限は
         // completeViewerSnapshot側で別に測る。
         await expect(page.getByTestId('viewer-status')).toHaveText('更新済み', {
@@ -315,9 +315,14 @@ test('3試合の実記録と30閲覧が保存から10秒以内で同じ状態へ
         const item = viewers[viewer]!
         const head = saved[item.game]!.head
         expect(snapshot.savedAt).toBe(head.last_saved_at)
-        const serverSavedAt = Date.parse(head.last_saved_at)
-        const elapsed = snapshot.at - serverSavedAt
-        if (!Number.isFinite(serverSavedAt) || elapsed < 0 || elapsed > 10_000)
+        // last_saved_atは保存TX内の刻印でcommit前。利用者の「保存から」は
+        // writerのACK応答時刻を起点に測る。
+        const acknowledged = traffic.find(
+          (row) => row.wave === wave && row.game === item.game,
+        )
+        if (!acknowledged) throw new Error('保存ACKの時刻がありません')
+        const elapsed = snapshot.at - acknowledged.end
+        if (elapsed < 0 || elapsed > 10_000)
           throw new Error(
             `閲覧全表示10秒条件未達 game=${item.game} viewer=${viewer} ms=${elapsed}`,
           )

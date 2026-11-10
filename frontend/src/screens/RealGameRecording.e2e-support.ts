@@ -37,12 +37,11 @@ export async function realLogin(
   const body = (await response.json()) as { tenant_id?: string }
   if (typeof body.tenant_id !== 'string')
     throw new Error('login応答のtenantがない')
-  // 遷移先の認証済み画面が実sessionをhydrateするまで待つ。
-  await expect(
-    page.getByRole('button', { name: '新規作成', exact: true }),
-  ).toBeVisible({
-    timeout: 30_000,
-  })
+  // 試合一覧へ戻る経路だけ、認証済み画面のhydrateを待つ。
+  if (redirect === '/games')
+    await expect(
+      page.getByRole('button', { name: '新規作成', exact: true }),
+    ).toBeVisible({ timeout: 30_000 })
   return body.tenant_id
 }
 

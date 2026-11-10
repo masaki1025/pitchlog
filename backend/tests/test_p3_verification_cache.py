@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import threading
+import time
 from uuid import uuid4
 
 import pytest
@@ -14,9 +16,11 @@ from pitchlog.repositories import past_correction_current_paged as paged
 def _clear_caches():
     """各試験で有界cacheの内容を分離する。"""
     current._P3_PACKET_CACHE.clear()
+    current._P3_PACKET_INFLIGHT.clear()
     paged._P3_PAGED_CACHE.clear()
     yield
     current._P3_PACKET_CACHE.clear()
+    current._P3_PACKET_INFLIGHT.clear()
     paged._P3_PAGED_CACHE.clear()
 
 
@@ -48,6 +52,38 @@ def test_packet_verification_is_reused_only_for_identical_bytes(monkeypatch):
         packet, tenant=tenant, game=game, generation=2
     )
     assert len(calls) == 3
+
+
+def test_same_packet_is_verified_once_under_concurrency(monkeypatch):
+    """同一packetの同時閲覧を単一の実検証へ集約し、CPU競合を避ける。"""
+    tenant, game = uuid4(), uuid4()
+    calls = []
+    sentinel = object()
+
+    def uncached(packet, **kwargs):
+        calls.append(packet)
+        time.sleep(0.2)
+        return sentinel
+
+    monkeypatch.setattr(current, "_verify_p3_current_packet_uncached", uncached)
+    packet = {"kind": "p3-current", "members": [{"d1": 1}]}
+    results = []
+    threads = [
+        threading.Thread(
+            target=lambda: results.append(
+                current.verify_p3_current_packet(
+                    packet, tenant=tenant, game=game, generation=1
+                )
+            )
+        )
+        for _ in range(8)
+    ]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=5)
+    assert len(calls) == 1
+    assert len(results) == 8 and all(result is sentinel for result in results)
 
 
 def test_packet_verification_failure_is_not_cached(monkeypatch):

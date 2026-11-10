@@ -767,7 +767,8 @@ def test_interference_person_reference_resolves_nested_player_id() -> None:
     projected = _projection_event(
         cast(_TenantTransaction, NoPlayerLookup()), event, {temporary: official}
     )
-    ruling = projected.v7["t1"]["interferenceRuling"]
+    v7 = cast(dict[str, Any], projected.v7)
+    ruling = v7["t1"]["interferenceRuling"]
     assert ruling["obstructed"]["batter_id"]["player_id"] == official
     awarded = ruling["awarded_destinations"][0]["person"]
     assert awarded["batter_id"]["player_id"] == official

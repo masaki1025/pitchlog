@@ -28,6 +28,8 @@ const refreshing = ref(false)
 const checkedAt = ref<number | null>(null)
 const pageCursors = ref<readonly (string | null)[]>([null])
 const names = ref<Record<string, string>>({})
+// 初回名簿取得中に版が変わっても、同じ選手を二重取得しない。
+const pendingNames = new Set<string>()
 
 const identity = computed(() =>
   JSON.stringify([
@@ -67,9 +69,7 @@ const nextCursor = computed(() => viewerNextCursor(game.value))
 const pageLabels = computed(() => viewerPageLabels(game.value))
 const pageIndex = computed(() => pageCursors.value.length - 1)
 const periodLabel = computed(() => viewerPeriodLabel(game.value))
-const statusText = computed(() =>
-  viewerStatusLabel(freshness.value, false),
-)
+const statusText = computed(() => viewerStatusLabel(freshness.value, false))
 const refreshingText = computed(() =>
   refreshing.value && freshness.value === 'fresh' ? '更新中' : null,
 )
@@ -100,9 +100,12 @@ async function loadNames(source: ViewerGame): Promise<void> {
     expected.set(team.pitcherId, team.teamId)
     expected.set(team.catcherId, team.teamId)
   }
-  const missing = [...expected].filter(([id]) => names.value[id] === undefined)
+  const missing = [...expected].filter(
+    ([id]) => names.value[id] === undefined && !pendingNames.has(id),
+  )
   await Promise.all(
     missing.map(async ([id, teamId]) => {
+      pendingNames.add(id)
       try {
         const player = await getPlayer(id)
         if (
@@ -116,6 +119,8 @@ async function loadNames(source: ViewerGame): Promise<void> {
           names.value = { ...names.value, [id]: player.name }
       } catch {
         // 名簿名の再取得失敗を保存済みscoreの成功へ混ぜない。
+      } finally {
+        pendingNames.delete(id)
       }
     }),
   )

@@ -249,9 +249,11 @@ def _verify_p3_current_member(
 _P3_PACKET_CACHE_LIMIT = 8
 _P3_PACKET_CACHE: OrderedDict[str, VerifiedP3Current] = OrderedDict()
 _P3_PACKET_CACHE_LOCK = threading.Lock()
+_P3_PACKET_INFLIGHT: dict[str, threading.Event] = {}
 # 診断だけが読む件数。cacheの意味や保存資格には使わない。
 _P3_PACKET_CACHE_STATS: dict[str, int] = {
     "hit": 0,
+    "wait": 0,
     "miss": 0,
     "key_error": 0,
 }
@@ -347,17 +349,61 @@ def verify_p3_current_packet(
         with _P3_PACKET_CACHE_LOCK:
             _P3_PACKET_CACHE_STATS["hit"] += 1
         return cached
-    result = _verify_p3_current_packet_uncached(
-        packet,
-        tenant=tenant,
-        game=game,
-        generation=generation,
-        nonplay_checkpoint_row=nonplay_checkpoint_row,
-    )
-    _remember_p3_packet(key, result)
     with _P3_PACKET_CACHE_LOCK:
-        _P3_PACKET_CACHE_STATS["miss"] += 1
-    return result
+        flight = _P3_PACKET_INFLIGHT.get(key)
+        owner = flight is None
+        if owner:
+            flight = threading.Event()
+            _P3_PACKET_INFLIGHT[key] = flight
+    if not owner:
+        # 同一packetを同時に検証する閲覧がCPUを奪い合わないよう、
+        # 先頭の検証完了を待ち、成功済みcacheだけを共有する。
+        flight.wait(timeout=60)
+        with _P3_PACKET_CACHE_LOCK:
+            _P3_PACKET_CACHE_STATS["wait"] += 1
+        cached = _p3_packet_cached(key)
+        if cached is not None:
+            return cached
+        # 先頭が失敗した場合は、待機側が改めて単独ownerとして検証する。
+        with _P3_PACKET_CACHE_LOCK:
+            current_flight = _P3_PACKET_INFLIGHT.get(key)
+            if current_flight is None:
+                flight = threading.Event()
+                _P3_PACKET_INFLIGHT[key] = flight
+                owner = True
+            else:
+                flight = current_flight
+        if not owner:
+            flight.wait(timeout=60)
+            cached = _p3_packet_cached(key)
+            if cached is not None:
+                return cached
+            with _P3_PACKET_CACHE_LOCK:
+                _P3_PACKET_CACHE_STATS["miss"] += 1
+            return _verify_p3_current_packet_uncached(
+                packet,
+                tenant=tenant,
+                game=game,
+                generation=generation,
+                nonplay_checkpoint_row=nonplay_checkpoint_row,
+            )
+    try:
+        result = _verify_p3_current_packet_uncached(
+            packet,
+            tenant=tenant,
+            game=game,
+            generation=generation,
+            nonplay_checkpoint_row=nonplay_checkpoint_row,
+        )
+        _remember_p3_packet(key, result)
+        with _P3_PACKET_CACHE_LOCK:
+            _P3_PACKET_CACHE_STATS["miss"] += 1
+        return result
+    finally:
+        with _P3_PACKET_CACHE_LOCK:
+            if _P3_PACKET_INFLIGHT.get(key) is flight:
+                _P3_PACKET_INFLIGHT.pop(key, None)
+                flight.set()
 
 
 def _verify_p3_current_packet_uncached(
