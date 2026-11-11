@@ -29,6 +29,13 @@
 | 成績27項目 | 実画面実証済み | 新`test_stats_screen_e2e` **1 passed / 139.35秒**。公式モードで打撃18列＋投手13列−選手/チーム4列＝**27項目**、成績CSV 5262 bytesを実ダウンロード |
 | 毎球CSV・成績CSV | 実画面実証済み | `test_play_export_screen_e2e`、P3 CSV、ゲーム/シーズン成績CSV |
 
+### 2026-11-11 21:15 非作者レビューP1の是正とドメイン検査の赤を解消
+
+- レビュー `review-7bcc5f28-20261111` の **P1 1件**を採用。v3の`prepareLineupPrefix`が`observation.nextBatter`を消費していなかったため、四球・死球で未選択・別選手・別枠でも同一要求を作れていた。`response.value.participants`（唯一核が返す次打者）と`batterId`・`battingOrder`の両方を照合し、不一致は`OrdinaryPitchWireError`で拒否するよう修正した。画面の次打者候補も現打順の直後枠だけに限定した。
+- 回帰: `GameScreenOrdinaryPitchProvider.spec.ts` に v3死球の「正しい確認=受理」「未選択/別選手/別枠=拒否」を追加。四球は同じ照合コードを通るが、v3 fixtureが0ボールのため3ボール状態の単体再現は未作成（実画面の3ボール→四球で別途確認）。
+- **レビュー対象外で見つかった赤**: `tiebreakStart.ts` がドメイン検査の閉じた構文（条件式・正規表現・`String`・spread・number）に違反し、`pnpm build:domain` と全frontend試験5件が赤だった。手書きUUID検証・`formatDecimalInteger`・明示的なオブジェクト複写へ書き換え、`pnpm build:domain` は既存artifact SHA `b5656418...` を維持して成功。**frontend全213ファイル / 4097テスト passed**。
+- **未解決**: 三振後停止の原因は未確定（レビュー指摘どおり、artifact単体では三振→次球が成功）。次はv3 controllerで三振→次球を実際に送る回帰と、通常UIで打席終了後・攻守交代後を含む1イニングの実画面E2Eを行う。
+
 ### 2026-11-11 20:45 通常球UIの連続記録停止点を特定
 
 - 実画面E2Eで、初球（`GameScreenFirstBall`）→通常投球UI（`GameScreenOrdinaryPitch`）へ**ページ再読込なしで**引き継げることを確認した。初球保存のACK後、同じ画面に通常投球パネルが現れ、サーバー確認済み状態・履歴1件で入力できる。
