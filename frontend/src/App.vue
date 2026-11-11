@@ -83,7 +83,8 @@ async function returnToHome(): Promise<void> {
         route.meta.requiresAuth === true &&
         protectedReady &&
         route.name !== 'home' &&
-        route.name !== 'game-record'
+        route.name !== 'game-record' &&
+        route.name !== 'game-lineup'
       "
       aria-label="画面移動"
       class="flex gap-3 p-4"

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onScopeDispose, ref, toRaw, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import {
   isPlayRecordingContext,
   isLineupRecordingContext,
@@ -30,7 +31,6 @@ import CountDisplay from '../components/scoreboard/CountDisplay.vue'
 import RecordBottomBar from '../components/game/RecordBottomBar.vue'
 import Sheet from '../components/ui/Sheet.vue'
 import GameScreenUndoProduct from './GameScreenUndoProduct.vue'
-import GameScreenSubstitutionProduct from './GameScreenSubstitutionProduct.vue'
 import GameScreenLifecycleProduct from './GameScreenLifecycleProduct.vue'
 import { useRecordDisplay } from './GameScreenRecordDisplayProvider'
 import { ordinaryPitchLockReason } from './ordinaryPitchLock'
@@ -47,6 +47,7 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ saved: []; reload: [] }>()
 const auth = useAuthStore()
+const router = useRouter()
 const stance = ref(0)
 const speed = ref('')
 const lastSpeed = ref('')
@@ -55,14 +56,12 @@ const activeSheet = ref<
   | null
   | 'safety'
   | 'undo'
-  | 'substitution'
   | 'menu'
   | 'lifecycle'
   | 'sync'
   | 'runner'
   | 'next-batter'
 >(null)
-const substitutionChoice = ref(true)
 const leftOpen = ref(false)
 const resultPanel = ref<'inplay' | 'strikeout' | 'walk' | null>(null)
 const resultPicked = ref(false)
@@ -472,10 +471,12 @@ function openUndo() {
   if (!canAppend.value) return
   activeSheet.value = 'undo'
 }
-function openSubstitution() {
+async function openSubstitution() {
   if (!canAppend.value) return
-  substitutionChoice.value = true
-  activeSheet.value = 'substitution'
+  await router.push({
+    name: 'game-lineup',
+    params: { gameId: game.value.id },
+  })
 }
 function openMenu() {
   activeSheet.value = 'menu'
@@ -496,10 +497,6 @@ async function runnerConfirmed(value: RunnerObservationWire) {
   activeSheet.value = null
   await nextTick()
   await save()
-}
-async function substitutionSaved() {
-  activeSheet.value = null
-  emit('saved')
 }
 async function undoDone() {
   activeSheet.value = null
@@ -1847,68 +1844,6 @@ onScopeDispose(() => {
       @close="activeSheet = null"
     >
       <GameScreenUndoProduct :game-id="game.id" @saved="undoDone" />
-    </Sheet>
-
-    <Sheet
-      :open="activeSheet === 'substitution'"
-      title="選手の交代・臨時代走"
-      side="right"
-      wide
-      @close="activeSheet = null"
-    >
-      <div v-if="substitutionChoice" class="space-y-3">
-        <p class="text-sm text-slate-600 dark:text-slate-300">
-          記録上の扱いが異なるため、正式な交代と臨時代走を分けて入力します。
-        </p>
-        <button
-          type="button"
-          class="flex min-h-24 w-full items-center gap-4 rounded-2xl border-2 border-slate-200 p-4 text-left transition hover:border-sky-500 hover:bg-sky-50 dark:border-slate-700 dark:hover:bg-sky-950/30"
-          @click="substitutionChoice = false"
-        >
-          <span
-            class="grid size-12 shrink-0 place-items-center rounded-xl bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-200"
-          >
-            <span class="text-lg font-black">交</span>
-          </span>
-          <span class="min-w-0">
-            <span class="block text-base font-extrabold">正式な選手交代</span>
-            <span class="mt-1 block text-sm text-slate-500">
-              代打・代走・守備交代。入った選手が以後の打順を引き継ぎます。
-            </span>
-          </span>
-        </button>
-        <button
-          type="button"
-          disabled
-          class="flex min-h-24 w-full items-center gap-4 rounded-2xl border-2 border-violet-200 p-4 text-left opacity-45 dark:border-violet-900"
-          title="このMVPでは未接続です"
-        >
-          <span
-            class="grid size-12 shrink-0 place-items-center rounded-xl bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-200"
-          >
-            <span class="text-lg font-black">臨</span>
-          </span>
-          <span class="min-w-0">
-            <span class="block text-base font-extrabold">臨時代走</span>
-            <span class="mt-1 block text-sm text-slate-500">
-              頭部への強い死球で、審判員が臨時代走を認めた場合。このMVPでは未接続です。
-            </span>
-          </span>
-        </button>
-      </div>
-      <div v-else class="space-y-3">
-        <button
-          type="button"
-          class="inline-flex min-h-11 items-center gap-2 rounded-xl px-2 text-sm font-bold text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
-          @click="substitutionChoice = true"
-        >
-          ← 交代方法の選択へ戻る
-        </button>
-        <GameScreenSubstitutionProduct
-          :game-id="game.id"
-          @saved="substitutionSaved"
-        />
-      </div>
     </Sheet>
 
     <Sheet

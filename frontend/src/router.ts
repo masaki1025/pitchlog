@@ -17,6 +17,7 @@ import StartScreen from './screens/StartScreen.vue'
 import GameStatsScreen from './screens/GameStatsScreen.vue'
 import SeasonStats from './screens/SeasonStats.vue'
 import GameScreenRecordModeHost from './screens/GameScreenRecordModeHost.vue'
+import GameLineupChangeScreen from './screens/GameLineupChangeScreen.vue'
 import {
   LocalRecordingSession,
   isLocalRecordingSession,
@@ -99,6 +100,12 @@ export function createAppRouter(history: RouterHistory = createWebHistory()) {
         path: '/games/:gameId/view',
         name: 'game-viewer',
         component: GameScreenViewerLive,
+        meta: { requiresAuth: true },
+      },
+      {
+        path: '/games/:gameId/lineup',
+        name: 'game-lineup',
+        component: GameLineupChangeScreen,
         meta: { requiresAuth: true },
       },
       {
