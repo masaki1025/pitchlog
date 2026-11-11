@@ -237,6 +237,9 @@ watch(
 const history = computed(() =>
   restore.game.value ? firstHistory(restore.game.value) : null,
 )
+const lineupGame = computed(() =>
+  restore.game.value?.read_kind === 'lineup-prefix' ? restore.game.value : null,
+)
 </script>
 
 <template>
@@ -244,6 +247,7 @@ const history = computed(() =>
     v-if="prefixContext && !undoNative"
     :suspended="inputSuspended"
     :context="prefixContext"
+    :game-read="lineupGame"
     @saved="pitchSaved"
     @reload="restore.reload()"
   />

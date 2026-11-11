@@ -84,6 +84,9 @@ const simple = computed(() => [
     label: props.balls >= 3 ? '四球' : 'ボール',
   },
 ])
+const strikeoutDisabled = computed(
+  () => props.disabled || props.busy || props.strikes < 2,
+)
 const quickInPlay: readonly { result: InPlayResult; label: string }[] = [
   { result: 'batting-result.single', label: '単打' },
   { result: 'batting-result.batted-out', label: '凡打死' },
@@ -209,7 +212,8 @@ function inPlayDisabled(result: string): boolean {
         <button
           type="button"
           class="min-h-11 rounded-xl border border-slate-300 bg-white px-3 text-sm font-bold text-slate-800 hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-40 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
-          :disabled="disabled || busy"
+          :disabled="strikeoutDisabled"
+          :title="strikes < 2 ? '2ストライクから選択できます' : undefined"
           @click="panel = 'strikeout'"
         >
           <span class="inline-flex items-center"
@@ -336,8 +340,7 @@ function inPlayDisabled(result: string): boolean {
           type="button"
           :data-result-id="item.result"
           :disabled="
-            disabled ||
-            busy ||
+            strikeoutDisabled ||
             (item.result === 'batting-result.strikeout-double-play' &&
               !strikeoutDoublePlayAvailable)
           "

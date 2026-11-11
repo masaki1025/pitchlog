@@ -31,6 +31,7 @@ import CountDisplay from '../components/scoreboard/CountDisplay.vue'
 import RecordBottomBar from '../components/game/RecordBottomBar.vue'
 import Sheet from '../components/ui/Sheet.vue'
 import GameScreenUndoProduct from './GameScreenUndoProduct.vue'
+import GameScreenPastCorrectionProduct from './GameScreenPastCorrectionProduct.vue'
 import GameScreenLifecycleProduct from './GameScreenLifecycleProduct.vue'
 import { useRecordDisplay } from './GameScreenRecordDisplayProvider'
 import { ordinaryPitchLockReason } from './ordinaryPitchLock'
@@ -44,6 +45,7 @@ const props = defineProps<{
   context: RecordingContext
   localSession?: LocalRecordingSession | null
   suspended?: boolean
+  gameRead?: import('../api/lineupPrefixGame').LineupPrefixGame | null
 }>()
 const emit = defineEmits<{ saved: []; reload: [] }>()
 const auth = useAuthStore()
@@ -56,6 +58,7 @@ const activeSheet = ref<
   | null
   | 'safety'
   | 'undo'
+  | 'past-correction'
   | 'menu'
   | 'lifecycle'
   | 'sync'
@@ -502,6 +505,10 @@ async function undoDone() {
   activeSheet.value = null
   emit('saved')
 }
+async function pastCorrectionSaved() {
+  activeSheet.value = null
+  emit('saved')
+}
 async function lifecycleResumed() {
   activeSheet.value = null
   emit('saved')
@@ -515,6 +522,16 @@ function chooseDirect(
     | 'batting-result.walk'
     | 'batting-result.hit-by-pitch',
 ) {
+  if (!ensureConfirmed()) return
+  if (
+    (result === 'batting-result.called-strikeout' ||
+      result === 'batting-result.swinging-strikeout' ||
+      result === 'batting-result.k3' ||
+      result === 'batting-result.strikeout-double-play') &&
+    strikes.value < 2
+  )
+    return
+  resultPicked.value = true
   resultId.value = result
   if (
     result === 'batting-result.walk' ||
@@ -1847,6 +1864,22 @@ onScopeDispose(() => {
     </Sheet>
 
     <Sheet
+      :open="activeSheet === 'past-correction'"
+      title="過去の訂正"
+      side="right"
+      wide
+      @close="activeSheet = null"
+    >
+      <GameScreenPastCorrectionProduct
+        v-if="gameRead"
+        :game="gameRead"
+        :suspended="busy"
+        @saved="pastCorrectionSaved"
+      />
+      <p v-else role="status">この試合状態では過去訂正を開けません。</p>
+    </Sheet>
+
+    <Sheet
       :open="activeSheet === 'menu'"
       title="メニュー"
       side="right"
@@ -1880,12 +1913,13 @@ onScopeDispose(() => {
         </button>
         <button
           type="button"
-          disabled
-          class="flex min-h-14 w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 text-left font-bold text-slate-400 dark:border-slate-700 dark:bg-slate-800"
-          title="このMVPでは未接続です"
+          :disabled="!gameRead"
+          class="flex min-h-14 w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 text-left font-bold disabled:text-slate-400 dark:border-slate-700 dark:bg-slate-800"
+          :title="gameRead ? undefined : 'この試合状態では過去訂正を開けません'"
+          @click="activeSheet = 'past-correction'"
         >
           <span>過去の訂正</span>
-          <span class="text-xs">未接続</span>
+          <span class="text-xs">{{ gameRead ? '開く' : '未提供' }}</span>
         </button>
       </div>
     </Sheet>
@@ -2094,17 +2128,21 @@ onScopeDispose(() => {
             <option value="batting-result.hit-by-pitch">死球</option>
           </template>
           <template v-if="isLineupRecordingContext(displayed)">
-            <option value="batting-result.called-strikeout">見逃し三振</option>
-            <option value="batting-result.swinging-strikeout">
-              空振り三振
-            </option>
-            <option value="batting-result.k3">K3</option>
-            <option
-              v-if="strikeoutDoublePlayAvailable"
-              value="batting-result.strikeout-double-play"
-            >
-              三振ゲッツー
-            </option>
+            <template v-if="strikes >= 2">
+              <option value="batting-result.called-strikeout">
+                見逃し三振
+              </option>
+              <option value="batting-result.swinging-strikeout">
+                空振り三振
+              </option>
+              <option value="batting-result.k3">K3</option>
+              <option
+                v-if="strikeoutDoublePlayAvailable"
+                value="batting-result.strikeout-double-play"
+              >
+                三振ゲッツー
+              </option>
+            </template>
             <template v-if="hitAvailable && !isLocalMode">
               <option value="batting-result.single">単打</option>
               <option value="batting-result.double">二塁打</option>

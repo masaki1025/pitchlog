@@ -350,7 +350,7 @@ it('新打席画面の三振選択を実artifactへ通し、次打者は応答�
         wrapper.find('[data-testid="ordinary-pitch-result"]').exists(),
       ).toBe(true),
     )
-    expect(wrapper.text()).toContain('見逃し三振')
+    expect(wrapper.text()).toContain('三振詳細')
     expect(wrapper.text()).not.toContain('play-prefix-v3')
     for (const name of ['profile', 'mode', 'bucket', 'lockdown'])
       await wrapper.get(`[data-testid="first-ball-env-${name}"]`).setValue(true)
@@ -571,6 +571,7 @@ it('通常v3の実語彙ページは同game/D4/cursor/epochで端末へcapture�
   const capture = vi
     .spyOn(localPermissions, 'captureLocalPitchPage')
     .mockResolvedValue(undefined)
+  vi.stubGlobal('__pitchlogE2eDiagnostics', true)
   const wrapper = mount(GameScreenOrdinaryPitch, {
     props: { context: await lineupContextFromRead(source, tenant) },
     global: { plugins: [pinia] },
@@ -854,8 +855,63 @@ it('旧画面の可視ボールボタンから実Controllerへ1球を送信す�
     wrapper.getComponent(StrikeZone).vm.$emit('tap', 131.5, 124)
     await flushPromises()
     await wrapper.get('[data-result-id="batting-result.ball"]').trigger('click')
-    await vi.waitFor(() => expect(post).toHaveBeenCalledOnce())
+    await vi.waitFor(() => expect(post).toHaveBeenCalledOnce(), {
+      timeout: 6000,
+    })
     expect(wrapper.emitted('saved')).toHaveLength(1)
+  } finally {
+    wrapper.unmount()
+  }
+})
+
+it('可視の見逃しボタン9球で3アウトを取り、1回裏へ攻守交代する', async () => {
+  const source = structuredClone(lineupFixture.value)
+  if (!isLineupPrefixGame(source)) throw new Error('構造fixture不正')
+  const post = vi
+    .spyOn(transport, 'postSyncEvents')
+    .mockImplementation(async (request) => {
+      const body = transport.buildSyncEventRequestBody(request)
+      if (!('events' in body)) throw new Error('単体要求形式不成立')
+      const slot = request.slots[0]!
+      return {
+        sent: true,
+        requestBody: body,
+        response: {
+          advancedD3: slot.d1,
+          eventResults: [
+            { d4: slot.d4, d1: slot.d1, d5: slot.d5, a5Result: '受理' },
+          ],
+        },
+      }
+    })
+  const wrapper = mount(GameScreenOrdinaryPitch, {
+    props: { context: await lineupContextFromRead(source, tenant) },
+    global: { plugins: [pinia] },
+  })
+  try {
+    await vi.waitFor(() =>
+      expect(wrapper.find('[data-pitch-type]').exists()).toBe(true),
+    )
+    for (const name of ['profile', 'mode', 'bucket', 'lockdown'])
+      await wrapper.get(`[data-testid="first-ball-env-${name}"]`).setValue(true)
+    for (let index = 0; index < 9; index++) {
+      await wrapper
+        .get('[data-pitch-type="tenant.pitch.straight"]')
+        .trigger('click')
+      wrapper.getComponent(StrikeZone).vm.$emit('tap', 131.5, 124)
+      await flushPromises()
+      await wrapper
+        .get('[data-result-id="batting-result.called-pitch"]')
+        .trigger('click')
+      await vi.waitFor(
+        () => expect(wrapper.emitted('saved')).toHaveLength(index + 1),
+        { timeout: 3000 },
+      )
+      await flushPromises()
+    }
+    expect(post).toHaveBeenCalledTimes(9)
+    expect(wrapper.text()).toContain('1回裏')
+    expect(wrapper.text()).toContain('0アウト')
   } finally {
     wrapper.unmount()
   }

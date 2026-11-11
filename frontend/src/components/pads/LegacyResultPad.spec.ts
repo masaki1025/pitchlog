@@ -53,6 +53,26 @@ describe('LegacyResultPad', () => {
     ).toBeDefined()
   })
 
+  it('2ストライク未満は三振詳細を選べない', () => {
+    const wrapper = mountPad({ strikes: 1 })
+    expect(
+      wrapper
+        .findAll('button')
+        .find((button) => button.text().includes('三振詳細'))!
+        .attributes('disabled'),
+    ).toBeDefined()
+  })
+
+  it('2ストライクは三振詳細を選べる', () => {
+    const wrapper = mountPad({ strikes: 2 })
+    expect(
+      wrapper
+        .findAll('button')
+        .find((button) => button.text().includes('三振詳細'))!
+        .attributes('disabled'),
+    ).toBeUndefined()
+  })
+
   it('打球入力不可のときは打球結果を選べない', () => {
     const wrapper = mountPad({ hitAvailable: false })
     expect(
