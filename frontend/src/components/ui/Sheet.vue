@@ -1,93 +1,18 @@
 <script lang="ts">
-interface AttributeSnapshot {
-  element: HTMLElement
-  inert: string | null
-  ariaHidden: string | null
+type Entry = {
+  panel: HTMLElement
+  close: () => void
+  returnFocus: HTMLElement | null
+  listener: (event: KeyboardEvent) => void
 }
-
-interface OverflowSnapshot {
-  value: string
-  priority: string
-}
-
-interface SheetStackEntry {
-  token: symbol
-  previousFocus: HTMLElement | null
-  panelElement: HTMLDivElement | null
-}
-
-let openSheetCount = 0
-let overflowSnapshot: OverflowSnapshot | null = null
-let backgroundSnapshots: AttributeSnapshot[] = []
-const openSheetStack: SheetStackEntry[] = []
-
-function restoreAttribute(
-  element: HTMLElement,
-  name: 'inert' | 'aria-hidden',
-  value: string | null,
-): void {
-  if (value === null) element.removeAttribute(name)
-  else element.setAttribute(name, value)
-}
-
-function lockBackground(): () => void {
-  if (openSheetCount === 0) {
-    overflowSnapshot = {
-      value: document.body.style.getPropertyValue('overflow'),
-      priority: document.body.style.getPropertyPriority('overflow'),
-    }
-    document.body.style.setProperty('overflow', 'hidden')
-
-    // 旧の #root は現行 Vue のマウント先 #app に替える（決定 A）。
-    const app = document.getElementById('app')
-    const backgrounds = app
-      ? [app]
-      : Array.from(document.body.children).filter(
-          (element): element is HTMLElement =>
-            element instanceof HTMLElement &&
-            !element.hasAttribute('data-sheet-layer'),
-        )
-    backgroundSnapshots = backgrounds.map((element) => ({
-      element,
-      inert: element.getAttribute('inert'),
-      ariaHidden: element.getAttribute('aria-hidden'),
-    }))
-    for (const { element } of backgroundSnapshots) {
-      element.setAttribute('inert', '')
-      element.setAttribute('aria-hidden', 'true')
-    }
-  }
-
-  openSheetCount += 1
-  let released = false
-  return () => {
-    if (released) return
-    released = true
-    openSheetCount = Math.max(0, openSheetCount - 1)
-    if (openSheetCount !== 0) return
-
-    if (overflowSnapshot) {
-      const { value, priority } = overflowSnapshot
-      if (value || priority) {
-        document.body.style.setProperty('overflow', value, priority)
-      } else {
-        document.body.style.removeProperty('overflow')
-      }
-    }
-    overflowSnapshot = null
-    for (const { element, inert, ariaHidden } of backgroundSnapshots) {
-      restoreAttribute(element, 'inert', inert)
-      restoreAttribute(element, 'aria-hidden', ariaHidden)
-    }
-    backgroundSnapshots = []
-  }
-}
+const stack: Entry[] = []
+const history: Entry[] = []
+let backgroundLock: (() => void) | null = null
 </script>
 
 <script setup lang="ts">
+import { nextTick, onScopeDispose, ref, watch } from 'vue'
 import { X } from 'lucide-vue-next'
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { cx } from '../../lib/format'
 
 const props = withDefaults(
   defineProps<{
@@ -99,45 +24,73 @@ const props = withDefaults(
   { side: 'right', wide: false },
 )
 const emit = defineEmits<{ close: [] }>()
-const sheetToken = Symbol('sheet')
-
-const panel = ref<HTMLDivElement | null>(null)
+const panel = ref<HTMLElement | null>(null)
 const closeButton = ref<HTMLButtonElement | null>(null)
-const panelClass = computed(() =>
-  cx(
-    'absolute flex flex-col bg-white shadow-2xl dark:bg-slate-900',
-    props.side === 'right'
-      ? cx('inset-y-0 right-0 w-full', props.wide ? 'max-w-3xl' : 'max-w-md')
-      : 'inset-x-0 bottom-0 max-h-[85dvh] rounded-t-2xl',
-  ),
-)
 
-function handleKeydown(event: KeyboardEvent): void {
-  // stopPropagation は同じ window の後続リスナーを止めないため、最前面だけが処理する（決定 M）。
-  if (openSheetStack[openSheetStack.length - 1]?.token !== sheetToken) return
+let currentEntry: Entry | null = null
 
+function lockBackground(): () => void {
+  const app = document.getElementById('app')
+  const targets = app
+    ? [app]
+    : Array.from(document.body.children).filter(
+        (element): element is HTMLElement =>
+          element instanceof HTMLElement &&
+          !element.hasAttribute('data-sheet-layer'),
+      )
+  const snapshots = targets.map((element) => ({
+    element,
+    inert: element.getAttribute('inert'),
+    ariaHidden: element.getAttribute('aria-hidden'),
+  }))
+  const overflow = document.body.style.getPropertyValue('overflow')
+  const priority = document.body.style.getPropertyPriority('overflow')
+  document.body.style.setProperty('overflow', 'hidden')
+  for (const { element } of snapshots) {
+    element.setAttribute('inert', '')
+    element.setAttribute('aria-hidden', 'true')
+  }
+  return () => {
+    if (overflow)
+      document.body.style.setProperty('overflow', overflow, priority)
+    else document.body.style.removeProperty('overflow')
+    for (const { element, inert, ariaHidden } of snapshots) {
+      if (inert === null) element.removeAttribute('inert')
+      else element.setAttribute('inert', inert)
+      if (ariaHidden === null) element.removeAttribute('aria-hidden')
+      else element.setAttribute('aria-hidden', ariaHidden)
+    }
+  }
+}
+
+function topEntry(): Entry | null {
+  return stack[stack.length - 1] ?? null
+}
+
+function focusables(entry: Entry): HTMLElement[] {
+  return Array.from(
+    entry.panel.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])',
+    ),
+  )
+}
+
+function handleKey(event: KeyboardEvent, current: Entry) {
   if (event.key === 'Escape') {
     event.stopPropagation()
-    emit('close')
+    current.close()
     return
   }
   if (event.key !== 'Tab') return
-
-  const focusable = panel.value?.querySelectorAll<HTMLElement>(
-    'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])',
-  )
-  if (!focusable?.length) return
-  const first = focusable.item(0)
-  const last = focusable.item(focusable.length - 1)
-  if (!first || !last) return
-
-  if (!panel.value?.contains(document.activeElement)) {
+  const items = focusables(current)
+  if (items.length === 0) return
+  const first = items[0]!
+  const last = items[items.length - 1]!
+  if (!current.panel.contains(document.activeElement)) {
     event.preventDefault()
-    if (event.shiftKey) last.focus()
-    else first.focus()
+    ;(event.shiftKey ? last : first).focus()
     return
   }
-
   if (event.shiftKey && document.activeElement === first) {
     event.preventDefault()
     last.focus()
@@ -147,76 +100,102 @@ function handleKeydown(event: KeyboardEvent): void {
   }
 }
 
-let cleanup: (() => void) | undefined
-
-function activate(): void {
-  if (cleanup) return
-  const previousFocus =
-    document.activeElement instanceof HTMLElement
-      ? document.activeElement
-      : null
-  const stackEntry: SheetStackEntry = {
-    token: sheetToken,
-    previousFocus,
-    panelElement: panel.value,
+/** 閉じたパネル内の戻り先は、そのパネルを開く前の戻り先へ引き継ぐ。 */
+function resolveReturnFocus(entry: Entry): HTMLElement | null {
+  let target = entry.returnFocus
+  const seen = new Set<Entry>()
+  while (target && !target.isConnected && !seen.has(entry)) {
+    const owner = history.find((candidate) => candidate.panel.contains(target!))
+    if (!owner) return null
+    seen.add(owner)
+    target = owner.returnFocus
   }
+  return target && target.isConnected ? target : null
+}
+
+function openSheet() {
+  if (!panel.value) {
+    void nextTick(openSheet)
+    return
+  }
+  if (stack.some((entry) => entry.panel === panel.value)) return
+  const close = () => emit('close')
+  const entry: Entry = {
+    panel: panel.value,
+    close,
+    returnFocus:
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null,
+    listener: () => undefined,
+  }
+  entry.listener = (event) => {
+    if (topEntry() !== entry) return
+    handleKey(event, entry)
+  }
+  stack.push(entry)
+  history.push(entry)
+  currentEntry = entry
+  if (stack.length === 1) backgroundLock = lockBackground()
+  window.addEventListener('keydown', entry.listener, true)
   closeButton.value?.focus()
-  const unlockBackground = lockBackground()
-  openSheetStack.push(stackEntry)
-  window.addEventListener('keydown', handleKeydown, true)
-  cleanup = () => {
-    window.removeEventListener('keydown', handleKeydown, true)
-    const index = openSheetStack.indexOf(stackEntry)
-    const wasTop = index !== -1 && index === openSheetStack.length - 1
-    if (index !== -1) {
-      openSheetStack.splice(index, 1)
-      if (!wasTop) {
-        // 直上の戻り先が自分のパネル内にあるときだけ引き継ぐ（決定 M）。
-        const above = openSheetStack[index]
-        if (
-          above?.previousFocus &&
-          stackEntry.panelElement?.contains(above.previousFocus)
-        ) {
-          above.previousFocus = stackEntry.previousFocus
-        }
-      }
-    }
-    unlockBackground()
-    if (wasTop) stackEntry.previousFocus?.focus()
+}
+
+function closeSheet() {
+  const entry = currentEntry
+  if (!entry) return
+  const index = stack.indexOf(entry)
+  if (index === -1) return
+  const wasTop = index === stack.length - 1
+  stack.splice(index, 1)
+  currentEntry = null
+  window.removeEventListener('keydown', entry.listener, true)
+  if (stack.length === 0) {
+    backgroundLock?.()
+    backgroundLock = null
+    resolveReturnFocus(entry)?.focus()
+    return
   }
+  if (!wasTop) return
+  const target =
+    resolveReturnFocus(entry) ??
+    stack[stack.length - 1]?.panel.querySelector<HTMLElement>(
+      'button[aria-label="閉じる"]',
+    ) ??
+    null
+  target?.focus()
 }
 
-function deactivate(): void {
-  const release = cleanup
-  cleanup = undefined
-  release?.()
-}
-
-// watch は DOM 更新後に走らせ、初期 open は onMounted で処理する（決定 C）。
 watch(
   () => props.open,
-  (open) => {
-    if (open) activate()
-    else deactivate()
+  (isOpen) => {
+    if (isOpen) openSheet()
+    else closeSheet()
   },
-  { flush: 'post' },
+  { immediate: true, flush: 'post' },
 )
-onMounted(() => {
-  if (props.open) activate()
+
+onScopeDispose(() => {
+  if (props.open || (currentEntry !== null && stack.includes(currentEntry)))
+    closeSheet()
 })
-onBeforeUnmount(deactivate)
 </script>
 
 <template>
-  <Teleport v-if="open" to="body">
-    <div class="fixed inset-0 z-50" data-sheet-layer="">
+  <Teleport to="body">
+    <div v-if="open" class="fixed inset-0 z-50" data-sheet-layer="">
       <div class="absolute inset-0 bg-black/40" @click="emit('close')" />
       <div
         ref="panel"
-        :class="panelClass"
         role="dialog"
         aria-modal="true"
         :aria-label="title"
+        :class="[
+          'absolute flex flex-col bg-white shadow-2xl dark:bg-slate-900',
+          side === 'right'
+            ? `inset-y-0 right-0 w-full ${wide ? 'max-w-3xl' : 'max-w-md'}`
+            : 'inset-x-0 bottom-0 max-h-[85dvh] rounded-t-2xl',
+        ]"
       >
         <div
           class="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-700"

@@ -292,7 +292,7 @@ onScopeDispose(() => {
       同じ要求を再送する
     </button>
     <button data-testid="undo-product-reload" :disabled="busy" @click="reload">
-      サーバーから再取得
+      取消原本を再取得
     </button>
     <fieldset v-if="context?.storedNative" :disabled="busy">
       <legend>取消後の通常投球（ボール）</legend>

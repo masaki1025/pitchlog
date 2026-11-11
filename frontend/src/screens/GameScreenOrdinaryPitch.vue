@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onScopeDispose, ref, toRaw, watch } from 'vue'
+import { computed, nextTick, onScopeDispose, ref, toRaw, watch } from 'vue'
 import {
   isPlayRecordingContext,
   isLineupRecordingContext,
@@ -21,14 +21,18 @@ import GameScreenBattedHitObservation from './GameScreenBattedHitObservation.vue
 import GameScreenInterferenceObservation from './GameScreenInterferenceObservation.vue'
 import GameScreenRunnerEventObservation from './GameScreenRunnerEventObservation.vue'
 import type { RunnerObservationWire } from '../api/runnerEventWire'
-import type { BattedHitResult } from '../../../contracts/state-transition/lineup_play_prefix_payload_v1.d.ts'
-import type { BattedOtherResult } from '../api/lineupPrefixWire'
-type CandidateBattedResult =
-  | BattedHitResult
-  | 'batting-result.batted-out'
-  | 'batting-result.double-play'
-  | BattedOtherResult
 import StrikeZone from '../components/zone/StrikeZone.vue'
+import StanceGrid from '../components/zone/StanceGrid.vue'
+import SpeedPad from '../components/pads/SpeedPad.vue'
+import LegacyResultPad from '../components/pads/LegacyResultPad.vue'
+import RunnerDiamond from '../components/diamond/RunnerDiamond.vue'
+import CountDisplay from '../components/scoreboard/CountDisplay.vue'
+import RecordBottomBar from '../components/game/RecordBottomBar.vue'
+import Sheet from '../components/ui/Sheet.vue'
+import GameScreenUndoProduct from './GameScreenUndoProduct.vue'
+import GameScreenSubstitutionProduct from './GameScreenSubstitutionProduct.vue'
+import GameScreenLifecycleProduct from './GameScreenLifecycleProduct.vue'
+import { useRecordDisplay } from './GameScreenRecordDisplayProvider'
 import { ordinaryPitchLockReason } from './ordinaryPitchLock'
 import { useAuthStore } from '../stores/authStore'
 import {
@@ -41,8 +45,31 @@ const props = defineProps<{
   localSession?: LocalRecordingSession | null
   suspended?: boolean
 }>()
-const emit = defineEmits<{ saved: [] }>()
+const emit = defineEmits<{ saved: []; reload: [] }>()
 const auth = useAuthStore()
+const stance = ref(0)
+const speed = ref('')
+const lastSpeed = ref('')
+const battingSideOverride = ref<'右' | '左' | null>(null)
+const activeSheet = ref<
+  | null
+  | 'safety'
+  | 'undo'
+  | 'substitution'
+  | 'menu'
+  | 'lifecycle'
+  | 'sync'
+  | 'runner'
+  | 'next-batter'
+>(null)
+const substitutionChoice = ref(true)
+const leftOpen = ref(false)
+const resultPanel = ref<'inplay' | 'strikeout' | 'walk' | null>(null)
+const resultPicked = ref(false)
+const pendingNextBatter = ref<string | null>(null)
+const missingCourse = ref(false)
+const missingPitchType = ref(false)
+const runnerNotice = ref('')
 const point = ref<{ x: number; y: number } | null>(null)
 const viewpoint = ref<'catcher' | 'pitcher'>('catcher')
 const selected = ref('')
@@ -77,33 +104,7 @@ const interference = computed(() =>
     'secondary-result.offensive-interference',
   ].includes(resultId.value),
 )
-const battedOutAvailable = computed(() =>
-  isLineupRecordingContext(displayed.value),
-)
-const runnerBattedAvailable = computed(
-  () =>
-    isLineupRecordingContext(displayed.value) &&
-    displayed.value.after.stateFields['state.runners'] !== 'empty',
-)
-const sacrificeBuntAvailable = computed(
-  () =>
-    runnerBattedAvailable.value &&
-    displayed.value.after.stateFields['state.outs'] !== '2',
-)
-const sacrificeFlyAvailable = computed(
-  () =>
-    isLineupRecordingContext(displayed.value) &&
-    ['third', 'first-third', 'second-third', 'first-second-third'].includes(
-      displayed.value.after.stateFields['state.runners'],
-    ) &&
-    displayed.value.after.stateFields['state.outs'] !== '2',
-)
-const doublePlayAvailable = computed(
-  () =>
-    isLineupRecordingContext(displayed.value) &&
-    displayed.value.after.stateFields['state.runners'] === 'first' &&
-    displayed.value.after.stateFields['state.outs'] === '0',
-)
+const battedHit = ref<PlayScreenObservation['battedHit']>(null)
 /** 原典で成立した一三塁0-0だけを画面に提示する。遷移値は唯一核が決める。 */
 const intentionalWalkAvailable = computed(() => {
   const c = displayed.value
@@ -117,7 +118,6 @@ const intentionalWalkAvailable = computed(() => {
     !state['state.gameEnded']
   )
 })
-const battedHit = ref<PlayScreenObservation['battedHit']>(null)
 const adoptInterference = ref(false)
 const interferenceObservation = ref<PlayScreenObservation['interference']>(null)
 const hitAvailable = computed(() => {
@@ -127,6 +127,43 @@ const hitAvailable = computed(() => {
     !displayed.value.after.stateFields['state.gameEnded']
   )
 })
+const runnersState = computed(
+  () => displayed.value.after.stateFields['state.runners'],
+)
+const outsState = computed(
+  () => displayed.value.after.stateFields['state.outs'],
+)
+const runnerBattedAvailable = computed(
+  () =>
+    isLineupRecordingContext(displayed.value) && runnersState.value !== 'empty',
+)
+const sacrificeBuntAvailable = computed(
+  () => hitAvailable.value && outsState.value !== '2',
+)
+const sacrificeFlyAvailable = computed(
+  () =>
+    isLineupRecordingContext(displayed.value) &&
+    ['third', 'first-third', 'second-third', 'first-second-third'].includes(
+      runnersState.value,
+    ) &&
+    outsState.value !== '2' &&
+    hitAvailable.value,
+)
+const doublePlayAvailable = computed(
+  () =>
+    isLineupRecordingContext(displayed.value) &&
+    runnersState.value === 'first' &&
+    outsState.value === '0' &&
+    hitAvailable.value,
+)
+const strikeoutDoublePlayAvailable = computed(
+  () =>
+    isLineupRecordingContext(displayed.value) &&
+    runnersState.value === 'first' &&
+    outsState.value === '0' &&
+    displayed.value.after.stateFields['state.count.strikes'] === '2' &&
+    displayed.value.after.stateFields['state.count.balls'] === '0',
+)
 const battedRunners = computed(() => {
   const runners = displayed.value.after.stateFields['state.runners']
   const source = isLineupRecordingContext(displayed.value)
@@ -193,15 +230,24 @@ const battedContextKey = computed(() => {
         resultId.value
     : ''
 })
+const runnerSourceKey = computed(
+  () => game.value.id + ':' + displayed.value.nextPosition.d1,
+)
 const runnerPeople = computed(() => {
   const c = displayed.value
-  return isLineupRecordingContext(c)
-    ? c.lineupSource.runners.map((r) => ({
-        base: r.base,
-        runnerId: r.runnerId,
-        responsiblePitcherId: r.responsiblePitcherId,
-      }))
-    : []
+  if (isLineupRecordingContext(c))
+    return c.lineupSource.runners.map((r) => ({
+      base: r.base,
+      runnerId: r.runnerId,
+      responsiblePitcherId: r.responsiblePitcherId,
+    }))
+  if (isPlayRecordingContext(c))
+    return c.playSource.runners.map((r) => ({
+      base: r.base,
+      runnerId: r.runnerId,
+      responsiblePitcherId: r.responsiblePitcherId,
+    }))
+  return []
 })
 
 const fielders = computed(
@@ -215,16 +261,19 @@ const fielders = computed(
             : 'away'),
       )
       ?.participants.filter((p) => p.roles.some((r) => r.kind === 'fielding'))
-      .map((p) => ({
-        id: p.player.player_id,
-        label:
-          '守備位置 ' +
-          p.roles
-            .filter((r) => r.kind === 'fielding')
-            .map((r) => r.position)
-            .join('/') +
-          ' の選手',
-      })) ?? [],
+      .map((p) => {
+        const positions = p.roles
+          .filter((r) => r.kind === 'fielding')
+          .map((r) => r.position)
+          .join('/')
+        return {
+          id: p.player.player_id,
+          label: `${positions} ${display.playerName(
+            p.player.player_id,
+            'の選手',
+          )}`,
+        }
+      }) ?? [],
 )
 
 const terminal = computed(
@@ -252,6 +301,307 @@ const nextBatters = computed(() => {
 const canAppend = ref(false)
 const retryEvidenceUnavailable = ref(false)
 const displayed = ref<RecordingContext>(structuredClone(toRaw(props.context)))
+const display = useRecordDisplay(computed(() => displayed.value.game))
+const game = computed(() => displayed.value.game)
+const stateFields = computed(() => displayed.value.after.stateFields)
+const inning = computed(() => stateFields.value['state.inning'])
+const half = computed(() => stateFields.value['state.half'])
+const halfLabel = computed(() => (half.value === 'top' ? '表' : '裏'))
+const outs = computed(() => Number(stateFields.value['state.outs']))
+const balls = computed(() => Number(stateFields.value['state.count.balls']))
+const strikes = computed(() => Number(stateFields.value['state.count.strikes']))
+const battingOrder = computed(() =>
+  Number(stateFields.value['state.battingOrder']),
+)
+const score = computed(() => stateFields.value['state.score'])
+const awayTeamName = computed(() =>
+  display.teamName(game.value.away_team_record_id, 'ビジター'),
+)
+const homeTeamName = computed(() =>
+  display.teamName(game.value.home_team_record_id, 'ホーム'),
+)
+function derivedParticipants(c: RecordingContext): {
+  batterId: string
+  pitcherId: string
+  catcherId: string
+  battingOrder: string
+} {
+  if (isLineupRecordingContext(c)) return { ...c.lineupSource.participants }
+  if (isPlayRecordingContext(c)) {
+    const defend = c.after.stateFields['state.half'] === 'top' ? 'home' : 'away'
+    const catching = c.game.lineups[defend].entries.find(
+      (entry) =>
+        entry.fielding_position.kind === 'fielding' &&
+        entry.fielding_position.position === '2',
+    )
+    return {
+      ...c.playSource.participants,
+      catcherId: catching?.player_id ?? '',
+    }
+  }
+  const order = c.after.stateFields['state.battingOrder']
+  const attack = c.after.stateFields['state.half'] === 'top' ? 'away' : 'home'
+  const defend = attack === 'away' ? 'home' : 'away'
+  const batter = c.game.lineups[attack].entries.find(
+    (entry) => entry.batting_order === order,
+  )
+  const fielding = c.game.lineups[defend].entries.find(
+    (entry) =>
+      entry.fielding_position.kind === 'fielding' &&
+      entry.fielding_position.position === '1',
+  )
+  const catching = c.game.lineups[defend].entries.find(
+    (entry) =>
+      entry.fielding_position.kind === 'fielding' &&
+      entry.fielding_position.position === '2',
+  )
+  return {
+    batterId: batter?.player_id ?? '',
+    pitcherId: fielding?.player_id ?? '',
+    catcherId: catching?.player_id ?? '',
+    battingOrder: order,
+  }
+}
+const participants = computed(() => derivedParticipants(displayed.value))
+const batterId = computed(() => participants.value.batterId)
+const pitcherId = computed(() => participants.value.pitcherId)
+const catcherId = computed(() => participants.value.catcherId)
+const batterName = computed(() =>
+  display.playerName(batterId.value, `${battingOrder.value}番の打者`),
+)
+const batterNumber = computed(() => display.playerNumber(batterId.value))
+const pitcherName = computed(() => display.playerName(pitcherId.value, '投手'))
+const pitcherNumber = computed(() => display.playerNumber(pitcherId.value))
+const catcherName = computed(() => display.playerName(catcherId.value, '捕手'))
+const batterProfile = computed(() =>
+  batterId.value ? display.player(batterId.value) : null,
+)
+const battingSide = computed<'右' | '左'>(() => {
+  if (battingSideOverride.value !== null) return battingSideOverride.value
+  const bats = batterProfile.value?.bats
+  if (bats === 'left') return '左'
+  return '右'
+})
+const canToggleBattingSide = computed(
+  () => batterProfile.value?.bats === 'both',
+)
+function toggleBattingSide() {
+  battingSideOverride.value = battingSide.value === '右' ? '左' : '右'
+}
+function occupied(base: 'first' | 'second' | 'third'): boolean {
+  const value = stateFields.value['state.runners']
+  if (value === 'empty') return false
+  const map: Record<string, readonly string[]> = {
+    first: ['first', 'first-second', 'first-third', 'loaded'],
+    second: ['second', 'first-second', 'second-third', 'loaded'],
+    third: ['third', 'first-third', 'second-third', 'loaded'],
+  }
+  return map[base].includes(value)
+}
+function runnerView(base: 'first' | 'second' | 'third') {
+  if (!occupied(base)) return null
+  const slot = base === 'first' ? '1' : base === 'second' ? '2' : '3'
+  const person = runnerPeople.value.find((runner) => runner.base === slot)
+  if (!person) return { name: '走者' }
+  return { name: display.playerName(person.runnerId, '走者') }
+}
+const runnerFirst = computed(() => runnerView('first'))
+const runnerSecond = computed(() => runnerView('second'))
+const runnerThird = computed(() => runnerView('third'))
+const hasRunners = computed(
+  () =>
+    runnerFirst.value !== null ||
+    runnerSecond.value !== null ||
+    runnerThird.value !== null,
+)
+const runnerChips = computed(() => [
+  { base: '1塁', runner: runnerFirst.value },
+  { base: '2塁', runner: runnerSecond.value },
+  { base: '3塁', runner: runnerThird.value },
+])
+const nextBatterName = computed(() => {
+  const candidate = nextBatters.value[0]
+  return candidate
+    ? display.playerName(
+        candidate.player.player_id,
+        `${candidate.batting_slot.kind === 'slot' ? candidate.batting_slot.slot : ''}番の打者`,
+      )
+    : '—'
+})
+const highlightedResult = computed(() =>
+  resultPicked.value ? resultId.value : null,
+)
+const pitchTypeCodes: readonly { pattern: RegExp; code: string }[] = [
+  { pattern: /直球|ストレート/, code: 'FB' },
+  { pattern: /カーブ/, code: 'CB' },
+  { pattern: /スライダー/, code: 'SL' },
+  { pattern: /カット/, code: 'CT' },
+  { pattern: /シュート/, code: 'ST' },
+  { pattern: /ツーシーム/, code: '2S' },
+  { pattern: /チェンジ/, code: 'CH' },
+  { pattern: /フォーク/, code: 'SP' },
+  { pattern: /シンカー/, code: 'SK' },
+  { pattern: /特殊|その他/, code: 'OT' },
+]
+function pitchTypeChipLabel(item: PitchTypeOption): string {
+  return (
+    pitchTypeCodes.find((entry) => entry.pattern.test(item.display_name))
+      ?.code ?? item.display_name
+  )
+}
+const currentPitchTypeLabel = computed(
+  () =>
+    items.value.find((item) => item.key === selected.value)?.display_name ??
+    '未',
+)
+const courseEntered = computed(() => point.value !== null)
+function selectPitchType(key: string) {
+  selected.value = key
+  missingPitchType.value = false
+}
+function selectStance(zone: number) {
+  stance.value = zone
+}
+function changeSpeed(value: string) {
+  speed.value = value
+}
+async function openSafety() {
+  activeSheet.value = 'safety'
+}
+function openUndo() {
+  if (!canAppend.value) return
+  activeSheet.value = 'undo'
+}
+function openSubstitution() {
+  if (!canAppend.value) return
+  substitutionChoice.value = true
+  activeSheet.value = 'substitution'
+}
+function openMenu() {
+  activeSheet.value = 'menu'
+}
+function openRunner() {
+  if (!hasRunners.value) return
+  runnerNotice.value = ''
+  activeSheet.value = 'runner'
+}
+async function runnerConfirmed(value: RunnerObservationWire) {
+  if (value.perPitch.pitchEventKind !== 'non-pitch-event') {
+    runnerNotice.value =
+      '投球を伴う盗塁・暴投・捕逸は、通常投球の結果と合わせて記録します。ここでは牽制・ボークなど無投球の操作を選んでください。'
+    return
+  }
+  runnerMode.value = true
+  runnerObservation.value = value
+  activeSheet.value = null
+  await nextTick()
+  await save()
+}
+async function substitutionSaved() {
+  activeSheet.value = null
+  emit('saved')
+}
+async function undoDone() {
+  activeSheet.value = null
+  emit('saved')
+}
+async function lifecycleResumed() {
+  activeSheet.value = null
+  emit('saved')
+}
+function chooseDirect(
+  result:
+    | 'batting-result.called-strikeout'
+    | 'batting-result.swinging-strikeout'
+    | 'batting-result.k3'
+    | 'batting-result.strikeout-double-play'
+    | 'batting-result.walk'
+    | 'batting-result.hit-by-pitch',
+) {
+  resultId.value = result
+  if (
+    result === 'batting-result.walk' ||
+    result === 'batting-result.hit-by-pitch'
+  ) {
+    pendingNextBatter.value = result
+    nextBatterId.value = ''
+    activeSheet.value = 'next-batter'
+    return
+  }
+  void nextTick().then(() => save())
+}
+function ensureConfirmed(): boolean {
+  if (!confirmed.value) {
+    activeSheet.value = 'safety'
+    return false
+  }
+  return true
+}
+function selectSimple(
+  result:
+    | 'batting-result.called-pitch'
+    | 'batting-result.swinging-strike'
+    | 'batting-result.foul'
+    | 'batting-result.ball',
+) {
+  if (!ensureConfirmed()) return
+  resultPicked.value = true
+  if (result === 'batting-result.ball' && balls.value >= 3) {
+    chooseDirect('batting-result.walk')
+    return
+  }
+  if (result === 'batting-result.called-pitch' && strikes.value >= 2) {
+    chooseDirect('batting-result.called-strikeout')
+    return
+  }
+  if (result === 'batting-result.swinging-strike' && strikes.value >= 2) {
+    chooseDirect('batting-result.swinging-strikeout')
+    return
+  }
+  resultId.value = result
+  void save()
+}
+function selectInPlay(result: string) {
+  if (!ensureConfirmed()) return
+  resultPicked.value = true
+  resultId.value = result as PlayScreenObservation['resultId']
+  resultPanel.value = null
+  battedHit.value = null
+  interferenceObservation.value = null
+}
+const resultLabels: Readonly<Record<string, string>> = {
+  'batting-result.single': '単打',
+  'batting-result.double': '二塁打',
+  'batting-result.triple': '三塁打',
+  'batting-result.home-run': '本塁打',
+  'batting-result.batted-out': '凡打死',
+  'batting-result.double-play': '併殺打',
+  'batting-result.batted-reach': '凡打出塁',
+  'batting-result.error': 'エラー',
+  'batting-result.fielders-choice': '野手選択',
+  'batting-result.sacrifice-bunt': '犠打',
+  'batting-result.sacrifice-fly': '犠飛',
+  'batting-result.sacrifice-bunt-error': '犠打失策',
+  'secondary-result.batting-interference': '打撃妨害',
+  'secondary-result.obstruction': '走塁妨害',
+  'secondary-result.offensive-interference': '守備妨害',
+}
+const resultLabel = computed(
+  () => resultLabels[resultId.value] ?? resultId.value,
+)
+function clearComplex() {
+  resultId.value = 'batting-result.ball'
+  battedHit.value = null
+  interferenceObservation.value = null
+  adoptInterference.value = false
+  resultPanel.value = null
+}
+async function confirmNextBatter() {
+  if (!nextBatterId.value) return
+  activeSheet.value = null
+  await nextTick()
+  await save()
+}
 watch([runnerMode, battedContextKey], () => {
   runnerObservation.value = null
   if (batted.value || interference.value) runnerMode.value = false
@@ -275,6 +625,15 @@ watch(
     nextBatterId.value = ''
   },
 )
+watch(resultId, (value) => {
+  if (
+    value === 'batting-result.walk' ||
+    value === 'batting-result.hit-by-pitch'
+  ) {
+    pendingNextBatter.value = value
+    activeSheet.value = 'next-batter'
+  }
+})
 const items = ref<readonly PitchTypeOption[]>([])
 const cursor = ref<string | null>(null)
 const history = ref<(string | null)[]>([])
@@ -445,7 +804,8 @@ async function next() {
 async function previous() {
   if (history.value.length > 0) await load(history.value.pop() ?? null)
 }
-async function save() {
+async function save(override?: PlayScreenObservation['resultId']) {
+  if (override !== undefined) resultId.value = override
   const diagnostic = globalThis as {
     __pitchlogE2eDiagnostics?: boolean
     __pitchlogSaveEnteredAt?: number
@@ -467,6 +827,14 @@ async function save() {
       hydrated: auth.hasHydrated,
       authenticated: auth.isAuthenticated,
     }
+  }
+  missingCourse.value = !runnerNonpitch.value && point.value === null
+  missingPitchType.value =
+    !runnerNonpitch.value &&
+    !items.value.some((item) => item.key === selected.value)
+  if (missingPitchType.value || missingCourse.value) {
+    if (missingCourse.value) activeSheet.value = null
+    return
   }
   if (
     !controller ||
@@ -526,9 +894,12 @@ async function save() {
         screenX: point.value.x,
         screenY: point.value.y,
         view: viewpoint.value,
-        pitchSpeed: { kmh: null, outsideRangeConfirmed: false },
-        stance: null,
-        battingSide: null,
+        pitchSpeed:
+          speed.value === ''
+            ? { kmh: null, outsideRangeConfirmed: false }
+            : { kmh: speed.value, outsideRangeConfirmed: false },
+        stance: stance.value > 0 ? String(stance.value) : null,
+        battingSide: battingSide.value,
       }
     }
     const diagnostic = globalThis as {
@@ -553,8 +924,24 @@ async function save() {
       ? current.canAppendLocal
       : current.canAppend
     retryEvidenceUnavailable.value = current.retryEvidenceUnavailable
-    if (result === 'saved' || result === 'pending' || result === 'queued-local')
+    if (
+      result === 'saved' ||
+      result === 'pending' ||
+      result === 'queued-local'
+    ) {
+      if (speed.value !== '') lastSpeed.value = speed.value
       point.value = null
+      speed.value = ''
+      battedHit.value = null
+      interferenceObservation.value = null
+      resultPanel.value = null
+      nextBatterId.value = ''
+      if (!batted.value && !interference.value) resultPicked.value = false
+      runnerObservation.value = null
+      runnerMode.value = false
+      missingCourse.value = false
+      missingPitchType.value = false
+    }
     if (result === 'saved' && !localRequested.value) emit('saved')
   } finally {
     if (controller === current) busy.value = false
@@ -584,6 +971,7 @@ async function saveIntentionalWalk() {
     displayed.value = current.context
     canAppend.value = current.canAppend
     retryEvidenceUnavailable.value = current.retryEvidenceUnavailable
+    resultId.value = 'batting-result.ball'
     if (result === 'saved') emit('saved')
   } finally {
     if (controller === current) busy.value = false
@@ -771,424 +1159,1092 @@ onScopeDispose(() => {
 })
 </script>
 <template>
-  <section aria-label="通常投球を記録" class="space-y-3 rounded-xl border p-4">
-    <h2 class="text-lg font-bold">通常投球を記録</h2>
-    <fieldset
-      class="space-y-1 rounded border p-2"
-      :disabled="busy || suspended"
+  <section
+    aria-label="通常投球を記録"
+    class="flex h-dvh min-w-0 flex-col overflow-y-auto bg-slate-100 lg:overflow-hidden dark:bg-slate-950"
+  >
+    <div
+      v-if="stateFields['state.gameEnded']"
+      class="bg-red-600 px-4 py-1.5 text-center text-sm font-bold text-white lg:hidden"
     >
-      <legend>この記録端末の利用条件</legend>
-      <label class="block"
-        ><input
-          v-model="sameProfile"
-          type="checkbox"
-          data-testid="first-ball-env-profile"
-        />ほかの記録タブと同じブラウザプロファイルを使います</label
-      >
-      <label class="block"
-        ><input
-          v-model="sameMode"
-          type="checkbox"
-          data-testid="first-ball-env-mode"
-        />通常・プライベートなどの閲覧モードを統一します</label
-      >
-      <label class="block"
-        ><input
-          v-model="sameBucket"
-          type="checkbox"
-          data-testid="first-ball-env-bucket"
-        />同じサイトの保存領域を使うタブだけで記録します</label
-      >
-      <label class="block"
-        ><input
-          v-model="noLockdown"
-          type="checkbox"
-          data-testid="first-ball-env-lockdown"
-        />この端末でLockdownモードを適用していません</label
-      >
-    </fieldset>
-    <p v-if="!httpsTopLevel()" role="alert">
-      記録にはHTTPSで直接開いた画面が必要です。
-    </p>
-    <p role="status" data-testid="first-ball-status">{{ message }}</p>
+      試合終了 — 入力は無効です（メニュー→終了・再開で確認）
+    </div>
     <p
       v-if="lockMessage"
       role="alert"
       data-testid="ordinary-pitch-locked"
-      class="rounded-lg border border-amber-500 bg-amber-50 p-2 font-bold dark:bg-amber-950/40"
+      class="border-b border-amber-300 bg-amber-100 px-3 py-1.5 text-center text-xs font-extrabold text-amber-950 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100"
     >
       {{ lockMessage }}
     </p>
-    <p v-if="isLocalMode" data-testid="ordinary-local-notice">
+    <p
+      v-if="isLocalMode"
+      data-testid="ordinary-local-notice"
+      class="border-b border-sky-300 bg-sky-50 px-3 py-1.5 text-center text-xs font-extrabold text-sky-800 dark:border-sky-800 dark:bg-sky-950/60 dark:text-sky-200"
+    >
       通信断中は端末へ未送信の投球だけを記録します。安打の詳細観測はこの入口で確定できません。
     </p>
-    <p>
-      {{
-        isLocalMode
-          ? 'ボール・ストライク・ファウル、四球・死球、三振を端末の未送信記録として入力できます。'
-          : isLineupRecordingContext(displayed)
-            ? 'ボール・ストライク・ファウル、四球・死球、三振、単打・二塁打・三塁打・本塁打を記録できます。走者あり安打では走者ごとの到達塁を確認します。次の打者と攻守は保存された打順から引き継ぎます。'
-            : 'ボール・見逃し・空振り・通常のファウル、無走者の四球・死球を記録できます。四球・死球では次の打者を確認してください。'
-      }}
-    </p>
-    <p data-testid="ordinary-state-source">
-      {{
-        displayed.source === 'local-provisional'
-          ? '端末の未確認分を含む暫定状態'
-          : 'サーバー確認済みの状態'
-      }}
-    </p>
-    <p>
-      暫定カウント:
-      <span data-testid="ordinary-local-balls">{{
-        displayed.after.stateFields['state.count.balls']
-      }}</span
-      >ボール・<span data-testid="ordinary-local-strikes">{{
-        displayed.after.stateFields['state.count.strikes']
-      }}</span
-      >ストライク
-    </p>
-    <p
-      v-if="isLineupRecordingContext(displayed)"
-      data-testid="lineup-local-state"
+    <div
+      v-if="status === 'pending' && !isLocalMode && !suspended"
+      class="flex shrink-0 items-center justify-center gap-2 border-b border-red-300 bg-red-50 px-3 py-1.5 text-center text-xs font-extrabold text-red-800 dark:border-red-800 dark:bg-red-950/60 dark:text-red-200"
     >
-      {{ displayed.after.stateFields['state.inning'] }}回{{
-        displayed.after.stateFields['state.half'] === 'top' ? '表' : '裏'
-      }}・{{ displayed.after.stateFields['state.outs'] }}アウト・{{
-        displayed.lineupSource.participants.battingOrder
-      }}番
-    </p>
-    <template v-if="canAppend && !suspended">
-      <label v-if="!runnerNonpitch" class="block"
-        >結果<select
-          v-model="resultId"
-          data-testid="ordinary-pitch-result"
-          :disabled="busy"
+      <span
+        >未確認の要求が端末に残っています。同じ要求を順序どおり再送します。</span
+      >
+      <button
+        type="button"
+        data-testid="first-ball-retry"
+        class="min-h-9 rounded-lg border border-red-300 bg-white px-2 font-bold text-red-800 disabled:opacity-40 dark:border-red-700 dark:bg-slate-900 dark:text-red-200"
+        :disabled="busy || !confirmed"
+        @click="retry"
+      >
+        再送
+      </button>
+    </div>
+    <button
+      v-if="!confirmed"
+      type="button"
+      class="flex shrink-0 items-center justify-center gap-2 border-b border-amber-300 bg-amber-50 px-3 py-1.5 text-center text-xs font-extrabold text-amber-900 hover:bg-amber-100 lg:hidden dark:border-amber-800 dark:bg-amber-950/60 dark:text-amber-100"
+      @click="openSafety"
+    >
+      記録端末の安全確認が必要です — タップして確認
+    </button>
+
+    <header
+      class="relative z-30 hidden h-16 shrink-0 overflow-visible border-b border-slate-200 bg-white lg:flex lg:flex-col [@media(max-height:960px)]:h-14 dark:border-slate-700 dark:bg-slate-900"
+    >
+      <div
+        class="grid h-9 grid-cols-[minmax(190px,1.2fr)_120px_minmax(130px,1fr)_minmax(150px,1fr)_146px_minmax(220px,236px)] items-center gap-2 px-3 text-xs [@media(max-height:960px)]:h-8 [@media(max-height:960px)]:px-2"
+      >
+        <div class="truncate font-extrabold">
+          <span class="text-slate-600 dark:text-slate-300">{{
+            awayTeamName
+          }}</span>
+          <span class="mx-1 text-lg tabular-nums">{{ score.away }}</span>
+          <span class="text-slate-400">–</span>
+          <span class="mx-1 text-lg tabular-nums">{{ score.home }}</span>
+          <span class="text-slate-600 dark:text-slate-300">{{
+            homeTeamName
+          }}</span>
+        </div>
+        <div
+          class="flex min-w-0 items-center justify-center font-extrabold tabular-nums"
         >
-          <option value="batting-result.ball">ボール</option>
-          <option value="batting-result.called-pitch">見逃しストライク</option>
-          <option value="batting-result.swinging-strike">
-            空振りストライク
-          </option>
-          <option
-            v-if="
-              isPlayRecordingContext(displayed) ||
-              isLineupRecordingContext(displayed)
+          {{ inning }}回{{ halfLabel }}　{{ outs }}アウト
+        </div>
+        <CountDisplay compact :balls="balls" :strikes="strikes" :outs="outs" />
+        <div
+          class="relative flex min-w-0 items-center gap-1 rounded-lg border border-sky-100 bg-sky-50/50 px-1 dark:border-sky-900/60 dark:bg-sky-950/20"
+          role="group"
+          aria-label="打者情報と打席左右"
+        >
+          <span class="min-w-0 flex-1 truncate px-1 text-left">
+            <span class="mr-1 text-slate-400">打</span>
+            <span class="font-bold">{{ battingOrder }}番 {{ batterName }}</span>
+            <span v-if="batterNumber" class="ml-1 text-slate-400"
+              >#{{ batterNumber }}</span
+            >
+          </span>
+          <button
+            type="button"
+            class="inline-flex h-8 min-w-12 shrink-0 items-center justify-center gap-0.5 whitespace-nowrap rounded-md border border-sky-200 bg-white px-1.5 text-[10px] font-extrabold text-sky-700 shadow-sm transition hover:border-sky-400 hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-sky-800 dark:bg-slate-900 dark:text-sky-300 dark:hover:bg-sky-950/70"
+            :disabled="!canToggleBattingSide"
+            :title="
+              canToggleBattingSide
+                ? '打席左右を切り替える'
+                : '打席左右は登録された打者情報に従います'
             "
-            value="batting-result.walk"
+            :aria-label="`現在は${battingSide}打席`"
+            @click="toggleBattingSide"
           >
-            四球
-          </option>
-          <option
-            v-if="
-              isPlayRecordingContext(displayed) ||
-              isLineupRecordingContext(displayed)
-            "
-            value="batting-result.hit-by-pitch"
+            {{ battingSide }}打
+            <span v-if="canToggleBattingSide" aria-hidden="true">⇄</span>
+          </button>
+        </div>
+        <div
+          class="relative min-w-0 rounded-lg border border-violet-100 bg-violet-50/50 px-1 dark:border-violet-900/60 dark:bg-violet-950/20"
+        >
+          <div class="flex min-h-8 min-w-0 items-center gap-1 rounded-lg px-1">
+            <span class="shrink-0 text-slate-400">投</span>
+            <span class="min-w-0 truncate font-bold">{{ pitcherName }}</span>
+            <span
+              v-if="pitcherNumber"
+              class="shrink-0 rounded bg-violet-100 px-1 py-0.5 text-[10px] font-extrabold text-violet-700 dark:bg-violet-900/60 dark:text-violet-300"
+            >
+              #{{ pitcherNumber }}
+            </span>
+          </div>
+        </div>
+        <div
+          class="relative flex min-w-0 items-center gap-1"
+          role="group"
+          aria-label="走者状況"
+        >
+          <span
+            v-for="chip in runnerChips"
+            :key="chip.base"
+            :class="[
+              'flex h-8 min-w-0 flex-1 flex-col items-center justify-center rounded-md border px-1 leading-none',
+              chip.runner
+                ? 'border-red-500 bg-red-50 text-red-800 dark:bg-red-950/50 dark:text-red-200'
+                : 'border-slate-200 bg-slate-50 text-slate-400 dark:border-slate-700 dark:bg-slate-800',
+            ]"
           >
-            死球
-          </option>
-          <option
-            v-if="isLineupRecordingContext(displayed)"
-            value="batting-result.called-strikeout"
-          >
-            見逃し三振
-          </option>
-          <option
-            v-if="isLineupRecordingContext(displayed)"
-            value="batting-result.swinging-strikeout"
-          >
-            空振り三振
-          </option>
-          <option
-            v-if="isLineupRecordingContext(displayed)"
-            value="batting-result.k3"
-          >
-            K3（スリーバント失敗）
-          </option>
-          <option
-            v-if="
-              isLineupRecordingContext(displayed) &&
-              displayed.after.stateFields['state.outs'] === '1' &&
-              displayed.after.stateFields['state.runners'] === 'first' &&
-              displayed.after.stateFields['state.count.strikes'] === '2' &&
-              displayed.after.stateFields['state.count.balls'] === '0'
-            "
-            value="batting-result.strikeout-double-play"
-          >
-            三振ゲッツー（一死一塁・一塁走者アウト）
-          </option>
-          <template v-if="hitAvailable && !isLocalMode">
-            <option value="batting-result.single">単打</option>
-            <option value="batting-result.double">二塁打</option>
-            <option value="batting-result.triple">三塁打</option>
-            <option value="batting-result.home-run">本塁打</option>
-            <option v-if="battedOutAvailable" value="batting-result.batted-out">
-              打球アウト
-            </option>
-            <option
-              v-if="runnerBattedAvailable"
-              value="batting-result.batted-reach"
+            <span class="text-[9px] font-extrabold">{{ chip.base }}</span>
+            <span
+              class="mt-0.5 w-full truncate text-center text-[10px] font-bold"
             >
-              打球による出塁
-            </option>
-            <option
-              v-if="runnerBattedAvailable"
-              value="batting-result.fielders-choice"
-            >
-              野手選択
-            </option>
-            <option value="batting-result.error">失策による出塁</option>
-            <option
-              v-if="sacrificeBuntAvailable"
-              value="batting-result.sacrifice-bunt"
-            >
-              犠打
-            </option>
-            <option
-              v-if="sacrificeBuntAvailable"
-              value="batting-result.sacrifice-bunt-error"
-            >
-              犠打失策
-            </option>
-            <option
-              v-if="sacrificeFlyAvailable"
-              value="batting-result.sacrifice-fly"
-            >
-              犠飛
-            </option>
-            <option
-              v-if="doublePlayAvailable"
-              value="batting-result.double-play"
-            >
-              併殺打（一塁走者の封殺）
-            </option>
-            <option value="secondary-result.batting-interference">
-              打撃妨害（罰則採用）
-            </option>
-            <option value="secondary-result.obstruction">走塁妨害</option>
-            <option value="secondary-result.offensive-interference">
-              守備妨害
-            </option>
-          </template>
-          <option value="batting-result.foul">
-            ファウル（通常・非バント）
-          </option>
-        </select></label
+              {{ chip.runner ? chip.runner.name : '—' }}
+            </span>
+          </span>
+        </div>
+      </div>
+      <div
+        class="flex h-7 min-w-0 items-center gap-1.5 overflow-hidden border-t border-slate-100 bg-slate-50 px-3 [@media(max-height:960px)]:h-6 [@media(max-height:960px)]:px-2 dark:border-slate-800 dark:bg-slate-950/50"
       >
-      <label
-        v-if="isLineupRecordingContext(displayed) && !batted && !interference"
-        class="block"
-        ><input
-          v-model="runnerMode"
-          type="checkbox"
-          data-testid="runner-operation-enable"
-          :disabled="busy"
-        />走者操作を記録する</label
+        <span
+          class="mr-0.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-400"
+        >
+          #{{ displayed.nextPosition.d1 }}
+        </span>
+        <span
+          :class="[
+            'rounded-full px-2 py-1 text-[10px] font-extrabold',
+            stance > 0
+              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-200'
+              : 'bg-slate-200 text-slate-500 dark:bg-slate-800 dark:text-slate-400',
+          ]"
+        >
+          構え {{ stance > 0 ? stance : '未' }}
+        </span>
+        <span
+          :class="[
+            'rounded-full px-2 py-1 text-[10px] font-extrabold',
+            courseEntered
+              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-200'
+              : 'bg-slate-200 text-slate-500 dark:bg-slate-800 dark:text-slate-400',
+          ]"
+        >
+          コース {{ courseEntered ? '入力済' : '未入力' }}
+        </span>
+        <span
+          :class="[
+            'rounded-full px-2 py-1 text-[10px] font-extrabold',
+            selected
+              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-200'
+              : 'bg-slate-200 text-slate-500 dark:bg-slate-800 dark:text-slate-400',
+          ]"
+        >
+          球種 {{ selected ? currentPitchTypeLabel : '未' }}
+        </span>
+        <span
+          class="rounded-full bg-slate-200 px-2 py-1 text-[10px] font-extrabold text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+        >
+          球速 {{ speed || '---' }}km/h
+        </span>
+        <span
+          class="rounded-full bg-slate-200 px-2 py-1 text-[10px] font-extrabold text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+        >
+          結果 {{ resultLabels[resultId] ?? '未選択' }}
+        </span>
+        <span
+          data-testid="ordinary-state-source"
+          class="rounded-full bg-slate-200 px-2 py-1 text-[10px] font-extrabold text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+        >
+          {{
+            displayed.source === 'local-provisional'
+              ? '端末の暫定状態'
+              : 'サーバー確認済み'
+          }}
+        </span>
+        <button
+          v-if="!confirmed"
+          type="button"
+          class="ml-auto rounded-full bg-amber-400 px-2 py-1 text-[10px] font-extrabold text-amber-950"
+          @click="openSafety"
+        >
+          端末確認が必要
+        </button>
+        <button
+          v-else
+          type="button"
+          class="ml-auto rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-extrabold text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-200"
+          @click="openSafety"
+        >
+          端末確認済み
+        </button>
+      </div>
+    </header>
+
+    <div
+      class="shrink-0 border-b border-slate-200 bg-white px-2 py-1 lg:hidden dark:border-slate-700 dark:bg-slate-900"
+    >
+      <button
+        type="button"
+        class="flex w-full items-center justify-between gap-2 text-sm font-bold"
+        @click="leftOpen = !leftOpen"
       >
-      <GameScreenRunnerEventObservation
-        v-if="
-          runnerMode &&
-          isLineupRecordingContext(displayed) &&
-          !batted &&
-          !interference
-        "
-        :runners="runnerPeople"
-        :primary-result-id="resultId"
-        :source-key="battedContextKey"
-        :disabled="busy"
-        @select-primary-result="(value) => (resultId = value)"
-        @confirmed="(value) => (runnerObservation = value)"
-      />
+        <span>
+          {{ inning }}回{{ halfLabel }} {{ outs }}アウト B{{ balls }}-S{{
+            strikes
+          }}
+          ／ {{ battingOrder }}番 {{ batterName }}
+        </span>
+        <span class="tabular-nums">{{ score.away }}-{{ score.home }}</span>
+      </button>
+      <div v-if="leftOpen" class="mt-2 flex flex-col gap-2 pb-1">
+        <div class="grid grid-cols-2 gap-2">
+          <CountDisplay :balls="balls" :strikes="strikes" :outs="outs" />
+          <div
+            class="rounded-xl border border-slate-200 bg-white p-2 text-xs dark:border-slate-700 dark:bg-slate-900"
+          >
+            <p class="font-extrabold">{{ battingOrder }}番 {{ batterName }}</p>
+            <p class="mt-1 text-slate-500">
+              投手 {{ pitcherName }}・捕手 {{ catcherName }}
+            </p>
+            <p class="mt-1 text-slate-500">次打者 {{ nextBatterName }}</p>
+          </div>
+        </div>
+        <div
+          class="rounded-xl border border-slate-200 bg-white p-2 dark:border-slate-700 dark:bg-slate-900"
+        >
+          <RunnerDiamond
+            :first="runnerFirst"
+            :second="runnerSecond"
+            :third="runnerThird"
+            :batter="batterName"
+            compact
+          />
+        </div>
+        <p data-testid="ordinary-local-balls" class="sr-only">{{ balls }}</p>
+        <p data-testid="ordinary-local-strikes" class="sr-only">
+          {{ strikes }}
+        </p>
+      </div>
       <p
-        v-if="runnerMode && runnerObservation"
-        data-testid="runner-observation-ready"
+        v-if="isLineupRecordingContext(displayed)"
+        data-testid="lineup-local-state"
+        class="mt-1 text-xs text-slate-500"
       >
-        走者の実結果を確認しました。確定・保存はこれからです。
+        {{ inning }}回{{ halfLabel }}・{{ outs }}アウト・{{ battingOrder }}番
       </p>
-      <GameScreenBattedHitObservation
-        v-if="
-          batted &&
-          hitAvailable &&
-          !isLocalMode &&
-          isLineupRecordingContext(displayed)
-        "
-        :context-key="battedContextKey"
-        :result-id="resultId as CandidateBattedResult"
-        :adopt-interference="adoptInterference"
-        :before-outs="displayed.after.stateFields['state.outs']"
-        :batter-id="displayed.lineupSource.participants.batterId"
-        :fielders="fielders"
-        :runners="battedRunners"
-        :disabled="busy"
-        @change="(value) => (battedHit = value)"
-      />
-      <label v-if="batted && hitAvailable && !isLocalMode" class="block">
-        <input
-          v-model="adoptInterference"
-          type="checkbox"
-          data-testid="adopt-batting-interference-play"
-          :disabled="busy"
-        />
-        打撃妨害で実プレイ結果を採用した
-      </label>
-      <GameScreenInterferenceObservation
-        v-if="
-          interference &&
-          hitAvailable &&
-          !isLocalMode &&
-          interferenceRunners !== null &&
-          isLineupRecordingContext(displayed)
-        "
-        :context-key="battedContextKey"
-        :result-id="
-          resultId as NonNullable<
-            PlayScreenObservation['interference']
-          >['resultId']
-        "
-        :batter-id="displayed.lineupSource.participants.batterId"
-        :runners="interferenceRunners"
-        :disabled="busy"
-        @change="(value) => (interferenceObservation = value)"
-      />
-      <p v-else-if="batted" role="alert">
-        この安打入力は試合継続中・タイブレークなしの状態だけに対応しています。
-      </p>
-      <label v-if="terminal" class="block"
-        >次の打者を確認
-        <select
-          v-model="nextBatterId"
-          data-testid="terminal-next-batter"
-          :disabled="busy"
+    </div>
+
+    <div
+      class="grid grid-cols-1 gap-2 p-2 lg:min-h-0 lg:flex-1 lg:grid-cols-[264px_368px_360px] lg:justify-center [@media(min-width:1120px)]:grid-cols-[280px_368px_360px] xl:grid-cols-[280px_minmax(440px,520px)_400px] [@media(max-height:960px)]:gap-1 [@media(max-height:960px)]:p-1"
+    >
+      <div
+        class="hidden min-h-0 flex-col gap-2 overflow-hidden lg:flex [@media(max-height:960px)]:gap-1"
+      >
+        <section
+          aria-label="構え入力"
+          class="flex min-h-0 items-start justify-center overflow-y-auto overscroll-contain rounded-xl border border-slate-200 bg-white p-1 [@media(max-height:960px)]:p-0 dark:border-slate-700 dark:bg-slate-900"
         >
-          <option value="">次の打者を選択</option>
-          <option
-            v-for="p in nextBatters"
-            :key="p.player.player_id"
-            :value="p.player.player_id"
+          <div class="my-auto">
+            <StanceGrid
+              :value="stance"
+              :viewpoint="viewpoint"
+              @change="selectStance"
+            />
+          </div>
+        </section>
+        <section
+          aria-label="球速入力"
+          class="flex min-h-0 items-start justify-center overflow-y-auto overscroll-contain rounded-xl border border-slate-200 bg-white p-1 [@media(max-height:960px)]:p-0 dark:border-slate-700 dark:bg-slate-900"
+        >
+          <div class="my-auto">
+            <SpeedPad
+              :value="speed"
+              :last-speed="lastSpeed"
+              :disabled="busy"
+              @change="changeSpeed"
+            />
+          </div>
+        </section>
+        <section
+          class="rounded-xl border border-slate-200 bg-white p-2 text-xs dark:border-slate-700 dark:bg-slate-900"
+        >
+          <p
+            role="status"
+            data-testid="first-ball-status"
+            class="font-semibold text-slate-600 dark:text-slate-300"
+          >
+            {{ message }}
+          </p>
+          <p
+            v-if="displayed.source === 'local-provisional'"
+            class="mt-1 text-slate-500"
+          >
+            端末の未確認分を含む暫定状態
+          </p>
+          <p v-else class="mt-1 text-slate-500">サーバー確認済みの状態</p>
+          <button
+            type="button"
+            class="mt-2 min-h-10 w-full rounded-lg border border-slate-300 bg-white px-2 font-bold text-slate-700 disabled:opacity-40 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
+            :disabled="busy"
+            @click="openSafety"
+          >
+            記録端末の確認
+          </button>
+        </section>
+      </div>
+
+      <div
+        class="flex flex-col gap-2 lg:min-h-0 [@media(max-height:960px)]:gap-1"
+      >
+        <div v-show="!batted && !interference" class="contents">
+          <div class="flex items-center justify-center lg:min-h-0 lg:flex-1">
+            <div
+              class="aspect-square w-full max-w-sm lg:h-full lg:max-h-full lg:max-w-full"
+              data-testid="first-ball-course"
+            >
+              <StrikeZone
+                :point="point"
+                :plate-side="battingSide"
+                :viewpoint="viewpoint"
+                :highlight="missingCourse"
+                :disabled="busy"
+                @tap="
+                  (x, y) => {
+                    point = { x, y }
+                    missingCourse = false
+                  }
+                "
+              />
+            </div>
+          </div>
+          <div
+            class="flex flex-wrap justify-center gap-1.5"
+            :class="{ 'missing-highlight p-1': missingPitchType }"
+          >
+            <button
+              v-for="item in items"
+              :key="item.key"
+              type="button"
+              :data-testid="'pitch-type-' + item.key"
+              :data-pitch-type="item.key"
+              :aria-pressed="selected === item.key"
+              :disabled="busy"
+              :class="[
+                'relative min-h-11 min-w-12 rounded-lg border px-1.5 text-sm font-bold transition-colors disabled:opacity-40',
+                selected === item.key
+                  ? 'border-sky-600 bg-sky-600 text-white'
+                  : 'border-slate-300 bg-white text-slate-700 hover:bg-sky-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-sky-900/40',
+              ]"
+              :title="item.display_name"
+              @click="selectPitchType(item.key)"
+            >
+              {{ pitchTypeChipLabel(item) }}
+            </button>
+            <button
+              v-if="nextCursor !== null"
+              type="button"
+              class="min-h-11 rounded-lg border border-slate-300 bg-white px-2 text-xs font-bold text-slate-600 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300"
+              :disabled="loading || busy"
+              @click="next"
+            >
+              次の球種
+            </button>
+            <button
+              v-if="history.length > 0"
+              type="button"
+              class="min-h-11 rounded-lg border border-slate-300 bg-white px-2 text-xs font-bold text-slate-600 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300"
+              :disabled="loading || busy"
+              @click="previous"
+            >
+              前の球種
+            </button>
+          </div>
+          <p v-if="loading" class="text-center text-xs text-slate-500">
+            球種を取得しています…
+          </p>
+          <p
+            v-if="failed"
+            role="alert"
+            class="text-center text-xs font-bold text-red-700"
           >
             {{
-              p.batting_slot.kind === 'slot' ? p.batting_slot.slot : ''
-            }}番の打者
+              isLocalMode
+                ? '保存済みの球種ページを確認できません。'
+                : '球種を取得できません。'
+            }}
+          </p>
+          <button
+            v-if="failed"
+            type="button"
+            class="mx-auto min-h-10 rounded-lg border border-slate-300 bg-white px-2 text-xs font-bold dark:border-slate-600 dark:bg-slate-800"
+            :disabled="loading"
+            @click="load(cursor)"
+          >
+            {{ isLocalMode ? '保存済み球種を再確認' : '球種を再取得' }}
+          </button>
+        </div>
+        <div
+          v-if="batted || interference"
+          class="rounded-xl border border-sky-300 bg-sky-50 p-3 text-sm text-sky-900 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-100"
+        >
+          <p class="font-extrabold">{{ resultLabel }} を選択中</p>
+          <p class="mt-1 text-xs font-semibold">
+            右の確認欄で打球位置・打球種・捕球選手・走者の実結果を確認し、「確定・保存」を押してください。
+          </p>
+        </div>
+        <div class="flex flex-wrap items-center justify-center gap-2 pb-1">
+          <button
+            type="button"
+            class="min-h-10 rounded-lg border border-slate-300 bg-white px-3 text-xs font-bold text-slate-600 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300"
+            :disabled="busy"
+            @click="viewpoint = viewpoint === 'catcher' ? 'pitcher' : 'catcher'"
+          >
+            視点: {{ viewpoint === 'catcher' ? '捕手側' : '投手後方' }}
+          </button>
+          <button
+            v-if="canToggleBattingSide"
+            type="button"
+            class="min-h-10 rounded-lg border border-sky-300 bg-white px-3 text-xs font-bold text-sky-700 dark:border-sky-700 dark:bg-slate-800 dark:text-sky-200"
+            :disabled="busy"
+            @click="toggleBattingSide"
+          >
+            打席 {{ battingSide }}打 ⇄
+          </button>
+        </div>
+        <div
+          class="flex flex-col items-center justify-center gap-2 sm:flex-row sm:items-start lg:hidden"
+        >
+          <SpeedPad
+            :value="speed"
+            :last-speed="lastSpeed"
+            :disabled="busy"
+            @change="changeSpeed"
+          />
+          <StanceGrid
+            :value="stance"
+            :viewpoint="viewpoint"
+            @change="selectStance"
+          />
+        </div>
+      </div>
+
+      <div
+        class="min-h-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-2 [@media(max-height:960px)]:p-1 dark:border-slate-700 dark:bg-slate-900/60"
+      >
+        <div
+          v-if="batted || interference"
+          class="flex h-full min-h-0 flex-col gap-2 overflow-y-auto"
+        >
+          <button
+            type="button"
+            class="flex min-h-11 w-full items-center gap-1 rounded-lg px-2 text-left text-sm font-bold text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+            @click="clearComplex"
+          >
+            ← 結果選択に戻る
+          </button>
+          <div
+            class="rounded-xl border-2 border-sky-500 bg-sky-50 p-2 dark:bg-sky-950/40"
+          >
+            <p class="text-xs font-bold text-sky-600 dark:text-sky-300">
+              {{ batted ? 'インプレー' : '妨害' }}
+            </p>
+            <p class="text-2xl font-extrabold">{{ resultLabel }}</p>
+          </div>
+          <p
+            v-if="batted && !hitAvailable"
+            role="alert"
+            class="text-xs font-bold text-red-700"
+          >
+            この入力は試合継続中・タイブレークなしの状態だけに対応しています。
+          </p>
+          <GameScreenBattedHitObservation
+            v-if="batted && hitAvailable"
+            :context-key="battedContextKey"
+            :result-id="
+              resultId as NonNullable<
+                PlayScreenObservation['battedHit']
+              >['resultId']
+            "
+            :before-outs="stateFields['state.outs']"
+            :batter-id="batterId"
+            :fielders="fielders"
+            :runners="battedRunners"
+            :adopt-interference="adoptInterference"
+            :disabled="busy"
+            @change="
+              (value) =>
+                (battedHit = value as PlayScreenObservation['battedHit'])
+            "
+          />
+          <GameScreenInterferenceObservation
+            v-if="
+              interference &&
+              hitAvailable &&
+              interferenceRunners !== null &&
+              isLineupRecordingContext(displayed)
+            "
+            :context-key="battedContextKey"
+            :result-id="
+              resultId as NonNullable<
+                PlayScreenObservation['interference']
+              >['resultId']
+            "
+            :batter-id="batterId"
+            :runners="interferenceRunners"
+            :disabled="busy"
+            @change="(value) => (interferenceObservation = value)"
+          />
+          <p
+            v-else-if="interference"
+            role="alert"
+            class="text-xs font-bold text-red-700"
+          >
+            この妨害入力は試合継続中・タイブレークなし・走者ID確認済みの状態だけに対応しています。
+          </p>
+          <button
+            type="button"
+            data-testid="first-ball-save"
+            class="mt-auto min-h-16 rounded-xl bg-sky-600 px-4 text-lg font-bold text-white hover:bg-sky-700 disabled:pointer-events-none disabled:opacity-40"
+            :disabled="
+              busy ||
+              !canAppend ||
+              (batted && (!hitAvailable || battedHit == null)) ||
+              (interference &&
+                (!hitAvailable || interferenceObservation == null))
+            "
+            @click="save()"
+          >
+            確定・保存
+          </button>
+        </div>
+        <LegacyResultPad
+          v-else
+          v-model:panel="resultPanel"
+          :balls="balls"
+          :strikes="strikes"
+          :outs="outs"
+          :disabled="busy || !canAppend"
+          :busy="busy"
+          :selected-result="highlightedResult"
+          :missing-course="missingCourse"
+          :missing-pitch-type="missingPitchType"
+          :hit-available="hitAvailable"
+          :has-runners="runnersState !== 'empty'"
+          :has-first="
+            runnersState === 'first' ||
+            runnersState === 'first-second' ||
+            runnersState === 'first-third' ||
+            runnersState === 'loaded'
+          "
+          :has-third="
+            runnersState === 'third' ||
+            runnersState === 'first-third' ||
+            runnersState === 'second-third' ||
+            runnersState === 'loaded'
+          "
+          :strikeout-double-play-available="strikeoutDoublePlayAvailable"
+          :intentional-walk-available="intentionalWalkAvailable"
+          @simple="selectSimple"
+          @select-in-play="selectInPlay"
+          @direct="chooseDirect"
+          @intentional="saveIntentionalWalk"
+        />
+      </div>
+    </div>
+
+    <RecordBottomBar
+      :has-runners="hasRunners"
+      :input-locked="busy || !canAppend"
+      :game-finished="stateFields['state.gameEnded']"
+      :edit-last-available="false"
+      :pickoff-available="true"
+      :strategy-available="false"
+      sync-label="同期状態"
+      elapsed="—"
+      @undo="openUndo"
+      @pickoff="openRunner"
+      @substitution="openSubstitution"
+      @menu="openMenu"
+      @sync="activeSheet = 'sync'"
+    />
+
+    <Sheet
+      :open="activeSheet === 'safety'"
+      title="記録端末の安全確認"
+      side="right"
+      @close="activeSheet = null"
+    >
+      <div class="space-y-3 text-sm">
+        <p>
+          記録の二重書き込みを防ぐため、開始時と同じ端末・ブラウザで操作していることを確認します。
+        </p>
+        <p
+          v-if="!httpsTopLevel()"
+          role="alert"
+          class="rounded-lg border border-red-300 bg-red-50 p-2 font-bold text-red-800"
+        >
+          記録にはHTTPSで直接開いた画面が必要です。
+        </p>
+        <label
+          class="flex items-start gap-2 rounded-lg border border-slate-200 p-2"
+        >
+          <input
+            v-model="sameProfile"
+            type="checkbox"
+            data-testid="first-ball-env-profile"
+            class="mt-1"
+          />
+          <span>ほかの記録タブと同じブラウザプロファイルを使います</span>
+        </label>
+        <label
+          class="flex items-start gap-2 rounded-lg border border-slate-200 p-2"
+        >
+          <input
+            v-model="sameMode"
+            type="checkbox"
+            data-testid="first-ball-env-mode"
+            class="mt-1"
+          />
+          <span>通常・プライベートなどの閲覧モードを統一します</span>
+        </label>
+        <label
+          class="flex items-start gap-2 rounded-lg border border-slate-200 p-2"
+        >
+          <input
+            v-model="sameBucket"
+            type="checkbox"
+            data-testid="first-ball-env-bucket"
+            class="mt-1"
+          />
+          <span>同じサイトの保存領域を使うタブだけで記録します</span>
+        </label>
+        <label
+          class="flex items-start gap-2 rounded-lg border border-slate-200 p-2"
+        >
+          <input
+            v-model="noLockdown"
+            type="checkbox"
+            data-testid="first-ball-env-lockdown"
+            class="mt-1"
+          />
+          <span>この端末でLockdownモードを適用していません</span>
+        </label>
+        <p class="text-xs text-slate-500">
+          4項目を確認すると投球を確定できます。確認はこの画面を開いている間だけ保持します。
+        </p>
+        <button
+          type="button"
+          class="min-h-12 w-full rounded-xl bg-sky-600 px-4 font-bold text-white disabled:opacity-40"
+          :disabled="!confirmed"
+          @click="activeSheet = null"
+        >
+          確認して記録へ戻る
+        </button>
+      </div>
+    </Sheet>
+
+    <Sheet
+      :open="activeSheet === 'undo'"
+      title="直前の記録を取り消す"
+      side="right"
+      wide
+      @close="activeSheet = null"
+    >
+      <GameScreenUndoProduct :game-id="game.id" @saved="undoDone" />
+    </Sheet>
+
+    <Sheet
+      :open="activeSheet === 'substitution'"
+      title="選手の交代・臨時代走"
+      side="right"
+      wide
+      @close="activeSheet = null"
+    >
+      <div v-if="substitutionChoice" class="space-y-3">
+        <p class="text-sm text-slate-600 dark:text-slate-300">
+          記録上の扱いが異なるため、正式な交代と臨時代走を分けて入力します。
+        </p>
+        <button
+          type="button"
+          class="flex min-h-24 w-full items-center gap-4 rounded-2xl border-2 border-slate-200 p-4 text-left transition hover:border-sky-500 hover:bg-sky-50 dark:border-slate-700 dark:hover:bg-sky-950/30"
+          @click="substitutionChoice = false"
+        >
+          <span
+            class="grid size-12 shrink-0 place-items-center rounded-xl bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-200"
+          >
+            <span class="text-lg font-black">交</span>
+          </span>
+          <span class="min-w-0">
+            <span class="block text-base font-extrabold">正式な選手交代</span>
+            <span class="mt-1 block text-sm text-slate-500">
+              代打・代走・守備交代。入った選手が以後の打順を引き継ぎます。
+            </span>
+          </span>
+        </button>
+        <button
+          type="button"
+          disabled
+          class="flex min-h-24 w-full items-center gap-4 rounded-2xl border-2 border-violet-200 p-4 text-left opacity-45 dark:border-violet-900"
+          title="このMVPでは未接続です"
+        >
+          <span
+            class="grid size-12 shrink-0 place-items-center rounded-xl bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-200"
+          >
+            <span class="text-lg font-black">臨</span>
+          </span>
+          <span class="min-w-0">
+            <span class="block text-base font-extrabold">臨時代走</span>
+            <span class="mt-1 block text-sm text-slate-500">
+              頭部への強い死球で、審判員が臨時代走を認めた場合。このMVPでは未接続です。
+            </span>
+          </span>
+        </button>
+      </div>
+      <div v-else class="space-y-3">
+        <button
+          type="button"
+          class="inline-flex min-h-11 items-center gap-2 rounded-xl px-2 text-sm font-bold text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+          @click="substitutionChoice = true"
+        >
+          ← 交代方法の選択へ戻る
+        </button>
+        <GameScreenSubstitutionProduct
+          :game-id="game.id"
+          @saved="substitutionSaved"
+        />
+      </div>
+    </Sheet>
+
+    <Sheet
+      :open="activeSheet === 'menu'"
+      title="メニュー"
+      side="right"
+      @close="activeSheet = null"
+    >
+      <div v-if="activeSheet === 'menu'" class="space-y-2">
+        <button
+          type="button"
+          class="flex min-h-14 w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 text-left font-bold dark:border-slate-700 dark:bg-slate-800"
+          @click="activeSheet = 'lifecycle'"
+        >
+          <span>試合の終了・再開</span>
+          <span class="text-xs text-slate-400">終了宣言 / 再開</span>
+        </button>
+        <button
+          type="button"
+          class="flex min-h-14 w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 text-left font-bold dark:border-slate-700 dark:bg-slate-800"
+          @click="activeSheet = 'sync'"
+        >
+          <span>同期センター</span>
+          <span class="text-xs text-slate-400">未送信・結果不明</span>
+        </button>
+        <button
+          type="button"
+          disabled
+          class="flex min-h-14 w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 text-left font-bold text-slate-400 dark:border-slate-700 dark:bg-slate-800"
+          title="このMVPでは未接続です"
+        >
+          <span>タイブレーク開始</span>
+          <span class="text-xs">未接続</span>
+        </button>
+        <button
+          type="button"
+          disabled
+          class="flex min-h-14 w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 text-left font-bold text-slate-400 dark:border-slate-700 dark:bg-slate-800"
+          title="このMVPでは未接続です"
+        >
+          <span>過去の訂正</span>
+          <span class="text-xs">未接続</span>
+        </button>
+      </div>
+    </Sheet>
+
+    <Sheet
+      :open="activeSheet === 'lifecycle'"
+      title="試合の終了・再開"
+      side="right"
+      wide
+      @close="activeSheet = 'menu'"
+    >
+      <GameScreenLifecycleProduct
+        :game-id="game.id"
+        @resume-recording="lifecycleResumed"
+      />
+    </Sheet>
+
+    <Sheet
+      :open="activeSheet === 'sync'"
+      title="同期センター"
+      side="right"
+      @close="activeSheet = null"
+    >
+      <div class="space-y-3 text-sm">
+        <p role="status" class="font-semibold">{{ message }}</p>
+        <p
+          v-if="status === 'pending'"
+          class="rounded-lg border border-amber-300 bg-amber-50 p-2 font-bold text-amber-900"
+        >
+          未確認の要求が端末に残っています。同じ要求を再送し、サーバーの受理結果を確認してください。
+        </p>
+        <button
+          v-if="status === 'pending' && !isLocalMode"
+          type="button"
+          class="min-h-12 w-full rounded-xl bg-sky-600 px-4 font-bold text-white disabled:opacity-40"
+          :disabled="busy || !confirmed"
+          @click="retry"
+        >
+          同じ要求を再送
+        </button>
+        <p v-else class="text-slate-500">
+          現在のこの画面からの未確認要求はありません。
+        </p>
+        <button
+          type="button"
+          class="min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 font-bold text-slate-700 disabled:opacity-40 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
+          :disabled="busy"
+          @click="emit('reload')"
+        >
+          サーバーから再取得
+        </button>
+      </div>
+    </Sheet>
+
+    <Sheet
+      :open="activeSheet === 'runner'"
+      title="牽制・走者操作"
+      side="right"
+      wide
+      @close="activeSheet = null"
+    >
+      <div class="space-y-3">
+        <p
+          class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-900"
+        >
+          ここでは牽制・ボークなど無投球の操作を記録します。投球を伴う盗塁・暴投・捕逸は、通常投球の結果と合わせて記録します。
+        </p>
+        <p
+          v-if="runnerNotice"
+          role="alert"
+          class="rounded-lg border border-red-300 bg-red-50 p-2 text-sm font-bold text-red-800"
+        >
+          {{ runnerNotice }}
+        </p>
+        <GameScreenRunnerEventObservation
+          :runners="runnerPeople"
+          :primary-result-id="resultId"
+          :source-key="runnerSourceKey"
+          :disabled="busy"
+          @confirmed="runnerConfirmed"
+          @select-primary-result="(value) => (resultId = value)"
+        />
+      </div>
+    </Sheet>
+
+    <Sheet
+      :open="activeSheet === 'next-batter'"
+      title="次の打者を確認"
+      side="right"
+      @close="activeSheet = null"
+    >
+      <div class="space-y-3 text-sm">
+        <p>
+          四球・死球で打席が終了します。打順どおりの次の打者を確認してください。
+        </p>
+        <label class="block font-bold">
+          次の打者
+          <select
+            v-model="nextBatterId"
+            data-testid="terminal-next-batter-dialog"
+            class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 bg-white px-3 text-base dark:border-slate-600 dark:bg-slate-800"
+          >
+            <option value="">次の打者を選択</option>
+            <option
+              v-for="candidate in nextBatters"
+              :key="candidate.player.player_id"
+              :value="candidate.player.player_id"
+            >
+              {{
+                candidate.batting_slot.kind === 'slot'
+                  ? candidate.batting_slot.slot
+                  : ''
+              }}番
+              {{ display.playerName(candidate.player.player_id, 'の打者') }}
+            </option>
+          </select>
+        </label>
+        <p
+          v-if="nextBatters.length === 0"
+          role="alert"
+          class="font-bold text-red-700"
+        >
+          次の打者候補を確認できません。打順とスタメンを確認してください。
+        </p>
+        <button
+          type="button"
+          class="min-h-12 w-full rounded-xl bg-sky-600 px-4 font-bold text-white disabled:opacity-40"
+          :disabled="nextBatterId === '' || busy"
+          @click="confirmNextBatter"
+        >
+          この打者で確定
+        </button>
+      </div>
+    </Sheet>
+
+    <div class="sr-only" aria-label="キーボード・読み上げ用の結果入力">
+      <label
+        ><input
+          v-model="sameProfile"
+          type="checkbox"
+          data-testid="first-ball-env-profile"
+        />同じブラウザプロファイルを使います</label
+      >
+      <label
+        ><input
+          v-model="sameMode"
+          type="checkbox"
+          data-testid="first-ball-env-mode"
+        />同じ閲覧モードを使います</label
+      >
+      <label
+        ><input
+          v-model="sameBucket"
+          type="checkbox"
+          data-testid="first-ball-env-bucket"
+        />同じ保存領域を使います</label
+      >
+      <label
+        ><input
+          v-model="noLockdown"
+          type="checkbox"
+          data-testid="first-ball-env-lockdown"
+        />Lockdownモードではありません</label
+      >
+      <p class="sr-only">次の打者を確認</p>
+      <label v-if="terminal"
+        >次の打者
+        <select v-model="nextBatterId" data-testid="terminal-next-batter">
+          <option value="">次の打者を選択</option>
+          <option
+            v-for="candidate in nextBatters"
+            :key="candidate.player.player_id"
+            :value="candidate.player.player_id"
+          >
+            {{
+              candidate.batting_slot.kind === 'slot'
+                ? candidate.batting_slot.slot
+                : ''
+            }}番
           </option>
         </select>
       </label>
-      <label class="block"
+      <label v-if="items.length > 0"
         >球種
-        <select
-          v-model="selected"
-          data-testid="first-ball-pitch-type"
-          :disabled="busy || loading || failed"
-          class="min-h-11 rounded border p-2"
-        >
+        <select v-model="selected" data-testid="first-ball-pitch-type">
           <option value="">球種を選択</option>
           <option v-for="item in items" :key="item.key" :value="item.key">
             {{ item.display_name }}
           </option>
         </select>
       </label>
-      <p v-if="failed" role="alert">
-        {{
-          isLocalMode
-            ? '保存済みの球種ページを確認できません。'
-            : '球種を取得できません。再取得してください。'
-        }}
-      </p>
+      <label v-if="items.length > 0"
+        >結果
+        <select v-model="resultId" data-testid="ordinary-pitch-result">
+          <option value="batting-result.ball">ボール</option>
+          <option value="batting-result.called-pitch">見逃し</option>
+          <option value="batting-result.swinging-strike">空振り</option>
+          <option value="batting-result.foul">ファール</option>
+          <template
+            v-if="
+              isPlayRecordingContext(displayed) ||
+              isLineupRecordingContext(displayed)
+            "
+          >
+            <option value="batting-result.walk">四球</option>
+            <option value="batting-result.hit-by-pitch">死球</option>
+          </template>
+          <template v-if="isLineupRecordingContext(displayed)">
+            <option value="batting-result.called-strikeout">見逃し三振</option>
+            <option value="batting-result.swinging-strikeout">
+              空振り三振
+            </option>
+            <option value="batting-result.k3">K3</option>
+            <option
+              v-if="strikeoutDoublePlayAvailable"
+              value="batting-result.strikeout-double-play"
+            >
+              三振ゲッツー
+            </option>
+            <template v-if="hitAvailable && !isLocalMode">
+              <option value="batting-result.single">単打</option>
+              <option value="batting-result.double">二塁打</option>
+              <option value="batting-result.triple">三塁打</option>
+              <option value="batting-result.home-run">本塁打</option>
+              <option value="batting-result.batted-out">打球アウト</option>
+              <option
+                v-if="runnerBattedAvailable"
+                value="batting-result.batted-reach"
+              >
+                打球による出塁
+              </option>
+              <option
+                v-if="runnerBattedAvailable"
+                value="batting-result.fielders-choice"
+              >
+                野手選択
+              </option>
+              <option value="batting-result.error">失策による出塁</option>
+              <option
+                v-if="sacrificeBuntAvailable"
+                value="batting-result.sacrifice-bunt"
+              >
+                犠打
+              </option>
+              <option
+                v-if="sacrificeBuntAvailable"
+                value="batting-result.sacrifice-bunt-error"
+              >
+                犠打失策
+              </option>
+              <option
+                v-if="sacrificeFlyAvailable"
+                value="batting-result.sacrifice-fly"
+              >
+                犠飛
+              </option>
+              <option
+                v-if="doublePlayAvailable"
+                value="batting-result.double-play"
+              >
+                併殺打
+              </option>
+              <option value="secondary-result.batting-interference">
+                打撃妨害
+              </option>
+              <option value="secondary-result.obstruction">走塁妨害</option>
+              <option value="secondary-result.offensive-interference">
+                守備妨害
+              </option>
+            </template>
+          </template>
+        </select>
+      </label>
       <button
-        v-if="failed"
-        type="button"
-        :disabled="loading"
-        @click="load(cursor)"
-      >
-        {{ isLocalMode ? '保存済み球種を再確認' : '球種を再取得' }}
-      </button>
-      <button
-        type="button"
-        :disabled="loading || busy || history.length === 0"
-        @click="previous"
-      >
-        前の球種
-      </button>
-      <button
-        type="button"
-        :disabled="loading || busy || nextCursor === null"
-        @click="next"
-      >
-        次の球種
-      </button>
-      <label class="block"
-        >視点<select
-          v-model="viewpoint"
-          :disabled="busy"
-          @change="point = null"
-        >
-          <option value="catcher">捕手視点</option>
-          <option value="pitcher">投手後方視点</option>
-        </select></label
-      >
-      <div
-        v-if="!runnerNonpitch"
-        class="max-w-sm"
-        data-testid="first-ball-course"
-      >
-        <StrikeZone
-          :point="point"
-          plate-side=""
-          :viewpoint="viewpoint"
-          :disabled="busy"
-          @tap="(x, y) => (point = { x, y })"
-        />
-      </div>
-      <p>打席側・球速・構えは未入力として保存します。</p>
-      <button
+        v-if="
+          items.length > 0 &&
+          !suspended &&
+          canAppend &&
+          !batted &&
+          !interference
+        "
         type="button"
         data-testid="first-ball-save"
-        class="min-h-11 rounded border px-4 py-2"
         :disabled="
           busy ||
+          !canAppend ||
           !confirmed ||
-          (!runnerNonpitch && (loading || failed)) ||
-          (terminal && nextBatterId === '') ||
-          (batted && (!hitAvailable || battedHit == null)) ||
-          (interference &&
-            (!hitAvailable ||
-              interferenceRunners === null ||
-              interferenceObservation == null)) ||
-          (runnerMode && runnerObservation === null) ||
-          (!runnerNonpitch && (selected === '' || point === null))
+          (!runnerNonpitch && (!point || !selected)) ||
+          (terminal && nextBatterId === '')
         "
-        @click="save"
+        @click="save()"
       >
-        {{
-          runnerNonpitch
-            ? isLocalMode
-              ? '走者操作を端末に記録'
-              : '走者操作を確定・保存'
-            : isLocalMode
-              ? '投球を端末に記録'
-              : '投球を確定・保存'
-        }}
+        投球を確定・保存
       </button>
-      <button
-        v-if="intentionalWalkAvailable"
-        type="button"
-        data-testid="nonpitch-intentional-walk"
-        class="min-h-11 rounded border px-4 py-2"
-        :disabled="busy || !confirmed"
-        @click="saveIntentionalWalk"
-      >
-        申告敬遠を記録
-      </button>
-    </template>
-    <button
-      v-if="status === 'pending' && !isLocalMode && !suspended"
-      type="button"
-      :disabled="busy || !confirmed"
-      class="min-h-11 rounded border px-4 py-2"
-      data-testid="first-ball-retry"
-      @click="retry"
-    >
-      先頭の未確認要求を同じ内容で再送
-    </button>
+    </div>
   </section>
 </template>

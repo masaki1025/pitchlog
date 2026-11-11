@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { isPreparingGame } from '../api/games'
 import { canonicalUuid } from '../api/authIntent'
@@ -37,6 +37,7 @@ const props = withDefaults(
   },
 )
 const emit = defineEmits<{ retry: [] }>()
+const recordFullscreen = ref(false)
 const route = useRoute()
 const auth = useAuthStore()
 const gameId = computed(() => route.params.gameId)
@@ -102,8 +103,14 @@ const showDraftForm = computed(
 </script>
 
 <template>
-  <main class="mx-auto max-w-5xl space-y-5 p-4 pb-12 wrap-anywhere">
-    <header class="space-y-2">
+  <main
+    :class="
+      recordFullscreen
+        ? ''
+        : 'mx-auto max-w-5xl space-y-5 p-4 pb-12 wrap-anywhere'
+    "
+  >
+    <header v-if="!recordFullscreen" class="space-y-2">
       <RouterLink
         :to="{ name: 'games' }"
         class="inline-block min-h-11 underline"
@@ -224,9 +231,13 @@ const showDraftForm = computed(
     <GameScreenRecordedRestore
       v-if="savedDetail === null && preparingSource?.status === 'denied'"
       :auto="props.restoreAuto"
+      @fullscreen="recordFullscreen = $event"
     />
-    <GameScreenEntryPremises :environment="environment" />
-    <section aria-label="試合の閲覧" class="space-y-2">
+    <GameScreenEntryPremises
+      v-if="!recordFullscreen"
+      :environment="environment"
+    />
+    <section v-if="!recordFullscreen" aria-label="試合の閲覧" class="space-y-2">
       <h2 class="text-lg font-bold">試合の閲覧</h2>
       <p>記録内容は未取得です。記録の確定・保存・送信はできません。</p>
       <p v-if="!validId">

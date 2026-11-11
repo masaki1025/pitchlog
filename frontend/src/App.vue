@@ -82,7 +82,8 @@ async function returnToHome(): Promise<void> {
       v-if="
         route.meta.requiresAuth === true &&
         protectedReady &&
-        route.name !== 'home'
+        route.name !== 'home' &&
+        route.name !== 'game-record'
       "
       aria-label="画面移動"
       class="flex gap-3 p-4"

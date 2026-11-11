@@ -11,6 +11,7 @@ import {
   type BattedBallOption,
 } from '../api/battedBallOptions'
 import GameScreenObservationField from './GameScreenObservationField.vue'
+import FieldDiagram from '../components/field/FieldDiagram.vue'
 import { useAuthStore } from '../stores/authStore'
 
 type Confirmation = Omit<
@@ -253,6 +254,27 @@ function changeMode(key: string) {
   values.value[key] = ''
   confirmations.value = {}
 }
+const fieldPoint = computed(() => {
+  const x = Number(values.value.hitX)
+  const y = Number(values.value.hitY)
+  if (
+    !Number.isFinite(x) ||
+    !Number.isFinite(y) ||
+    x < 0 ||
+    x > 1 ||
+    y < 0 ||
+    y > 1
+  )
+    return null
+  return { x: x * 263, y: y * 263 }
+})
+function tapField(x: number, y: number): void {
+  values.value.hitX = (x / 263).toFixed(4)
+  values.value.hitY = (y / 263).toFixed(4)
+  modes.value.hitX = 'observed'
+  modes.value.hitY = 'observed'
+  confirmations.value = {}
+}
 const observation = computed<
   | Confirmation
   | BattedOutConfirmation
@@ -462,6 +484,21 @@ async function previous() {
     <p>
       打球と走者の実結果を確認してください。未観測の打球欄は明示してください。
     </p>
+    <div class="mx-auto max-w-sm" data-testid="batted-field">
+      <FieldDiagram
+        :point="fieldPoint"
+        :disabled="disabled"
+        :runners="{
+          first: runners.some((runner) => runner.base === '1'),
+          second: runners.some((runner) => runner.base === '2'),
+          third: runners.some((runner) => runner.base === '3'),
+        }"
+        @tap="tapField"
+      />
+      <p class="mt-1 text-center text-xs font-semibold text-slate-500">
+        打球位置をタップすると、下の座標X/Yへ反映します。
+      </p>
+    </div>
     <p v-if="failed" role="alert">
       打球語彙を取得できません。観測値の選択はできません。未観測とは別です。
     </p>

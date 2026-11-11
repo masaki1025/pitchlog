@@ -28,6 +28,7 @@ import {
 const props = withDefaults(defineProps<{ auto?: boolean }>(), {
   auto: undefined,
 })
+const emit = defineEmits<{ fullscreen: [value: boolean] }>()
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
@@ -78,6 +79,9 @@ const recorded = computed(
       BigInt(restore.game.value.prefix_ref.length) > 0n),
 )
 const prefixContext = ref<RecordingContext | null>(null)
+watch(prefixContext, (value) => emit('fullscreen', value !== null), {
+  immediate: true,
+})
 const contextRefreshing = ref(false)
 let contextScope: {
   gameId: string
@@ -236,8 +240,15 @@ const history = computed(() =>
 </script>
 
 <template>
+  <GameScreenOrdinaryPitch
+    v-if="prefixContext && !undoNative"
+    :suspended="inputSuspended"
+    :context="prefixContext"
+    @saved="pitchSaved"
+    @reload="restore.reload()"
+  />
   <section
-    v-show="!undoNative"
+    v-show="!undoNative && !prefixContext"
     aria-label="サーバーから復元した状態"
     class="space-y-2 rounded-xl border p-4"
   >
@@ -249,14 +260,8 @@ const history = computed(() =>
       }}
     </h2>
     <p role="status">{{ restore.message.value }}</p>
-    <GameScreenOrdinaryPitch
-      v-if="prefixContext"
-      :suspended="inputSuspended"
-      :context="prefixContext"
-      @saved="pitchSaved"
-    />
     <GameScreenFirstBall
-      v-else-if="
+      v-if="
         restore.game.value &&
         restore.game.value.read_kind !== 'recorded-prefix' &&
         restore.game.value.read_kind !== 'play-prefix' &&
@@ -268,6 +273,7 @@ const history = computed(() =>
     />
     <GameScreenPastCorrectionProduct
       v-if="
+        !prefixContext &&
         auto !== false &&
         restore.game.value?.read_kind === 'lineup-prefix' &&
         (restore.status.value === 'ready' || restore.status.value === 'loading')
@@ -437,22 +443,24 @@ const history = computed(() =>
       三振・攻守交代を含む投球の記録へ
     </button>
   </section>
-  <GameScreenUndoProduct
-    v-if="gameId && auto !== false"
-    ref="undoProduct"
-    :key="gameId"
-    :game-id="gameId"
-    @state="undoNative = $event"
-    @saved="restore.reload()"
-  />
+  <div v-show="!prefixContext">
+    <GameScreenUndoProduct
+      v-if="gameId && auto !== false"
+      ref="undoProduct"
+      :key="gameId"
+      :game-id="gameId"
+      @state="undoNative = $event"
+      @saved="restore.reload()"
+    />
+  </div>
   <GameScreenLifecycleProduct
-    v-if="gameId && auto !== false"
+    v-if="gameId && auto !== false && !prefixContext"
     :key="gameId"
     :game-id="gameId"
     @resume-recording="restore.reload()"
   />
   <GameScreenSubstitutionProduct
-    v-if="gameId && auto !== false"
+    v-if="gameId && auto !== false && !prefixContext"
     :key="gameId"
     :game-id="gameId"
     @saved="restore.reload()"

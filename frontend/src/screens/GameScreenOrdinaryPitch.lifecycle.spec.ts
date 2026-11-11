@@ -819,3 +819,44 @@ it.each(['0', '1', '2'] as const)(
     }
   },
 )
+
+it('旧画面の可視ボールボタンから実Controllerへ1球を送信する', async () => {
+  const post = vi
+    .spyOn(transport, 'postSyncEvents')
+    .mockImplementation(async (request) => {
+      const body = transport.buildSyncEventRequestBody(request)
+      if (!('events' in body)) throw new Error('単体要求形式不成立')
+      const slot = request.slots[0]!
+      return {
+        sent: true,
+        requestBody: body,
+        response: {
+          advancedD3: slot.d1,
+          eventResults: [
+            { d4: slot.d4, d1: slot.d1, d5: slot.d5, a5Result: '受理' },
+          ],
+        },
+      }
+    })
+  const wrapper = mount(GameScreenOrdinaryPitch, {
+    props: { context: reactive(context()) },
+    global: { plugins: [pinia] },
+  })
+  try {
+    await vi.waitFor(() =>
+      expect(wrapper.find('[data-pitch-type]').exists()).toBe(true),
+    )
+    for (const name of ['profile', 'mode', 'bucket', 'lockdown'])
+      await wrapper.get(`[data-testid="first-ball-env-${name}"]`).setValue(true)
+    await wrapper
+      .get('[data-pitch-type="tenant.pitch.straight"]')
+      .trigger('click')
+    wrapper.getComponent(StrikeZone).vm.$emit('tap', 131.5, 124)
+    await flushPromises()
+    await wrapper.get('[data-result-id="batting-result.ball"]').trigger('click')
+    await vi.waitFor(() => expect(post).toHaveBeenCalledOnce())
+    expect(wrapper.emitted('saved')).toHaveLength(1)
+  } finally {
+    wrapper.unmount()
+  }
+})
