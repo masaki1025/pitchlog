@@ -948,6 +948,21 @@ export async function prepareLineupPrefix(
       request,
     ) as LineupSuccess['value'],
   }
+  // 四球・死球は打席が終わるため、記録者が確認した次打者を唯一核の次参加者へ照合する。
+  // 画面の選択で規定打順を書き換えず、未選択・別枠・別選手は保存要求を作らない。
+  if (
+    observation.resultId === 'batting-result.walk' ||
+    observation.resultId === 'batting-result.hit-by-pitch'
+  ) {
+    const confirmed = observation.nextBatter ?? null
+    const expected = response.value.participants
+    if (
+      confirmed === null ||
+      confirmed.batterId !== expected.batterId ||
+      confirmed.battingOrder !== expected.battingOrder
+    )
+      return invalid()
+  }
   if (batted) {
     const hit = observation.battedHit!
     const rawEffects = (response.value as unknown as Record<string, unknown>)[

@@ -235,10 +235,18 @@ const terminal = computed(
 const nextBatters = computed(() => {
   const c = displayed.value,
     side = c.after.stateFields['state.half'] === 'top' ? 'away' : 'home'
+  // 四球・死球の次打者は現打順の直後枠だけ。全打順からの自由選択にしない。
+  const current = Number(c.after.stateFields['state.battingOrder'])
+  if (!Number.isInteger(current) || current < 1 || current > 9) return []
+  const next = current === 9 ? 1 : current + 1
   return (
     c.game.roster.teams
       .find((t) => t.side === side)
-      ?.participants.filter((p) => p.batting_slot.kind === 'slot') ?? []
+      ?.participants.filter(
+        (p) =>
+          p.batting_slot.kind === 'slot' &&
+          Number(p.batting_slot.slot) === next,
+      ) ?? []
   )
 })
 const canAppend = ref(false)

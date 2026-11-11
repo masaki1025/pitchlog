@@ -486,6 +486,76 @@ it('両9枠と実投捕の読取を唯一artifactへ渡し、三振・攻守を�
   expect(prepared.payload.participants).toEqual(value.participants)
   expect(context.after).toEqual(value.after)
 })
+it('v3死球は確認済み次打者を唯一核の次参加者へ照合する（四球も同じ照合）', async () => {
+  const value = lineupFixture.value
+  if (!isLineupPrefixGame(value)) throw new Error('独立DTO不正')
+  const context = await lineupContextFromRead(value, value.prefix_ref.tenantId)
+  const vocab = {
+    tenantId: value.prefix_ref.tenantId,
+    pitchTypeKeys: ['tenant.pitch.straight'],
+  }
+  const ids = {
+    d5: '44444444-4444-4444-8444-444444444444',
+    eventId: '55555555-5555-4555-8555-555555555555',
+    playId: '66666666-6666-4666-8666-666666666666',
+  }
+  const observation: PlayScreenObservation = {
+    resultId: 'batting-result.hit-by-pitch',
+    pitchTypeKey: 'tenant.pitch.straight',
+    screenX: 131.5,
+    screenY: 124,
+    view: 'catcher',
+    pitchSpeed: { kmh: null, outsideRangeConfirmed: false },
+    stance: null,
+    battingSide: null,
+    nextBatter: {
+      batterId: '00000000-0000-4000-8000-000000000102',
+      battingOrder: '2' as const,
+    },
+  }
+  const prepared = await prepareLineupPrefix(
+    context,
+    observation,
+    vocab,
+    value.prefix_ref.tenantId,
+    ids,
+    '77777777-7777-4777-8777-777777777777',
+  )
+  expect(prepared.payload.calculation.response.value.participants).toEqual({
+    batterId: '00000000-0000-4000-8000-000000000102',
+    pitcherId: '00000000-0000-4000-8000-000000000201',
+    catcherId: '00000000-0000-4000-8000-000000000202',
+    battingOrder: '2',
+  })
+  for (const bad of [
+    { ...observation, nextBatter: null },
+    {
+      ...observation,
+      nextBatter: {
+        batterId: '00000000-0000-4000-8000-000000000103',
+        battingOrder: '2' as const,
+      },
+    },
+    {
+      ...observation,
+      nextBatter: {
+        batterId: '00000000-0000-4000-8000-000000000102',
+        battingOrder: '3' as const,
+      },
+    },
+  ]) {
+    await expect(
+      prepareLineupPrefix(
+        context,
+        bad,
+        vocab,
+        value.prefix_ref.tenantId,
+        ids,
+        '77777777-7777-4777-8777-777777777777',
+      ),
+    ).rejects.toThrow()
+  }
+})
 it('別tenant・破損roster hashを真正sourceにしない', async () => {
   const value = structuredClone(lineupFixture.value)
   if (!isLineupPrefixGame(value)) throw new Error('独立DTO不正')
