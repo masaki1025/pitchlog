@@ -32,11 +32,12 @@
 
 ### 比較画像
 
-- `/tmp/opencode/pitchlog-comparison-normal.png`（通常時）
-- `/tmp/opencode/pitchlog-comparison-runner.png`（一塁走者あり）
-- `/tmp/opencode/pitchlog-comparison-substitution.png`（交代入口）
-- 個別画像: `/tmp/opencode/new-record-wide.png`、`new-record-wide-runner.png`、`new-record-wide-substitution.png`、`new-record-ipad.png`、`new-record-phone.png`
-- 旧側画像: `/tmp/opencode/old-game-wide.png`、`old-game-runner.png`、`old-game-substitution.png`
+- `images/comparison-normal.png`（通常時）
+- `images/comparison-runner.png`（一塁走者あり）
+- `images/comparison-substitution.png`（交代入口）
+- `images/record-ipad.png`（iPad 幅）
+- `images/record-phone.png`（iPhone 幅）
+- 元画像は `/tmp/opencode/` 配下にも残している（旧: `old-game-*.png`、PitchLog: `new-record-*.png`）。
 
 ### 残る差（隠さない）
 
