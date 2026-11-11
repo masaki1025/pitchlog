@@ -29,6 +29,13 @@
 | 成績27項目 | 実画面実証済み | 新`test_stats_screen_e2e` **1 passed / 139.35秒**。公式モードで打撃18列＋投手13列−選手/チーム4列＝**27項目**、成績CSV 5262 bytesを実ダウンロード |
 | 毎球CSV・成績CSV | 実画面実証済み | `test_play_export_screen_e2e`、P3 CSV、ゲーム/シーズン成績CSV |
 
+### 2026-11-11 22:15 トップ画面を試合一覧へ変更
+
+- トップ `/` が開発時目視比較専用の`StrikeZoneCompareHost`（カラースキーム/ストライクゾーン比較）になっており、ログイン後の製品入口として不適切だった。`/`を`GameScreenEntryHost`（試合一覧・新規作成）へ変更し、比較画面は`/design/strike-zone`へ移動した。
+- ログイン後の既定戻り先を`/team`から`/`へ変更し、未認証の`/`は`/login?redirect=/`へ送る。`/team`への明示的な戻りは維持する。
+- router/App/入口の回帰 **133 passed**。実ブラウザで `/` → ログイン → `/`（新規作成・試合navあり）を確認した。
+- 実機用の一時保持環境（`backend/tests/db/test_manual_app.py`、未追跡）でログインとトップ描画を確認。製品環境の証拠ではない。
+
 ### 2026-11-11 21:15 非作者レビューP1の是正とドメイン検査の赤を解消
 
 - レビュー `review-7bcc5f28-20261111` の **P1 1件**を採用。v3の`prepareLineupPrefix`が`observation.nextBatter`を消費していなかったため、四球・死球で未選択・別選手・別枠でも同一要求を作れていた。`response.value.participants`（唯一核が返す次打者）と`batterId`・`battingOrder`の両方を照合し、不一致は`OrdinaryPitchWireError`で拒否するよう修正した。画面の次打者候補も現打順の直後枠だけに限定した。
