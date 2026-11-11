@@ -236,8 +236,8 @@ describe('公開ガイドと保護チーム経路', () => {
       await wrapper.get('input[name="password"]').setValue('test-password')
       await wrapper.get('form').trigger('submit')
       await flushPromises()
-      expect(router.currentRoute.value.path).toBe('/team')
-      expect(wrapper.findComponent(TeamScreen).exists()).toBe(true)
+      expect(router.currentRoute.value.path).toBe('/')
+      expect(wrapper.findComponent(TeamScreen).exists()).toBe(false)
     },
   )
   it('実clientのlogin ack後もsession確認が終わるまで画面/一覧を開始しない', async () => {
@@ -712,7 +712,7 @@ it.each([
   { redirect: '/games?cursor=x' },
   { redirect: `/games/${preparingGameId}/record#part` },
   { redirect: '/games/not-a-uuid/record' },
-])('戻り先の欠落/配列/許可外構文を/teamへ閉じる: %j', async ({ redirect }) => {
+])('戻り先の欠落/配列/許可外構文を/へ閉じる: %j', async ({ redirect }) => {
   const router = createAppRouter(createMemoryHistory())
   await router.push({ name: 'login', query: { redirect } })
   const wrapper = view(router)
@@ -721,17 +721,12 @@ it.each([
     preparingLoginReply(url, init),
   )
   await submitLogin(wrapper)
-  expect(router.currentRoute.value.path).toBe('/team')
-  expect(wrapper.findComponent(TeamScreen).exists()).toBe(true)
-  expect(
-    fetchMock.mock.calls.some(([url]) =>
-      routePath(url).startsWith('/api/games'),
-    ),
-  ).toBe(false)
+  expect(router.currentRoute.value.path).toBe('/')
+  expect(wrapper.findComponent(TeamScreen).exists()).toBe(false)
 })
 
 it.each(['/games?cursor=x', `/games/${preparingGameId}/record#part`])(
-  '失効時の許可外fullPath%sは/teamへ正規化する',
+  '失効時の許可外fullPath%sは/へ正規化する',
   async (path) => {
     fetchMock.mockImplementation(async (url, init) =>
       preparingLoginReply(url, init),
@@ -752,7 +747,7 @@ it.each(['/games?cursor=x', `/games/${preparingGameId}/record#part`])(
     useAuthStore(pinia).expireSession()
     await flushPromises()
     expect(router.currentRoute.value.name).toBe('login')
-    expect(router.currentRoute.value.query.redirect).toBe('/team')
+    expect(router.currentRoute.value.query.redirect).toBe('/')
     expect(wrapper.find('nav[aria-label="画面移動"]').exists()).toBe(false)
   },
 )

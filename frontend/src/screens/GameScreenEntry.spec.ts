@@ -171,9 +171,9 @@ describe('登録済みrouteと認証境界', () => {
   )
 
   it.each([
-    ['/games?next=x', '/team'],
-    [`/games/${gameId}/record#part`, '/team'],
-    ['/games/not-a-uuid/record', '/team'],
+    ['/games?next=x', '/'],
+    [`/games/${gameId}/record#part`, '/'],
+    ['/games/not-a-uuid/record', '/'],
     ['/team', '/team'],
   ])('認証前の%sは安全な戻り先%sだけを保持する', async (path, expected) => {
     useAuthStore(pinia).signOut()
@@ -207,7 +207,7 @@ describe('登録済みrouteと認証境界', () => {
     '?recording=',
   ])('未知/重複/追加/符号化の記録入口%sを採用しない', (suffix) => {
     expect(resolveGameEntryReturnPath(`/games/${gameId}/record${suffix}`)).toBe(
-      '/team',
+      '/',
     )
   })
 
@@ -219,8 +219,8 @@ describe('登録済みrouteと認証境界', () => {
     '/games#part',
     `/games/${gameId.toUpperCase()}/record`,
     '/games/not-a-uuid/record',
-  ])('不正な戻り先%sは/teamへ倒す', (path) => {
-    expect(resolveGameEntryReturnPath(path)).toBe('/team')
+  ])('不正な戻り先%sは/へ倒す', (path) => {
+    expect(resolveGameEntryReturnPath(path)).toBe('/')
   })
 
   it('非tenant/認証世代変更/再検証失敗を取得済み表示に採用しない', async () => {
