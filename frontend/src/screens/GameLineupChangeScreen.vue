@@ -9,6 +9,7 @@ import type { Lineup } from '../../../contracts/state-transition/lineup_play_pre
 import GameScreenSubstitutionProduct from './GameScreenSubstitutionProduct.vue'
 import Sheet from '../components/ui/Sheet.vue'
 import { useRecordDisplay } from './GameScreenRecordDisplayProvider'
+import { useAuthStore } from '../stores/authStore'
 
 type GameRead = StartedGameMetadata & {
   lineup?: Lineup
@@ -25,6 +26,7 @@ type Row = {
   initial: boolean
 }
 const route = useRoute()
+const auth = useAuthStore()
 const router = useRouter()
 const gameId = computed(() =>
   typeof route.params.gameId === 'string' ? route.params.gameId : '',
@@ -34,6 +36,7 @@ const status = ref<'loading' | 'ready' | 'not-found' | 'unavailable' | 'error'>(
   'loading',
 )
 const sheetOpen = ref(false)
+const source = ref<'v3' | 'v2' | 'started' | null>(null)
 const display = useRecordDisplay(computed(() => game.value))
 let sequence = 0
 let request: AbortController | null = null
@@ -128,7 +131,11 @@ function rosterEntries(side: Side) {
       number: display.playerNumber(playerId) ?? '—',
       bats: batsLabel(playerId),
       position:
-        fielding && fielding.kind === 'fielding' ? fielding.position : 'DH',
+        fielding && fielding.kind === 'fielding'
+          ? fielding.position
+          : participant.roles.some((role) => role.kind === 'designated-hitter')
+            ? 'DH'
+            : '—',
     }
   })
 }
@@ -148,11 +155,17 @@ async function load() {
   request = new AbortController()
   status.value = 'loading'
   game.value = null
+  source.value = null
   try {
     const v3 = await readLineupPrefixGame(id, null, 25, request.signal)
     if (own !== sequence) return
     if (v3.kind === 'found') {
+      if (!auth.teamId || v3.game.prefix_ref.tenantId !== auth.teamId) {
+        status.value = 'unavailable'
+        return
+      }
       game.value = v3.game
+      source.value = 'v3'
       status.value = 'ready'
       return
     }
@@ -160,7 +173,12 @@ async function load() {
       const v2 = await readPlayPrefixGame(id, null, 25, request.signal)
       if (own !== sequence) return
       if (v2.kind === 'found') {
+        if (!auth.teamId || v2.game.prefix_ref.tenantId !== auth.teamId) {
+          status.value = 'unavailable'
+          return
+        }
         game.value = v2.game
+        source.value = 'v2'
         status.value = 'ready'
         return
       }
@@ -169,6 +187,7 @@ async function load() {
     if (own !== sequence) return
     if (started.kind === 'found') {
       game.value = started.game
+      source.value = 'started'
       status.value = 'ready'
       return
     }
@@ -184,10 +203,16 @@ onScopeDispose(() => {
 })
 
 async function back() {
+  const query =
+    source.value === 'v3'
+      ? { recording: 'play-prefix-v3' }
+      : source.value === 'v2'
+        ? { recording: 'play-prefix-v2' }
+        : {}
   await router.push({
     name: 'game-record',
     params: { gameId: gameId.value },
-    query: { recording: 'play-prefix-v3' },
+    query,
   })
 }
 async function saved() {
@@ -212,7 +237,7 @@ async function saved() {
       <div class="min-w-0">
         <h1 class="truncate text-lg font-extrabold">選手交代</h1>
         <p class="text-xs text-slate-500">
-          両チームの打順・守備・名簿を確認して交代を記録します
+          現在の打順と、開始時の守備位置・名簿を確認します
         </p>
       </div>
     </header>
@@ -230,7 +255,11 @@ async function saved() {
         role="alert"
         class="rounded-xl border border-red-300 bg-red-50 p-4 text-sm font-bold text-red-800"
       >
-        試合が見つかりません。試合一覧へ戻ってください。
+        試合が見つかりません。<RouterLink
+          :to="{ name: 'games' }"
+          class="ml-1 underline"
+          >試合一覧へ戻る</RouterLink
+        >
       </p>
       <p
         v-else-if="status === 'unavailable' || status === 'error'"
@@ -273,7 +302,11 @@ async function saved() {
                   <thead>
                     <tr class="text-slate-400">
                       <th class="w-8 py-1 text-left font-semibold">打順</th>
-                      <th class="w-8 py-1 text-left font-semibold">守備</th>
+                      <th class="w-8 py-1 text-left font-semibold">
+                        守備<br /><span class="text-[9px] font-normal"
+                          >開始時</span
+                        >
+                      </th>
                       <th class="w-10 py-1 text-left font-semibold">背番号</th>
                       <th class="py-1 text-left font-semibold">氏名</th>
                       <th class="w-8 py-1 text-left font-semibold">左右</th>
@@ -334,11 +367,23 @@ async function saved() {
           </p>
           <button
             type="button"
-            class="mt-3 min-h-14 w-full rounded-xl bg-sky-600 px-4 text-lg font-extrabold text-white hover:bg-sky-700"
+            class="mt-3 min-h-14 w-full rounded-xl bg-sky-600 px-4 text-lg font-extrabold text-white hover:bg-sky-700 disabled:pointer-events-none disabled:opacity-40"
+            :disabled="source !== 'v3'"
+            :title="
+              source === 'v3'
+                ? undefined
+                : 'この読みでは交代フォームを開けません。記録画面から再取得してください'
+            "
             @click="sheetOpen = true"
           >
             選手交代を記録
           </button>
+          <p
+            v-if="source !== 'v3'"
+            class="mt-2 text-xs font-semibold text-amber-800"
+          >
+            この試合は旧v2/開始時読みのため、現在の交代フォームを開けません。記録画面からv3で再取得してください。
+          </p>
         </div>
       </template>
     </main>

@@ -122,6 +122,9 @@ const intentionalWalkAvailable = computed(() => {
 })
 const adoptInterference = ref(false)
 const interferenceObservation = ref<PlayScreenObservation['interference']>(null)
+const strikeoutDetailAvailable = computed(() =>
+  isLineupRecordingContext(displayed.value),
+)
 const hitAvailable = computed(() => {
   if (!isLineupRecordingContext(displayed.value)) return false
   return (
@@ -528,7 +531,7 @@ function chooseDirect(
       result === 'batting-result.swinging-strikeout' ||
       result === 'batting-result.k3' ||
       result === 'batting-result.strikeout-double-play') &&
-    strikes.value < 2
+    (strikes.value < 2 || !strikeoutDetailAvailable.value)
   )
     return
   resultPicked.value = true
@@ -564,11 +567,19 @@ function selectSimple(
     chooseDirect('batting-result.walk')
     return
   }
-  if (result === 'batting-result.called-pitch' && strikes.value >= 2) {
+  if (
+    result === 'batting-result.called-pitch' &&
+    strikes.value >= 2 &&
+    strikeoutDetailAvailable.value
+  ) {
     chooseDirect('batting-result.called-strikeout')
     return
   }
-  if (result === 'batting-result.swinging-strike' && strikes.value >= 2) {
+  if (
+    result === 'batting-result.swinging-strike' &&
+    strikes.value >= 2 &&
+    strikeoutDetailAvailable.value
+  ) {
     chooseDirect('batting-result.swinging-strikeout')
     return
   }
@@ -950,7 +961,10 @@ async function save(override?: PlayScreenObservation['resultId']) {
       interferenceObservation.value = null
       resultPanel.value = null
       nextBatterId.value = ''
-      if (!batted.value && !interference.value) resultPicked.value = false
+      if (!batted.value && !interference.value) {
+        resultPicked.value = false
+        resultId.value = 'batting-result.ball'
+      }
       runnerObservation.value = null
       runnerMode.value = false
       missingCourse.value = false
@@ -1753,6 +1767,7 @@ onScopeDispose(() => {
             runnersState === 'loaded'
           "
           :strikeout-double-play-available="strikeoutDoublePlayAvailable"
+          :strikeout-detail-available="strikeoutDetailAvailable"
           :intentional-walk-available="intentionalWalkAvailable"
           @simple="selectSimple"
           @select-in-play="selectInPlay"
@@ -1873,7 +1888,7 @@ onScopeDispose(() => {
       <GameScreenPastCorrectionProduct
         v-if="gameRead"
         :game="gameRead"
-        :suspended="busy"
+        :suspended="busy || suspended"
         @saved="pastCorrectionSaved"
       />
       <p v-else role="status">この試合状態では過去訂正を開けません。</p>

@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import fixture from '../api/fixtures/lineupPrefixGame.v3.json'
 import * as roster from '../api/roster'
 import * as lineupRead from '../api/lineupPrefixGame'
+import type { LineupPrefixGame } from '../api/lineupPrefixGame'
 import * as playRead from '../api/recordedPrefixGame'
 import * as startedRead from '../api/startedGame'
 import { setVerifiedAuthForTest } from '../api/auth.test-support'
@@ -12,7 +13,7 @@ import { useAuthStore } from '../stores/authStore'
 import GameLineupChangeScreen from './GameLineupChangeScreen.vue'
 import GameScreenSubstitutionProduct from './GameScreenSubstitutionProduct.vue'
 
-const game = fixture.value
+const game = fixture.value as unknown as LineupPrefixGame
 const awayId = game.lineup.away.teamId
 const homeId = game.lineup.home.teamId
 let pinia: ReturnType<typeof createPinia>

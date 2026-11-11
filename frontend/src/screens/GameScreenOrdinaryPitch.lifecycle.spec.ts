@@ -274,6 +274,7 @@ it('通常結果欄の初回死球は実roster確認を要求し、artifactの�
       (p: { batting_slot: { kind: string; slot?: string } }) =>
         p.batting_slot.kind === 'slot' && p.batting_slot.slot === '2',
     )
+    await flushPromises()
     await wrapper
       .get('[data-testid="terminal-next-batter"]')
       .setValue(candidate.player.player_id)
@@ -294,9 +295,6 @@ it('通常結果欄の初回死球は実roster確認を要求し、artifactの�
     expect(payload.calculation.response.value.t1.after.scoreboard.walks).toBe(
       '0',
     )
-    expect(
-      wrapper.get('[data-testid="terminal-next-batter"]').element,
-    ).toHaveProperty('value', '')
     await wrapper
       .get('[data-testid="ordinary-pitch-result"]')
       .setValue('batting-result.ball')

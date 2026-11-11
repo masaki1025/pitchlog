@@ -45,6 +45,7 @@ const props = withDefaults(
     hasThird?: boolean
     strikeoutDoublePlayAvailable?: boolean
     intentionalWalkAvailable?: boolean
+    strikeoutDetailAvailable?: boolean
   }>(),
   {
     disabled: false,
@@ -59,6 +60,7 @@ const props = withDefaults(
     hasThird: false,
     strikeoutDoublePlayAvailable: false,
     intentionalWalkAvailable: false,
+    strikeoutDetailAvailable: true,
   },
 )
 const emit = defineEmits<{
@@ -85,7 +87,11 @@ const simple = computed(() => [
   },
 ])
 const strikeoutDisabled = computed(
-  () => props.disabled || props.busy || props.strikes < 2,
+  () =>
+    props.disabled ||
+    props.busy ||
+    !props.strikeoutDetailAvailable ||
+    props.strikes < 2,
 )
 const quickInPlay: readonly { result: InPlayResult; label: string }[] = [
   { result: 'batting-result.single', label: '単打' },
