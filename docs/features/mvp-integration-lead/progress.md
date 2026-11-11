@@ -29,6 +29,13 @@
 | 成績27項目 | 実画面実証済み | 新`test_stats_screen_e2e` **1 passed / 139.35秒**。公式モードで打撃18列＋投手13列−選手/チーム4列＝**27項目**、成績CSV 5262 bytesを実ダウンロード |
 | 毎球CSV・成績CSV | 実画面実証済み | `test_play_export_screen_e2e`、P3 CSV、ゲーム/シーズン成績CSV |
 
+### 2026-11-11 18:30 TB-P1/P2/P3=A採用と純遷移核
+
+- PO回答 **TB-P1=A / TB-P2=A / TB-P3=A** を採用。P1は記録者が規則適合配置を確認・確定する方式（自由配置ではない）、P2は半回開始時投手への失点帰属を維持し自責点計算はMVP対象外、P3は各半回に再配置する。
+- `tiebreakStart.ts` に `transitionTiebreakStart` を追加。実選手ID（攻撃側の実出場者のみ、先頭打者・同一IDを拒否）、半回開始投手の責任固定、初回と次半回の再配置、二重配置/途中アウト/別規則の拒否を純対向で固定。`tiebreakStart.spec.ts` **5 passed**。
+- 実装HEAD `489d3cbf`。計画は `docs/features/mvp-tiebreak-start-product/plan.md`。
+- **未接続（step2/3）**: 既存正式operationRowsは`tiebreakActive=false`の初回だけで、P3の再配置（`tiebreakActive=true`の新半回）には新しい正式行/caseが必要。非play frameの保存形式（substitution frameの再利用か新fieldか）、新consume関数/ACL/registry、画面の確認UI、次球、成績/CSV、独立レビュー、実DB/実画面E2Eは未実施。**完成扱いにしない**。
+
 ### 2026-11-11 05:35 守備変更の実画面縦断を追加
 
 - `test_defense_change_screen_e2e` は **1 passed / 82.37秒**。新規試合で1球保存後、控え選手213を遊撃手（position 6）へ守備変更し、**200/受理**、receipt 1件、current checkpointの`substitutionState.home.fielding['6']=213`を実DBで照合した。
