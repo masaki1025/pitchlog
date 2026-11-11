@@ -229,9 +229,8 @@ const fielders = computed(
 
 const terminal = computed(
   () =>
-    !isLineupRecordingContext(displayed.value) &&
-    (resultId.value === 'batting-result.walk' ||
-      resultId.value === 'batting-result.hit-by-pitch'),
+    resultId.value === 'batting-result.walk' ||
+    resultId.value === 'batting-result.hit-by-pitch',
 )
 const nextBatters = computed(() => {
   const c = displayed.value,
@@ -455,6 +454,10 @@ async function save() {
       selected: selected.value,
       loading: loading.value,
       failed: failed.value,
+      tenantId: identity().tenantId,
+      verified: identity().verified,
+      hydrated: auth.hasHydrated,
+      authenticated: auth.isAuthenticated,
     }
   }
   if (

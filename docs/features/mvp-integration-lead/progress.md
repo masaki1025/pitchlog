@@ -6,7 +6,7 @@
 
 | 操作 | 状態 | 根拠・停止点 |
 | --- | --- | --- |
-| 投球・打席 | 実画面実証済み | `GameScreenFullGame` 163球、`GameScreenFirstBall`、通常投球E2E |
+| 投球・打席 | 一部実画面実証済み | 初球は`GameScreenFirstBall`でUI保存。9回163球の`GameScreenFullGame`は**ブラウザ内fetch**で投球しており、製品の通常投球UIによる連続記録ではない（下記2026-11-11 20:45）。通常投球UIは打席終了後の次球準備で停止する |
 | 打球（単打/長打/本塁打/犠打/犠飛/併殺/失策/FC） | 実画面実証済み | `test_batted_operations_batch_screen_e2e` 59プレイ、`test_batted_hits_screen_e2e`、`test_batted_out_screen_e2e` |
 | 走者アウト（牽制/盗塁死/振り逃げ併殺） | 実画面実証済み | `test_runner_operations_screen_e2e`（投手・捕手牽制、caught-stealing、strikeout-double-play） |
 | 走塁（盗塁/WP/PB/ボーク） | 実画面実証済み | 同runner operations（非投球盗塁、wild-pitch、passed-ball、balk） |
@@ -16,7 +16,7 @@
 | 選手のその場登録 | 実装済み未接続 | backendの`player_registration`受理・一時ID mappingはある。画面は「登録はまだ行われません」で、参加登録API/UIが未接続 |
 | 取消 | 実画面実証済み | `test_undo_product_screen_e2e`、ACK喪失→新attempt |
 | 過去訂正 | 実画面実証済み | `test_p3_product_screen_e2e`、26球→P3→27球目→CSV |
-| 9回 | 実画面実証済み（機能） | `test_full_game_screen_e2e` **1 passed / 1653.21秒**、163球・normal-end/v1。**5秒応答目標は未達**（最大10736ms、163/163が5秒超） |
+| 9回 | HTTP縦断済み・UI連続記録は未成立 | `test_full_game_screen_e2e` **1 passed / 1653.21秒**、163球・normal-end/v1。ただし投球は`recordRealPitch`のブラウザ内fetchで、製品UIではない。**5秒応答目標も未達**（最大10736ms、163/163が5秒超） |
 | 7回 | 実装済み未接続 | 規則schema/domainは規定回を可変。`resolve_stage_a_rule`が固定5組（すべて9回）で、大会割当/上書き/規則管理UIが未接続 |
 | コールド | 実画面実証済み | 新`test_end_conditions_screen_e2e`のcold-end（9回・7点差7回、49 play_input + 終了宣言）。**1 passed / 1491.83秒** |
 | 引き分け | 実画面実証済み | 同E2Eのlimit-draw（9回同点・延長上限9、54 play_input + 終了宣言）。**同日再測で通過** |
@@ -28,6 +28,15 @@
 | 担当交代（記録権引き継ぎ） | 未実装 | 製品API/画面がない。server側の世代・退避部品だけではFR-013の通常/緊急引き継ぎを満たさない |
 | 成績27項目 | 実画面実証済み | 新`test_stats_screen_e2e` **1 passed / 139.35秒**。公式モードで打撃18列＋投手13列−選手/チーム4列＝**27項目**、成績CSV 5262 bytesを実ダウンロード |
 | 毎球CSV・成績CSV | 実画面実証済み | `test_play_export_screen_e2e`、P3 CSV、ゲーム/シーズン成績CSV |
+
+### 2026-11-11 20:45 通常球UIの連続記録停止点を特定
+
+- 実画面E2Eで、初球（`GameScreenFirstBall`）→通常投球UI（`GameScreenOrdinaryPitch`）へ**ページ再読込なしで**引き継げることを確認した。初球保存のACK後、同じ画面に通常投球パネルが現れ、サーバー確認済み状態・履歴1件で入力できる。
+- しかし**打席終了イベントの後、次の投球がPOSTされない**。三振を1球保存した後の次球で、`__pitchlogSubmitError` は `Error: 初球の正式計算が成立しませんでした`（`prepareLineupPrefix`、`head:2`）を返し、`waitForResponse` は30秒でタイムアウトした。1球目と三振のPOSTは200/受理、次球はPOST 0件。**製品UIは打席終了後に文脈（次打者・next d1）を更新できず、連続記録が止まる**。
+- 四球は「3ボール→四球→次打者確認」の順でないと成立せず、`terminal-next-batter` は**lineup-prefixでも必須**だった。従来の`terminal`計算はlineup文脈で次打者選択を隠していたため、`GameScreenOrdinaryPitch.vue`で四球/死球は文脈に関係なく次打者確認を表示するよう修正した。既存4 spec **115 passed**。
+- 四球の保存には`admin_vocabularies`の`batting-result.walk`が必要で、未投入では`play_rows`のFK違反→503（fail-closed、ACKなし）になる。テストfixtureで語彙を投入すれば、四球は受理され走者一塁・打順2・walks=1になった。
+- 代走の実画面E2Eは、この**通常球UIの連続記録停止**に阻まれて未成立。代走パイプライン自体の拒否ではない（捕手以外の走者を作る前段で停止）。代打の画面E2Eも同じ理由で、以前の「捕手位置の空き」だけが原因ではない。
+- 次は、保存ACK/再取得後に`nextPosition.d1`と次打者を製品UIへ反映する接続を直し、通常球UIだけで1イニングを連続記録できることを先に証明する。その上で代走・代打・タイブレークへ進む。
 
 ### 2026-11-11 18:30 TB-P1/P2/P3=A採用と純遷移核
 
