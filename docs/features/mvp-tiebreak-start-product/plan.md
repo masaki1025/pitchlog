@@ -31,3 +31,13 @@ branch: feature/mvp-integration-20261109
 - 走者個人ID・責任投手・再配置をPython/SQLで別計算しない。唯一artifactの同じ遷移核を使う。
 - 30秒DB writer bindingを延長しない。timeout・期待値・検査条件を緩和しない。
 - 実機・本番TLS・バックアップ復旧・運用公開は別工程。
+
+## 実装前調査（2026-11-11 20:50）
+
+TB-P1/P2/P3=Aは純遷移核まで固定済み。製品接続の前に、次の実測済み制約を解く必要がある。
+
+1. **通常球UIの連続記録が先決**: 初球→通常球の引継ぎは同じ画面で成立したが、三振（打席終了）後の次球で `prepareLineupPrefix` が「初球の正式計算が成立しませんでした」を返し、POST 0件で停止した（`head:2`）。タイブレーク開始後の「配置→次球→投手交代→生還→次半回」はすべてこの連続記録の上に載るため、先にACK/queue/next d1の接続を直す。9回163球の既存E2Eはブラウザ内fetchであり、この経路の証明にならない。
+2. **非play frameの保存形式**: `Content` は `additionalProperties:false`。`substitutionFrames` へ混在させると `read_started_nonplay_active_history` の「substitution event数 = substitutionFrames数」と `persist_writer_pitcher_entry` の `eventKind='substitution'` 照合に抵触する。**別配列 `tiebreakFrames` を追加**し、Content schema版上げ、read関数の件数照合へtiebreak分を明示追加、専用receiptを設けるのが最小。
+3. **新非play操作の完全集合**: `tiebreak_payload` / `tiebreak_execution` / `tiebreak_projection` / `tiebreak_bridge`、`consume_nonplay_tiebreak` と専用receipt、`nonplay_function_operations` の固定集合、`nonplay_product`・`runtime_contract`・`operation_registry`・ACL/catalog、authz corpus/oracle再封印、`transitionTiebreakStartV1` のartifact公開とpin再導出。
+4. **正式契約**: 初回行（`tiebreakActive=false`）に加え、P3再配置行（`tiebreakActive=true`・新半回・`runners=empty`・`outs=0`）を `operationRows` へ追加し、case拡張・凍結corpusを追随する。
+5. **画面**: `GameScreenSubstitutions.vue` のdisabledを外し、GET由来の実選手ID・規則配置・半回開始投手を供給する専用providerを追加。自由配置はさせず、次打者・同一ID・非出場者を画面でも選択不可にする。
