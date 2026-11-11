@@ -52,13 +52,16 @@ async function finishLogin(): Promise<void> {
 }
 
 async function returnToHome(): Promise<void> {
-  await router.push({ name: 'home' })
+  await router.push({ name: 'design-strike-zone' })
 }
 </script>
 
 <template>
   <main>
-    <header v-if="route.name === 'home'" class="flex items-center gap-3 p-4">
+    <header
+      v-if="route.name === 'design-strike-zone'"
+      class="flex items-center gap-3 p-4"
+    >
       <h1 class="text-xl font-extrabold">PitchLog</h1>
       <RouterLink
         :to="{ name: 'team' }"

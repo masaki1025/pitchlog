@@ -107,7 +107,7 @@ describe('公開ガイドと保護チーム経路', () => {
   })
   it('トップとガイドを往復してもproviderは同一でtenant通信なし', async () => {
     const router = createAppRouter(createMemoryHistory())
-    await router.push('/')
+    await router.push('/design/strike-zone')
     const wrapper = view(router)
     const auth = useAuthStore(pinia)
     const cache = queryClient
@@ -115,7 +115,7 @@ describe('公開ガイドと保護チーム経路', () => {
     await flushPromises()
     await wrapper.get('button[aria-label="戻る"]').trigger('click')
     await flushPromises()
-    expect(router.currentRoute.value.name).toBe('home')
+    expect(router.currentRoute.value.name).toBe('design-strike-zone')
     expect(useAuthStore(pinia)).toBe(auth)
     expect(queryClient).toBe(cache)
     expect(fetchMock).not.toHaveBeenCalled()
@@ -415,7 +415,7 @@ describe('公開ガイドと保護チーム経路', () => {
   )
   it('認証変更でも公開トップの局所stateを再生成しない', async () => {
     const router = createAppRouter(createMemoryHistory())
-    await router.push('/')
+    await router.push('/design/strike-zone')
     const wrapper = view(router)
     const publicScreen = wrapper.getComponent(StrikeZoneCompareHost).vm.$.uid
     setVerifiedAuthForTest(useAuthStore(pinia), {

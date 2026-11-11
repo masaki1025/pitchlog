@@ -59,7 +59,12 @@ export function createAppRouter(history: RouterHistory = createWebHistory()) {
   const router = createRouter({
     history,
     routes: [
-      { path: '/', name: 'home', component: StrikeZoneCompareHost },
+      { path: '/', redirect: { name: 'team' } },
+      {
+        path: '/design/strike-zone',
+        name: 'design-strike-zone',
+        component: StrikeZoneCompareHost,
+      },
       { path: '/help', name: 'help', component: HelpScreen },
       {
         path: '/login',

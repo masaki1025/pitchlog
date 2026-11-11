@@ -6,9 +6,9 @@ import { installAppProviders } from './appProviders'
 import { createAppRouter } from './router'
 
 describe('App', () => {
-  it('トップで PitchLog を描画する', async () => {
+  it('デザイン比較の公開画面で PitchLog を描画する', async () => {
     const router = createAppRouter(createMemoryHistory())
-    await router.push('/')
+    await router.push('/design/strike-zone')
     await router.isReady()
     const wrapper = mount(App, {
       global: { plugins: [{ install: installAppProviders }, router] },
