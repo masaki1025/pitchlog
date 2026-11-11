@@ -13,6 +13,7 @@ import HelpScreen from './screens/HelpScreen.vue'
 import LoginScreen from './screens/LoginScreen.vue'
 import TeamScreen from './screens/TeamScreen.vue'
 import GameScreenEntryHost from './screens/GameScreenEntryHost.vue'
+import StartScreen from './screens/StartScreen.vue'
 import GameStatsScreen from './screens/GameStatsScreen.vue'
 import SeasonStats from './screens/SeasonStats.vue'
 import GameScreenRecordModeHost from './screens/GameScreenRecordModeHost.vue'
@@ -62,7 +63,7 @@ export function createAppRouter(history: RouterHistory = createWebHistory()) {
       {
         path: '/',
         name: 'home',
-        component: GameScreenEntryHost,
+        component: StartScreen,
         meta: { requiresAuth: true },
       },
       {

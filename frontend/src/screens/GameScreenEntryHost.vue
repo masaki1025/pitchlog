@@ -9,11 +9,11 @@ import GameScreenPreparingCreate from './GameScreenPreparingCreate.vue'
 const { page, requestPage, retry } = usePreparingEntryProvider('list')
 const auth = useAuthStore(pinia)
 const route = useRoute()
-const creating = ref(false)
+const creating = ref(route.query.create === '1')
 watch(
   () => [auth.authEpoch, auth.teamId, route.path],
   () => {
-    creating.value = false
+    creating.value = route.query.create === '1'
   },
   { flush: 'sync' },
 )
