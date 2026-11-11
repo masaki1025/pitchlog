@@ -434,10 +434,12 @@ test('実HTTPSの新規試合で通常3球を保存・同要求再送・reload�
       )
     }
     const initialRead = page.waitForResponse(isPrefix)
-    await page
-      .getByRole('button', { name: /^サーバーから(?:復元|再取得)$/ })
-      .click()
+    await page.getByTestId('record-sync').click()
+    const sync = page.getByRole('dialog', { name: '同期センター' })
+    await expect(sync).toBeVisible()
+    await sync.getByRole('button', { name: 'サーバーから再取得' }).click()
     const initial = await (await initialRead).json()
+    await sync.getByRole('button', { name: '閉じる' }).click()
     expect(initial.read_kind).toBe('recorded-prefix')
     expect(initial.prefix_ref.length).toBe('0')
     await expect(page.getByTestId('ordinary-pitch-result')).toBeVisible()
@@ -450,6 +452,18 @@ test('実HTTPSの新規試合で通常3球を保存・同要求再送・reload�
       ),
     ).toBe(true)
     await stageMonitor.ready()
+    const safetyButton = page
+      .getByRole('button', { name: /端末確認が必要|記録端末の確認/ })
+      .first()
+    if (await safetyButton.isVisible()) {
+      await safetyButton.click()
+      const safety = page.getByRole('dialog', { name: '記録端末の安全確認' })
+      await expect(safety).toBeVisible()
+      for (const id of ['profile', 'mode', 'bucket', 'lockdown'])
+        await safety.getByTestId(`first-ball-env-${id}`).check()
+      await safety.getByRole('button', { name: '確認して記録へ戻る' }).click()
+      await expect(safety).toHaveCount(0)
+    }
     let latest = initial
     const results = [
       'batting-result.ball',
@@ -462,15 +476,9 @@ test('実HTTPSの新規試合で通常3球を保存・同要求再送・reload�
       expectedPrefixLength = String(index + 1)
       prefixReads.length = 0
       const inputStart=await safeUi(page,index,results[index]!)
-      for (const id of ['profile', 'mode', 'bucket', 'lockdown'])
-        await page.getByTestId(`first-ball-env-${id}`).check()
-      await page
-        .getByTestId('ordinary-pitch-result')
-        .selectOption(results[index]!)
-      const pitchType = page.getByTestId('first-ball-pitch-type')
-      await expect(pitchType).toBeEnabled()
-      await expect(pitchType.locator('option')).not.toHaveCount(1)
-      await pitchType.selectOption({ index: 1 })
+      const pitchType = page.locator('[data-pitch-type]').first()
+      await expect(pitchType).toBeVisible()
+      await pitchType.click()
       await page.getByTestId('first-ball-course').locator('svg').click()
       const synchronized = page.waitForResponse(
         (res) =>
@@ -485,14 +493,15 @@ test('実HTTPSの新規試合で通常3球を保存・同要求再送・reload�
       )
       // 診断による早期fail後も待機Promiseの二次unhandledを出さない。
       void restored.catch(() => undefined)
-      try {
-        await expect(page.getByTestId('first-ball-save')).toBeEnabled()
-      } catch {
-        throw new Error(JSON.stringify({stage:'save-disabled',inputStart,
-          current:await safeUi(page,index,results[index]!),
-          cdpStages:stageMonitor.snapshot()}))
-      }
-      await page.getByTestId('first-ball-save').click()
+      if (
+        results[index] === 'batting-result.walk' ||
+        results[index] === 'batting-result.hit-by-pitch'
+      )
+        await page.getByRole('button', { name: '四死球' }).click()
+      await page
+        .locator(`[data-result-id="${results[index]}"]`)
+        .first()
+        .click()
       const acknowledged = await synchronized
       expect(acknowledged.status()).toBe(200)
       let ack: Awaited<ReturnType<typeof acknowledged.json>>
