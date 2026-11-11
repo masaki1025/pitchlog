@@ -914,3 +914,66 @@ it('可視の見逃しボタン9球で3アウトを取り、1回裏へ攻守交�
     wrapper.unmount()
   }
 })
+
+it('lineup-prefixのreadがあるときだけメニューから過去訂正を開く', async () => {
+  const source = structuredClone(lineupFixture.value)
+  if (!isLineupPrefixGame(source)) throw new Error('構造fixture不正')
+  const wrapper = mount(GameScreenOrdinaryPitch, {
+    props: {
+      context: await lineupContextFromRead(source, tenant),
+      gameRead: source,
+    },
+    global: {
+      plugins: [pinia],
+      stubs: { GameScreenPastCorrectionProduct: true },
+    },
+  })
+  try {
+    await vi.waitFor(() =>
+      expect(wrapper.find('[data-pitch-type]').exists()).toBe(true),
+    )
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('メニュー'))!
+      .trigger('click')
+    await flushPromises()
+    const past = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.includes('過去の訂正'),
+    )
+    expect(past).toBeDefined()
+    expect(past!.disabled).toBe(false)
+    past!.click()
+    await flushPromises()
+    expect(
+      wrapper
+        .findComponent({ name: 'GameScreenPastCorrectionProduct' })
+        .exists(),
+    ).toBe(true)
+  } finally {
+    wrapper.unmount()
+  }
+})
+
+it('lineup-prefixのreadがないときは過去訂正を無効にする', async () => {
+  const wrapper = mount(GameScreenOrdinaryPitch, {
+    props: { context: reactive(context()) },
+    global: { plugins: [pinia] },
+  })
+  try {
+    await vi.waitFor(() =>
+      expect(wrapper.find('[data-pitch-type]').exists()).toBe(true),
+    )
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('メニュー'))!
+      .trigger('click')
+    await flushPromises()
+    const past = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.includes('過去の訂正'),
+    )
+    expect(past).toBeDefined()
+    expect(past!.disabled).toBe(true)
+  } finally {
+    wrapper.unmount()
+  }
+})

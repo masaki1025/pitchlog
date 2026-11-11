@@ -484,6 +484,15 @@ async function openSubstitution() {
     params: { gameId: game.value.id },
   })
 }
+async function openViewer() {
+  await router.push({ name: 'game-viewer', params: { gameId: game.value.id } })
+}
+async function openStats() {
+  await router.push({ name: 'game-stats', params: { gameId: game.value.id } })
+}
+async function openExport() {
+  await router.push({ name: 'game-export', params: { gameId: game.value.id } })
+}
 function openMenu() {
   activeSheet.value = 'menu'
 }
@@ -1925,6 +1934,30 @@ onScopeDispose(() => {
         >
           <span>タイブレーク開始</span>
           <span class="text-xs">未接続</span>
+        </button>
+        <button
+          type="button"
+          class="flex min-h-14 w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 text-left font-bold dark:border-slate-700 dark:bg-slate-800"
+          @click="openViewer"
+        >
+          <span>記録を見る</span>
+          <span class="text-xs text-slate-400">閲覧画面</span>
+        </button>
+        <button
+          type="button"
+          class="flex min-h-14 w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 text-left font-bold dark:border-slate-700 dark:bg-slate-800"
+          @click="openStats"
+        >
+          <span>成績</span>
+          <span class="text-xs text-slate-400">打撃・投手</span>
+        </button>
+        <button
+          type="button"
+          class="flex min-h-14 w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 text-left font-bold dark:border-slate-700 dark:bg-slate-800"
+          @click="openExport"
+        >
+          <span>毎球CSV</span>
+          <span class="text-xs text-slate-400">保存済みのみ</span>
         </button>
         <button
           type="button"
