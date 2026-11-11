@@ -1,3 +1,4 @@
+import { formatDecimalInteger } from './decimalCodec'
 import type { Runners, StateFields } from './stateTypes'
 
 /** D-8 の配置状態。正式規則の no_out_first_second は first-second へ写す。 */
@@ -27,16 +28,20 @@ export type TiebreakStartOutcome = {
   historyEffect: { pushes: false; kind: null }
 }
 
+function placementOf(rule: TiebreakStartRule): TiebreakPlacement | null {
+  if (rule.runnerPlacement === 'no_out_first_second') return 'first-second'
+  if (rule.runnerPlacement === 'first-second') return 'first-second'
+  if (rule.runnerPlacement === 'second-third') return 'second-third'
+  return null
+}
+
 /** 保存規則・現在回・指定回から発動関係を導き、D-8 の状態効果だけを適用する。 */
 export function deriveTiebreakStart(
   before: StateFields,
   rule: TiebreakStartRule,
   selection: TiebreakStartSelection,
 ): TiebreakStartOutcome {
-  const rulePlacement =
-    rule.runnerPlacement === 'no_out_first_second'
-      ? 'first-second'
-      : rule.runnerPlacement
+  const rulePlacement = placementOf(rule)
   const applied =
     !before.gameEnded &&
     !before.tiebreakActive &&
@@ -129,14 +134,29 @@ export type TiebreakTransition =
         | 'duplicate-runner'
     }
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
-
 function validUuid(value: unknown): value is string {
-  return typeof value === 'string' && UUID.test(value)
+  if (typeof value !== 'string') return false
+  let index = 0n
+  for (const character of value) {
+    if (index === 8n || index === 13n || index === 18n || index === 23n) {
+      if (character !== '-') return false
+    } else if (!'0123456789abcdef'.includes(character)) return false
+    index = index + 1n
+  }
+  return index === 36n
 }
 
 function sameValue(left: unknown, right: unknown): boolean {
   return JSON.stringify(left) === JSON.stringify(right)
+}
+
+function copyWithSubstitution(
+  context: TiebreakRestoreContext,
+  after: TiebreakRestoreContext,
+): TiebreakRestoreContext {
+  if (Object.hasOwn(context, 'substitutionState'))
+    after.substitutionState = context.substitutionState
+  return after
 }
 
 /**
@@ -159,7 +179,7 @@ export function transitionTiebreakStart(
   context: TiebreakRestoreContext,
   rule: TiebreakStartRule,
   selection: TiebreakRunnerSelection,
-  activePlayerIds: readonly string[],
+  activePlayerIds: Array<string>,
 ): TiebreakTransition {
   if (
     context === null ||
@@ -171,31 +191,30 @@ export function transitionTiebreakStart(
   )
     return { ok: false, error: 'invalid-source' }
   const before = context.current.stateFields
-  const expectedPlacement =
-    rule.runnerPlacement === 'no_out_first_second' ||
-    rule.runnerPlacement === 'first-second'
-      ? 'first-second'
-      : null
+  const expectedPlacement = placementOf(rule)
   if (
     rule.startInning === null ||
-    expectedPlacement === null ||
+    expectedPlacement !== 'first-second' ||
     rule.leadoffRule !== 'continue_lineup'
   )
     return { ok: false, error: 'not-tiebreak-inning' }
   if (before.gameEnded || before.inning < rule.startInning)
     return { ok: false, error: 'not-tiebreak-inning' }
+  let hasRunner = false
+  for (const runner of context.runners) hasRunner = hasRunner || runner !== null
   if (
     before.runners !== 'empty' ||
     before.outs !== 0n ||
     before.strikes !== 0n ||
     before.balls !== 0n ||
-    context.runners.length !== 0
+    hasRunner
   )
     return { ok: false, error: 'runners-not-empty' }
   if (
     before.battingOrder < 1n ||
     before.battingOrder > 9n ||
-    context.participants.battingOrder !== String(before.battingOrder)
+    context.participants.battingOrder !==
+      formatDecimalInteger(before.battingOrder)
   )
     return { ok: false, error: 'invalid-leadoff' }
   if (
@@ -213,37 +232,48 @@ export function transitionTiebreakStart(
   if (!validUuid(responsiblePitcherId))
     return { ok: false, error: 'invalid-source' }
   const afterFields: StateFields = {
-    ...before,
+    half: before.half,
+    strikes: before.strikes,
+    balls: before.balls,
+    outs: before.outs,
     runners: 'first-second',
+    battingOrder: before.battingOrder,
     tiebreakActive: true,
+    gameEnded: before.gameEnded,
+    inning: before.inning,
+    home: before.home,
+    away: before.away,
   }
-  const after: TiebreakRestoreContext = {
-    ...context,
+  const after = copyWithSubstitution(context, {
     current: {
-      ...context.current,
       stateFields: afterFields,
+      scoreboard: context.current.scoreboard,
+    },
+    participants: {
+      batterId: context.participants.batterId,
+      pitcherId: context.participants.pitcherId,
+      catcherId: context.participants.catcherId,
+      battingOrder: formatDecimalInteger(before.battingOrder),
     },
     runners: [
       {
         runnerId: selection.firstRunnerId,
-        responsiblePitcherId,
+        responsiblePitcherId: responsiblePitcherId,
         base: '1',
         status: '継続',
         statusSource: 'auto',
       },
       {
         runnerId: selection.secondRunnerId,
-        responsiblePitcherId,
+        responsiblePitcherId: responsiblePitcherId,
         base: '2',
         status: '継続',
         statusSource: 'auto',
       },
     ],
-    participants: {
-      ...context.participants,
-      battingOrder: String(before.battingOrder),
-    },
-  }
+    lineup: context.lineup,
+    responsibility: context.responsibility,
+  })
   if (!sameValue(after.current.scoreboard, context.current.scoreboard))
     return { ok: false, error: 'invalid-source' }
   return { ok: true, afterContext: after }
