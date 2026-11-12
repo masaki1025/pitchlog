@@ -95,13 +95,27 @@ def _read_archive(row: tuple[ImmutableValue, ...]) -> GameArchiveRead:
     return GameArchiveRead.model_validate(values)
 
 
+_ARCHIVE_STATUS_RANK = {"preparing": 0, "in_progress": 1, "finished": 2}
+
+
 def _archive_page(
     rows: tuple[tuple[ImmutableValue, ...], ...],
     limit: int,
 ) -> Page[GameArchiveRead]:
     """3状態の行を1つの降順ページへ統合し、次cursorを返す。"""
+    # 状態別の3読取は同一snapshotではない。読取中に状態が進んだ試合は
+    # 同一IDで2行になり得るため、より進んだ状態だけを1件へ畳む。
+    by_id: dict[UUID, GameArchiveRead] = {}
+    for row in rows:
+        item = _read_archive(row)
+        previous = by_id.get(item.id)
+        if (
+            previous is None
+            or _ARCHIVE_STATUS_RANK[item.status] > _ARCHIVE_STATUS_RANK[previous.status]
+        ):
+            by_id[item.id] = item
     items = sorted(
-        (_read_archive(row) for row in rows),
+        by_id.values(),
         key=lambda item: (item.scheduled_at, item.id),
         reverse=True,
     )

@@ -1,3 +1,4 @@
+import { ApiError } from '../api/client'
 import { mount } from '@vue/test-utils'
 import GameScreenSubstitutions from './GameScreenSubstitutions.vue'
 import { readFileSync } from 'node:fs'
@@ -14,6 +15,7 @@ import {
   prepareSubstitution,
   substitutionContextKey,
   playerRegistration,
+  registrationFailure,
   substitutionRequest,
   validateSubstitutionDraft,
   type VerifiedSubstitutionContext,
@@ -206,4 +208,13 @@ it('その場登録の回答を正式な選手作成入力へ写し、不正は�
       team,
     ),
   ).toBeNull()
+})
+
+it('登録失敗を入力拒否と結果不明へ分ける', () => {
+  const rejected = registrationFailure(new ApiError(422, 'invalid', []))
+  expect(rejected.reload).toBe(false)
+  expect(rejected.message).toContain('入力内容')
+  const unknown = registrationFailure(new Error('network'))
+  expect(unknown.reload).toBe(true)
+  expect(unknown.message).toContain('登録結果を確認できません')
 })

@@ -1,4 +1,5 @@
 /** 実login/create/startを画面操作する。保存成功応答の代替は作らない。 */
+import { randomUUID } from 'node:crypto'
 import { expect, type Page } from '@playwright/test'
 import type { LineupPrefixGame } from '../api/lineupPrefixGame'
 export const baseURL = process.env.PITCHLOG_E2E_BASE_URL
@@ -51,7 +52,7 @@ export async function createAndStartRealGame(
   expectedRegulationInnings = 9,
   gameType = 'game_other',
 ) {
-  await realLogin(page)
+  const tenantId = await realLogin(page)
   await page.getByRole('button', { name: '新しい試合', exact: true }).click()
   const form = page.getByRole('region', {
     name: '試合の新規作成',
@@ -96,7 +97,6 @@ export async function createAndStartRealGame(
   await page.getByRole('button', { name: 'この端末を登録' }).click()
   await expect(page.getByText('開始入力を確認できます')).toBeVisible()
   const dh = saved.applied_rules.dh === true
-  let homeRightFielder = ''
   for (const side of ['away', 'home'] as const) {
     const rows = dh ? 10 : 9
     for (let index = 0; index < rows; index += 1) {
@@ -114,13 +114,8 @@ export async function createAndStartRealGame(
       await page
         .locator(`#start-${side}-${index}-position`)
         .selectOption(position)
-      if (side === 'home' && position === '9')
-        homeRightFielder = await page
-          .locator(`#start-${side}-${index}-player`)
-          .inputValue()
     }
   }
-  if (!homeRightFielder) throw new Error('開始入力の右翼手を確認できない')
   const started = page.waitForResponse(
     (res) =>
       res.request().method() === 'POST' &&
@@ -133,25 +128,29 @@ export async function createAndStartRealGame(
   await expect(page).toHaveURL(
     `${baseURL}/games/${saved.id}/record?recording=play-prefix-v3`,
   )
-  // 初球前のv3 zero readは409を返し得る。初球UIの打球観測に使う右翼手だけを、
-  // 直前に画面で選択した実rosterから渡す。この値は保存成功の証拠ではない。
-  const initial = {
-    id: saved.id,
-    roster: {
-      teams: [
-        { side: 'away', participants: [] },
-        {
-          side: 'home',
-          participants: [
-            {
-              player: { player_id: homeRightFielder },
-              roles: [{ kind: 'fielding', position: '9' }],
-            },
-          ],
-        },
-      ],
+  // 初球前のv3 zero readは409を返し得るため、開始済みmetadataをtenant照合付きで
+  // 実GETする。roster/stateは初球UIの実入力にだけ使い、保存成功の証拠にはしない。
+  const initialResponse = await page.request.get(
+    `${baseURL}/api/games/${saved.id}/started`,
+    {
+      headers: {
+        'X-Pitchlog-Expected-Tenant': tenantId,
+        'X-Pitchlog-Tenant-Challenge': randomUUID(),
+      },
     },
-    after: { stateFields: { 'state.half': 'top' } },
+  )
+  expect(initialResponse.status()).toBe(200)
+  const metadata = (await initialResponse.json()) as {
+    read_kind?: unknown
+    roster: unknown
+    state: unknown
+  }
+  expect(metadata.read_kind).toBe('initial')
+  const initial = {
+    ...metadata,
+    id: saved.id,
+    after: metadata.state,
+    runners: [],
   } as unknown as LineupPrefixGame
   expect(saved.applied_rules.regulationInnings).toBe(expectedRegulationInnings)
   return { game: saved, head: initial }

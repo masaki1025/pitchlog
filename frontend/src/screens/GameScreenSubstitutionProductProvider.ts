@@ -16,6 +16,7 @@ import {
 } from '../api/substitutionWire'
 import type { SyncEvent } from '../lib/sync/syncEvent'
 import type { PlayerCreate } from '../api/roster'
+import { ApiError } from '../api/client'
 import type {
   PlayerRegistrationDraft,
   RawSubstitutionDraft,
@@ -158,6 +159,23 @@ export function playerRegistration(
     bats,
     uniform_number: uniform === '' ? null : uniform,
     roster_status_key: 'active',
+  }
+}
+
+/** 登録失敗を入力拒否と結果不明へ分け、結果不明だけ名簿再取得を要求する。 */
+export function registrationFailure(error: unknown): {
+  message: string
+  reload: boolean
+} {
+  if (error instanceof ApiError && error.status >= 400 && error.status < 500)
+    return {
+      message: '選手を登録できませんでした。入力内容を確認してください',
+      reload: false,
+    }
+  return {
+    message:
+      '登録結果を確認できません。名簿を再取得し、同じ選手が登録されていないか確認してください',
+    reload: true,
   }
 }
 

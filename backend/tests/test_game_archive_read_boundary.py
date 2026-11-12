@@ -202,3 +202,28 @@ def test_archive_route_precedes_parameterized_game_route() -> None:
     assert archive_index < detail_index
     assert routes[archive_index].operation_id == "game_archive_list"
     assert routes[detail_index].operation_id == "preparing_game_detail"
+
+
+def test_archive_page_collapses_status_transition_duplicate() -> None:
+    """状態別読取の間に進んだ同一試合を、より進んだ状態1件へ畳む。"""
+    team_a, team_b = uuid4(), uuid4()
+    game_id = uuid4()
+    scheduled = datetime(2026, 11, 1, 9, 0, tzinfo=timezone.utc)
+
+    def row(status: str) -> tuple[object, ...]:
+        return (
+            game_id,
+            scheduled,
+            "game_official",
+            "tournament",
+            team_a,
+            team_b,
+            status,
+            None,
+        )
+
+    page = _archive_page((row("preparing"), row("in_progress")), 2)
+    assert len(page.items) == 1
+    assert page.items[0].id == game_id
+    assert page.items[0].status == "in_progress"
+    assert page.next_cursor is None

@@ -10,6 +10,7 @@ import {
 } from './GameScreenSubstitutionProductController'
 import {
   playerRegistration,
+  registrationFailure,
   substitutionRequest,
   substitutionContextKey,
   validateSubstitutionDraft,
@@ -164,13 +165,21 @@ async function register(draft: PlayerRegistrationDraft): Promise<void> {
   busy.value = true
   registrationMessage.value = '選手を名簿へ登録しています'
   try {
-    await createPlayer(body)
+    const created = await createPlayer(body)
+    const sameNumber = created.same_number_players
+      .map((player) => player.name)
+      .filter((name) => name.length > 0)
     registrationMessage.value =
-      '選手を名簿へ登録しました。登録済み選手から選んで交代を記録してください'
+      sameNumber.length > 0
+        ? `選手を名簿へ登録しました。同じ背番号の選手がいます: ${sameNumber.join('、')}。登録済み選手から選んで交代を記録してください`
+        : '選手を名簿へ登録しました。登録済み選手から選んで交代を記録してください'
     await reload()
-  } catch {
-    registrationMessage.value =
-      '選手を登録できませんでした。入力内容と通信を確認してください'
+  } catch (error) {
+    // 4xxは入力拒否として確定できる。通信断・応答喪失は登録済みか不明なので
+    // 失敗と決めず、名簿を再取得して同じ選手がいないか確認させる。
+    const failure = registrationFailure(error)
+    registrationMessage.value = failure.message
+    if (failure.reload) await reload()
   } finally {
     busy.value = false
   }
