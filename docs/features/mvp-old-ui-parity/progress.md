@@ -1,5 +1,11 @@
 # 進捗: 旧 Baseball_Scoring 画面への操作感一致
 
+## 2026-11-13 01:05 JST — 終了・再開・追加・再終了の機能通過（性能5秒は未達）
+
+- `test_game_lifecycle_product_screen_e2e` の実画面フローは、新規作成→開始→1球→終了→再開→2球/3球→再終了→reload の**機能assertをすべて通過**した。終了版v1→v2、再開後の追記、最終状態の再取得を確認。
+- 同E2Eは最後の `syncDurationsMs.every(elapsed <= 5000)` で失敗した。観測は **7920ms** で、NFR-002の5秒目標は未達。機能成功を性能成功へ読み替えない。
+- E2Eは終了・再開Sheetをメニューから開き、Sheet再表示時に安全確認4項目を再確認する。取消Sheetで追記した後、終了前に終了・再開Sheetを開き直す。
+
 ## 2026-11-13 00:35 JST — 55プレイ通しE2E通過
 
 - `test_screen_nine_innings_batted_out_stats_and_csv` が **1 passed / 636.91秒**。実HTTPS・実ブラウザ・owned DBで、新規作成→開始→55プレイ（18半回、本塁打1＋凡打54）→終了宣言→reload→成績27項目→毎球ZIP/成績CSVまで保存原本と照合した。

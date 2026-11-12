@@ -31,12 +31,14 @@
 - 実ブラウザで `GET /games/archive` の tenant 照合ヘッダー欠落を検出し、`_MATCH_OPERATIONS` と網羅試験で修正。
 - 通信断cold再起動・未送信2球・復帰後の同原文順同期: `test_offline_recording_reentry_e2e` **1 passed / 94.47秒**。断中POST 0件、復帰後2 POSTの原文/attempt hash一致。
 - 通常3球の実画面E2Eの最初のケース **1 passed / 33.7秒**。
-- フロント全件 **216 files / 4134 tests passed**。
+- フロント全件 **216 files / 4135 tests passed**。
 - backend 対象 **281 passed**（archive/authz/api/conventions）。既知赤は `test_batted_hit_product_declarations::test_batted_hit_sql_and_existing_activation_are_exact` のSQL digest 1件で、今回差分外。
 - `base-allowlist.json` の `_BindingAuthority._call` 署名を実行時に一致させ、既知赤1件を解消。
 - `repository-contract.json` の固定関数operation IDをregistryの全60件へ一致させ、既知赤1件を解消。
 
 ## 未達・既知の制限（MVP完成とは区別する）
+
+- **終了・再開・追加・再終了の性能**: 実画面の機能assertは通過したが、同期1回が **7920ms** でNFR-002の5秒目標に未達。
 
 - **タイブレーク開始・各半回再配置（TB-P1/P2/P3=A）**: 純遷移核と無効表示のみ。正式operationRows/case・保存・同期・画面・次球は未接続。
 - **7回制・延長**: 固定5規則はすべて9回で、`resolve_stage_a_rule` が9回以外を拒否する。7回・延長上限>9を製品から作れない。
