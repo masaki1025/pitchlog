@@ -9,15 +9,36 @@ function invalid(): never {
 }
 
 // 同一tenant/epochの間だけ先頭ページを再利用する。ページ再読込で消える。
-const firstPageCache = new Map<string, BattedBallPage>()
+// 語彙はサーバーで更新され得るため、短い寿命と件数上限で有界にする。
+const FIRST_PAGE_TTL_MS = 5 * 60 * 1000
+const FIRST_PAGE_MAX_ENTRIES = 8
+type FirstPageEntry = Readonly<{ page: BattedBallPage; cachedAt: number }>
+const firstPageCache = new Map<string, FirstPageEntry>()
 export function cachedBattedBallOptions(key: string): BattedBallPage | null {
-  return firstPageCache.get(key) ?? null
+  const entry = firstPageCache.get(key)
+  if (entry === undefined) return null
+  if (Date.now() - entry.cachedAt > FIRST_PAGE_TTL_MS) {
+    firstPageCache.delete(key)
+    return null
+  }
+  return entry.page
 }
 export function rememberBattedBallOptions(
   key: string,
   page: BattedBallPage,
 ): void {
-  if (page.next_cursor === null) firstPageCache.set(key, page)
+  if (page.next_cursor !== null) return
+  const now = Date.now()
+  for (const [cachedKey, entry] of firstPageCache)
+    if (now - entry.cachedAt > FIRST_PAGE_TTL_MS)
+      firstPageCache.delete(cachedKey)
+  firstPageCache.delete(key)
+  firstPageCache.set(key, { page, cachedAt: now })
+  while (firstPageCache.size > FIRST_PAGE_MAX_ENTRIES) {
+    const oldest = firstPageCache.keys().next().value
+    if (oldest === undefined) break
+    firstPageCache.delete(oldest)
+  }
 }
 export function clearBattedBallOptionsCache(): void {
   firstPageCache.clear()

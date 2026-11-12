@@ -34,6 +34,14 @@
 - 固定HEAD `586abd72` の候補URL・ログイン方法・操作手順・実証・未達を `candidate-handoff-2026-11-12.md` にまとめた。
 - 候補環境はテスト所有の使い捨てであり、製品環境・実機・バックアップ復旧の証拠ではない。
 
+### 2026-11-13 03:05 独立レビューP1/P2の是正
+
+- Codex敵対レビュー（対象 `88652997`）の指摘3件を是正した。
+  - **P1**: `retry_allowed` 後の再照会が `unresolved` になっても `#recovery` が残り、次の独立操作後に `skipRecovery` で未確定attemptを送り得た。回復許可を `{d1,d5,attemptId}` へ結び、`unresolved` で失効させ、送信直前にslotのd1/d5と一致を検査する。
+  - **P2**: 停止解除時に未確認要求を自動再送していた。解除時は状態再読取までに留め、照会・再送を利用者操作から開始する。
+  - **P2**: 打球語彙cacheに寿命・件数上限・認証切替時の破棄がなかった。5分TTL・8件上限・tenant/epoch変更時の全破棄を追加した。
+- `test_attempt_recovery_screen_e2e` は是正後も **1 passed / 109.29秒**。P1の再現specとcacheのTTL/上限specを追加した。
+
 ### 2026-11-13 02:20 ACK喪失の照会・終結・再送を分離してE2E通過
 
 - `test_attempt_recovery_screen_e2e` **1 passed / 103.46秒**。ack-lost/before-httpの両モードで、再起動→復元→安全確認→照会→再送→次球reloadを実画面・実DBで通過。

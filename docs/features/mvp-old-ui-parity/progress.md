@@ -1,5 +1,11 @@
 # 進捗: 旧 Baseball_Scoring 画面への操作感一致
 
+## 2026-11-13 03:05 JST — 独立レビューP1/P2の是正
+
+- Codex敵対レビュー（`88652997`）のP1 1件・P2 2件を是正。P1は照会 `unresolved` 後も次attemptの回復許可が残り、次の独立操作後の再送で `skipRecovery` が適用され得る点。回復許可をslot/d5/attemptへ結び、`unresolved` で失効させ、送信直前にも一致を検査した。
+- P2は停止解除時の自動再送と、打球語彙cacheの寿命・上限・認証切替時破棄。解除時は再読取のみとし、cacheは5分TTL・8件上限・tenant/epoch変更時全破棄とした。
+- ACK喪失E2Eは是正後も **1 passed / 109.29秒**。
+
 ## 2026-11-13 02:20 JST — ACK喪失の照会・終結・再送を分離してE2E通過
 
 - `test_attempt_recovery_screen_e2e` が **1 passed / 103.46秒**。ack-lost（保存済みACK喪失）とbefore-http（HTTP前断）の両方で、実ブラウザ再起動→復元入口→安全確認→**結果を照会**→**同じ要求を再送**→次球reloadまで通過。

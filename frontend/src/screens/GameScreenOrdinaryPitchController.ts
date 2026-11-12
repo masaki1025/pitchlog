@@ -129,7 +129,7 @@ export class GameScreenOrdinaryPitchController {
   #retryEvidenceUnavailable = false
   #inspection: Promise<AttemptInspection> | null = null
   #inspectionResult: AttemptInspection | null = null
-  #recovery: string | null = null
+  #recovery: { d1: number; d5: string; attemptId: string } | null = null
   #sendAbort: AbortController | null = null
   #localBoundary: LocalAcceptanceBoundary | null
   #localAcceptanceActive = false
@@ -1276,10 +1276,18 @@ export class GameScreenOrdinaryPitchController {
           body,
           { ...credentials, attempt: prepared.barrier.currentAttemptId },
         )
-        if (resolution !== 'retry_allowed') return 'unresolved'
+        if (resolution !== 'retry_allowed') {
+          // 未確定の旧attemptを再送許可として残さない。
+          this.#recovery = null
+          return 'unresolved'
+        }
         const nextAttemptId = crypto.randomUUID()
         await barrier.advance(prepared.barrier, nextAttemptId)
-        this.#recovery = nextAttemptId
+        this.#recovery = {
+          d1: slot.d1,
+          d5: slot.d5,
+          attemptId: nextAttemptId,
+        }
         // 旧attemptを終結済みなので、進行中の同一要求は遅着遮断の対象。
         this.#sendAbort?.abort()
         return 'retry_allowed'
@@ -1307,7 +1315,7 @@ export class GameScreenOrdinaryPitchController {
       await this.#open()
       const r = this.#resources!
       this.#assert()
-      recovery = this.#recovery
+      recovery = null
       const result = await runAsSingleWriter<OrdinaryOperationResult>(
         { gameIdentifier: this.#context.game.id },
         async () => {
@@ -1322,6 +1330,14 @@ export class GameScreenOrdinaryPitchController {
             typeof slot.d5 !== 'string'
           )
             return 'pending'
+          const fixedRecovery = this.#recovery
+          recovery =
+            fixedRecovery !== null &&
+            fixedRecovery.d1 === slot.d1 &&
+            fixedRecovery.d5 === slot.d5
+              ? fixedRecovery.attemptId
+              : null
+          if (recovery === null) this.#recovery = null
           const request: SyncEventSendRequest = {
             gameId: this.#context.game.id,
             recordingRightProof: r.grant.recording_right_proof,
@@ -1370,7 +1386,11 @@ export class GameScreenOrdinaryPitchController {
     } catch {
       return 'pending'
     } finally {
-      if (recovery !== null && this.#recovery === recovery)
+      if (
+        recovery !== null &&
+        this.#recovery !== null &&
+        this.#recovery.attemptId === recovery
+      )
         this.#recovery = null
       this.#busy = false
       this.#closeIfDisposed()

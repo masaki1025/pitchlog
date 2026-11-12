@@ -8,6 +8,7 @@ import type {
 } from '../api/lineupPrefixWire'
 import {
   cachedBattedBallOptions,
+  clearBattedBallOptionsCache,
   readBattedBallOptions,
   rememberBattedBallOptions,
   type BattedBallOption,
@@ -240,6 +241,8 @@ watch(
   () => [auth.teamId, auth.authEpoch],
   () => {
     previousPages.value = []
+    // tenant/認証世代をまたいで語彙を再利用しない。
+    clearBattedBallOptionsCache()
     void load(null)
   },
   { immediate: true },

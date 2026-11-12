@@ -693,7 +693,7 @@ it('online復帰後は確認済み条件の後だけ先頭同attemptを1回再�
   }
 })
 
-it('同mountのGET停止中は入力/再送/語彙採用を閉じ、解除後に最古の同本文を一回再送する', async () => {
+it('同mountのGET停止中は入力/再送/語彙採用を閉じ、解除後は照会してから最古の同本文を一回再送する', async () => {
   const post = vi
     .spyOn(transport, 'postSyncEvents')
     .mockResolvedValueOnce({ sent: false, reason: 'no-response' })
@@ -742,6 +742,20 @@ it('同mountのGET停止中は入力/再送/語彙採用を閉じ、解除後に
     )
     expect(post).toHaveBeenCalledTimes(1)
     await wrapper.setProps({ suspended: false })
+    // 停止解除では自動送信せず、可視の照会導線から再開する。
+    await vi.waitFor(() =>
+      expect(wrapper.find('[data-testid="first-ball-inspect"]').exists()).toBe(
+        true,
+      ),
+    )
+    expect(post).toHaveBeenCalledTimes(1)
+    await wrapper.get('[data-testid="first-ball-inspect"]').trigger('click')
+    await vi.waitFor(() =>
+      expect(
+        wrapper.find('[data-testid="first-ball-retry"]').attributes('disabled'),
+      ).toBeUndefined(),
+    )
+    await wrapper.get('[data-testid="first-ball-retry"]').trigger('click')
     await vi.waitFor(() => expect(wrapper.emitted('saved')).toHaveLength(1))
     expect(post).toHaveBeenCalledTimes(2)
     expect(post.mock.calls[1]![0].syncCredentials?.attempt).toBe(

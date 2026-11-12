@@ -97,3 +97,26 @@ it('同一tenantの先頭ページだけをキャッシュし、次ページは�
   clearBattedBallOptionsCache()
   expect(cachedBattedBallOptions('tenant/1')).toBeNull()
 })
+
+it('先頭ページは5分で失効し、保持件数は8件に制限する', () => {
+  clearBattedBallOptionsCache()
+  const now = vi.spyOn(Date, 'now').mockReturnValue(1_000)
+  const page = {
+    items: [{ key: 'pitch.a', display_name: 'A' }],
+    next_cursor: null,
+  }
+  rememberBattedBallOptions('tenant/1', page)
+  expect(cachedBattedBallOptions('tenant/1')).toEqual(page)
+  now.mockReturnValue(1_000 + 5 * 60 * 1000 + 1)
+  expect(cachedBattedBallOptions('tenant/1')).toBeNull()
+  for (let index = 0; index < 9; index += 1) {
+    now.mockReturnValue(10_000 + index)
+    rememberBattedBallOptions(`tenant/${index}`, {
+      items: [{ key: `pitch.${index}`, display_name: String(index) }],
+      next_cursor: null,
+    })
+  }
+  expect(cachedBattedBallOptions('tenant/0')).toBeNull()
+  expect(cachedBattedBallOptions('tenant/1')).not.toBeNull()
+  expect(cachedBattedBallOptions('tenant/8')).not.toBeNull()
+})

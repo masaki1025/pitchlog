@@ -1192,9 +1192,7 @@ watch(
           ? current.canAppendLocal
           : current.canAppend
         retryEvidenceUnavailable.value = current.retryEvidenceUnavailable
-        if (result === 'pending' && !localRequested.value && confirmed.value) {
-          if ((await retry()) === 'saved' || controller !== current) return
-        }
+        // 停止解除では状態の再読取までに留める。照会・再送は利用者操作から始める。
         if (
           items.value.length === 0 &&
           (result === 'ready' || result === 'pending')

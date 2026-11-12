@@ -1597,3 +1597,41 @@ it('未送信バリアが無いpendingは照会でretry_allowedとし、保存PO
   expect(await c.inspectAttempt()).toBe('retry_allowed')
   expect(post).toHaveBeenCalledOnce()
 })
+
+it('retry_allowed後の再照会unresolvedで回復許可を失効させ、次操作の再送へ持ち越さない', async () => {
+  const post = vi
+    .spyOn(transport, 'postSyncEvents')
+    .mockResolvedValue({ sent: false, reason: 'no-response' })
+  const c = controller()
+  expect(await c.inspect()).toBe('ready')
+  expect(await c.submit(observation, vocabulary)).toBe('pending')
+  const first = post.mock.calls[0]![0]
+  const body = transport.buildSyncEventRequestBody(first)
+  if (!('events' in body)) throw new Error('単一要求不正')
+  const origin = first.syncCredentials!.attempt
+  const barrier = await SyncAttemptBarrier.open()
+  try {
+    await barrier.prepare(tenant, raw.id, body, tenant, origin)
+  } finally {
+    barrier.close()
+  }
+  const recover = vi
+    .spyOn(recovery, 'recoverSyncAttempt')
+    .mockResolvedValueOnce('retry_allowed')
+  expect(await c.inspectAttempt()).toBe('retry_allowed')
+  recover.mockResolvedValueOnce('unresolved')
+  expect(await c.inspectAttempt()).toBe('unresolved')
+  // 次の独立操作は直前の照会結果を引き継がない。
+  expect(
+    await c.submit(
+      { ...observation, resultId: 'batting-result.called-pitch' },
+      vocabulary,
+    ),
+  ).toBe('pending')
+  const acceptedPost = accepted()
+  acceptedPost.mockClear()
+  expect(await c.retry()).toBe('saved')
+  const retried = acceptedPost.mock.calls[0]!
+  expect(retried[1]).toMatchObject({ skipRecovery: false })
+  expect(transport.buildSyncEventRequestBody(retried[0])).toEqual(body)
+})
