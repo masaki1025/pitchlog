@@ -3,9 +3,9 @@
 ## 固定HEAD
 
 - ブランチ: `feature/mvp-integration-20261109`
-- コード固定HEAD: `dd2a999f`（以降は台帳・引渡し資料のみ。最終HEADはブランチ先頭）
+- コード固定HEAD: `e5360299`（以降は台帳・引渡し資料のみ。最終HEADはブランチ先頭）
 - 比較元: `1989001a`（この日の開始時点）
-- main / develop への push は行っていない。すべてローカルコミット。
+- main / develop への push は行っていない。`feature/mvp-integration-20261109` は `1989001a` から `e5360299` まで通常push済み（force pushなし）。push後のローカルHEADと `origin/feature/mvp-integration-20261109` は `e5360299` で一致。
 
 ## 候補環境（テスト所有・使い捨て）
 
