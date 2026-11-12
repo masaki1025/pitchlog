@@ -46,6 +46,7 @@ const props = withDefaults(
     strikeoutDoublePlayAvailable?: boolean
     intentionalWalkAvailable?: boolean
     strikeoutDetailAvailable?: boolean
+    secondaryPending?: string
   }>(),
   {
     disabled: false,
@@ -61,6 +62,7 @@ const props = withDefaults(
     strikeoutDoublePlayAvailable: false,
     intentionalWalkAvailable: false,
     strikeoutDetailAvailable: true,
+    secondaryPending: undefined,
   },
 )
 const emit = defineEmits<{
@@ -68,6 +70,10 @@ const emit = defineEmits<{
   'select-in-play': [result: InPlayResult]
   direct: [result: StrikeoutResult | WalkResult]
   intentional: []
+  secondary: [resultId: string]
+  interference: [resultId: string]
+  balk: [resultId: string]
+  clearSecondary: []
   panel: [panel: Panel]
 }>()
 const panel = defineModel<Panel>('panel', { default: null })
@@ -90,9 +96,19 @@ const strikeoutDisabled = computed(
   () =>
     props.disabled ||
     props.busy ||
+    Boolean(props.secondaryPending) ||
     !props.strikeoutDetailAvailable ||
     props.strikes < 2,
 )
+function simpleDisabled(result: string): boolean {
+  if (props.disabled || props.busy) return true
+  if (!props.secondaryPending) return false
+  return (
+    (result === 'batting-result.ball' && props.balls >= 3) ||
+    (result === 'batting-result.called-pitch' && props.strikes >= 2) ||
+    (result === 'batting-result.swinging-strike' && props.strikes >= 2)
+  )
+}
 const quickInPlay: readonly { result: InPlayResult; label: string }[] = [
   { result: 'batting-result.single', label: '単打' },
   { result: 'batting-result.batted-out', label: '凡打死' },
@@ -134,6 +150,7 @@ function back() {
 }
 function inPlayDisabled(result: string): boolean {
   if (props.disabled || props.busy || !props.hitAvailable) return true
+  if (props.secondaryPending) return true
   if (result === 'batting-result.double-play')
     return !props.hasFirst || props.outs !== 0
   if (result === 'batting-result.sacrifice-fly')
@@ -164,7 +181,12 @@ function inPlayDisabled(result: string): boolean {
           :key="item.result"
           type="button"
           :data-result-id="item.result"
-          :disabled="disabled || busy"
+          :disabled="simpleDisabled(item.result)"
+          :title="
+            secondaryPending && simpleDisabled(item.result)
+              ? '付加結果を解除してから選んでください'
+              : undefined
+          "
           :class="[
             'relative min-h-16 select-none rounded-xl border-2 bg-white px-3 text-xl font-bold text-slate-900 transition-colors hover:bg-slate-50 active:bg-slate-200 disabled:pointer-events-none disabled:opacity-40 dark:bg-slate-800 dark:text-slate-100',
             selectedResult === item.result
@@ -177,6 +199,24 @@ function inPlayDisabled(result: string): boolean {
         </button>
       </div>
 
+      <div
+        v-if="secondaryPending"
+        class="flex items-center gap-2 rounded-lg border border-purple-300 bg-purple-50 px-2 py-1.5 text-[11px] font-bold text-purple-900 dark:border-purple-700 dark:bg-purple-950/40 dark:text-purple-100"
+      >
+        <span class="rounded-full bg-purple-600 px-1.5 py-0.5 text-white">{{
+          secondaryPending
+        }}</span>
+        <span class="min-w-0 flex-1"
+          >を選択済み。次にボール・見逃し・空振り・ファウルを選んでください。</span
+        >
+        <button
+          type="button"
+          class="min-h-8 rounded border border-purple-300 bg-white px-1.5 text-purple-800"
+          @click="emit('clearSecondary')"
+        >
+          解除
+        </button>
+      </div>
       <section>
         <div
           class="mb-1 flex items-center justify-between text-[11px] font-bold text-slate-500 dark:text-slate-400"
@@ -229,7 +269,7 @@ function inPlayDisabled(result: string): boolean {
         <button
           type="button"
           class="min-h-11 rounded-xl border border-slate-300 bg-white px-3 text-sm font-bold text-slate-800 hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-40 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
-          :disabled="disabled || busy"
+          :disabled="disabled || busy || Boolean(secondaryPending)"
           @click="panel = 'walk'"
         >
           <span class="inline-flex items-center"
@@ -248,21 +288,80 @@ function inPlayDisabled(result: string): boolean {
         <div class="grid grid-cols-4 gap-1">
           <button
             type="button"
-            disabled
-            title="このMVPでは、付加結果は走者操作の記録から接続します"
-            class="min-h-10 rounded-lg border border-slate-300 bg-white px-1 text-[11px] font-bold text-slate-400 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-500"
+            :disabled="disabled || busy"
+            :class="[
+              'min-h-10 rounded-lg border px-1 text-[11px] font-bold disabled:pointer-events-none disabled:opacity-40',
+              secondaryPending
+                ? 'border-slate-300 bg-white text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200'
+                : 'border-purple-300 bg-purple-50 text-purple-800 dark:border-purple-700 dark:bg-purple-950/50 dark:text-purple-200',
+            ]"
+            @click="emit('clearSecondary')"
           >
             なし
           </button>
           <button
-            v-for="label in ['PB', 'WP', '守備妨害']"
-            :key="label"
             type="button"
-            disabled
-            title="このMVPでは未接続です"
-            class="min-h-10 rounded-lg border border-slate-300 bg-white px-1 text-[11px] font-bold text-slate-400 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-500"
+            class="min-h-10 rounded-lg border border-slate-300 bg-white px-1 text-[11px] font-bold text-slate-700 disabled:pointer-events-none disabled:opacity-40 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
+            :disabled="disabled || busy || !hitAvailable"
+            title="走者の実結果を確認して付加結果を記録します"
+            @click="emit('secondary', 'secondary-result.passed-ball')"
           >
-            {{ label }}
+            PB
+          </button>
+          <button
+            type="button"
+            class="min-h-10 rounded-lg border border-slate-300 bg-white px-1 text-[11px] font-bold text-slate-700 disabled:pointer-events-none disabled:opacity-40 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
+            :disabled="disabled || busy || !hitAvailable"
+            title="走者の実結果を確認して付加結果を記録します"
+            @click="emit('secondary', 'secondary-result.wild-pitch')"
+          >
+            WP
+          </button>
+          <button
+            type="button"
+            class="min-h-10 rounded-lg border border-slate-300 bg-white px-1 text-[11px] font-bold text-slate-700 disabled:pointer-events-none disabled:opacity-40 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
+            :disabled="disabled || busy || !hitAvailable"
+            @click="emit('interference', 'secondary-result.obstruction')"
+          >
+            守備妨害
+          </button>
+        </div>
+        <div class="mt-1 grid grid-cols-4 gap-1">
+          <button
+            type="button"
+            class="min-h-10 rounded-lg border border-slate-300 bg-white px-1 text-[11px] font-bold text-slate-700 disabled:pointer-events-none disabled:opacity-40 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
+            :disabled="disabled || busy || !hitAvailable"
+            @click="
+              emit('interference', 'secondary-result.batting-interference')
+            "
+          >
+            打撃妨害
+          </button>
+          <button
+            type="button"
+            class="min-h-10 rounded-lg border border-slate-300 bg-white px-1 text-[11px] font-bold text-slate-700 disabled:pointer-events-none disabled:opacity-40 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
+            :disabled="disabled || busy || !hitAvailable"
+            @click="
+              emit('interference', 'secondary-result.offensive-interference')
+            "
+          >
+            走塁妨害
+          </button>
+          <button
+            type="button"
+            class="min-h-10 rounded-lg border border-slate-300 bg-white px-1 text-[11px] font-bold text-slate-700 disabled:pointer-events-none disabled:opacity-40 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
+            :disabled="disabled || busy || !hitAvailable"
+            @click="emit('balk', 'secondary-result.balk')"
+          >
+            ボーク
+          </button>
+          <button
+            type="button"
+            class="min-h-10 rounded-lg border border-slate-300 bg-white px-1 text-[11px] font-bold text-slate-700 disabled:pointer-events-none disabled:opacity-40 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
+            :disabled="disabled || busy || !hitAvailable"
+            @click="emit('balk', 'secondary-result.pitch-clock-violation')"
+          >
+            時計違反
           </button>
         </div>
       </section>

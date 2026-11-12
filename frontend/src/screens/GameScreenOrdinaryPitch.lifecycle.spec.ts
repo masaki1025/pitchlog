@@ -977,3 +977,85 @@ it('lineup-prefixのreadがないときは過去訂正を無効にする', async
     wrapper.unmount()
   }
 })
+
+it('付加結果PBから走者観測シートを開き、対象操作をプリセットする', async () => {
+  const source = structuredClone(lineupFixture.value)
+  if (!isLineupPrefixGame(source)) throw new Error('構造fixture不正')
+  const wrapper = mount(GameScreenOrdinaryPitch, {
+    props: { context: await lineupContextFromRead(source, tenant) },
+    global: { plugins: [pinia] },
+  })
+  try {
+    await vi.waitFor(() =>
+      expect(wrapper.find('[data-pitch-type]').exists()).toBe(true),
+    )
+    const pb = wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'PB')
+    expect(pb).toBeDefined()
+    await pb!.trigger('click')
+    await flushPromises()
+    const operation = document.querySelector<HTMLSelectElement>(
+      '[data-testid="runner-operation-kind"]',
+    )
+    expect(operation).not.toBeNull()
+    expect(operation!.value).toBe('secondary-result.passed-ball')
+  } finally {
+    wrapper.unmount()
+  }
+})
+
+it('付加結果の打撃妨害から既存の妨害観測を保存する', async () => {
+  const source = structuredClone(lineupFixture.value)
+  if (!isLineupPrefixGame(source)) throw new Error('構造fixture不正')
+  const post = vi
+    .spyOn(transport, 'postSyncEvents')
+    .mockImplementation(async (request) => {
+      const body = transport.buildSyncEventRequestBody(request)
+      if (!('events' in body)) throw new Error('単体要求形式不成立')
+      const slot = request.slots[0]!
+      return {
+        sent: true,
+        requestBody: body,
+        response: {
+          advancedD3: slot.d1,
+          eventResults: [
+            { d4: slot.d4, d1: slot.d1, d5: slot.d5, a5Result: '受理' },
+          ],
+        },
+      }
+    })
+  const wrapper = mount(GameScreenOrdinaryPitch, {
+    props: { context: await lineupContextFromRead(source, tenant) },
+    global: { plugins: [pinia] },
+  })
+  try {
+    await vi.waitFor(() =>
+      expect(wrapper.find('[data-pitch-type]').exists()).toBe(true),
+    )
+    for (const name of ['profile', 'mode', 'bucket', 'lockdown'])
+      await wrapper.get(`[data-testid="first-ball-env-${name}"]`).setValue(true)
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === '打撃妨害')!
+      .trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="interference-confirm"]').setValue(true)
+    await wrapper
+      .get('[data-pitch-type="tenant.pitch.straight"]')
+      .trigger('click')
+    wrapper.getComponent(StrikeZone).vm.$emit('tap', 131.5, 124)
+    await flushPromises()
+    await wrapper.get('[data-testid="first-ball-save"]').trigger('click')
+    await vi.waitFor(() => expect(post).toHaveBeenCalledOnce(), {
+      timeout: 6000,
+    })
+    const request = post.mock.calls[0]![0].slots[0]!.event.fields
+      .V7 as LineupPlayPrefixV7
+    expect(request.calculation.request.t1.resultId).toBe(
+      'secondary-result.batting-interference',
+    )
+  } finally {
+    wrapper.unmount()
+  }
+}, 10000)

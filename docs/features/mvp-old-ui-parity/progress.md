@@ -1,5 +1,12 @@
 # 進捗: 旧 Baseball_Scoring 画面への操作感一致
 
+## 2026-11-12 18:30 JST — 付加結果（PB/WP/ボーク/妨害）を既存観測へ接続
+
+- 結果パッドの「付加結果」を有効化した。PB/WPは走者観測シートで実結果を確認し、その後ボール・見逃し・空振り・ファウルを選ぶと、既存の `prepareRunnerEvent` へ `primaryResultId` を合わせて送る。ボーク/時計違反は非投球イベントとして送る。
+- 打撃妨害・守備妨害・走塁妨害は既存の `GameScreenInterferenceObservation` へ接続した。新しい計算・保存経路は追加していない。
+- 付加結果の選択中は、打球結果・三振詳細・四死球・昇格する四球/三振を無効化し、解除ボタンで戻せるようにした。
+- 回帰: `LegacyResultPad.spec.ts` 8件、`GameScreenOrdinaryPitch.lifecycle.spec.ts` のPBシート・打撃妨害保存を含む **4111 passed**（全件は接続前回実行、追加分は対象試験で確認）。
+
 ## 2026-11-12 18:00 JST — スタメン・試合開始を旧テーブル構成へ変更
 
 - `GameScreenStart` を、旧 `LineupScreen mode="new"` に近い2カラムのスタメン表へ変更した。各チームに打順・守備位置・背番号・氏名・左右の表と、右側に名簿一覧を表示する。

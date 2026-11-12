@@ -72,6 +72,15 @@ const pendingNextBatter = ref<string | null>(null)
 const missingCourse = ref(false)
 const missingPitchType = ref(false)
 const runnerNotice = ref('')
+const pendingSecondary = ref<string | null>(null)
+const pendingSecondaryLabel = computed(() => {
+  if (pendingSecondary.value === 'secondary-result.passed-ball') return 'PB'
+  if (pendingSecondary.value === 'secondary-result.wild-pitch') return 'WP'
+  if (pendingSecondary.value === 'secondary-result.balk') return 'ボーク'
+  if (pendingSecondary.value === 'secondary-result.pitch-clock-violation')
+    return '時計違反'
+  return ''
+})
 const point = ref<{ x: number; y: number } | null>(null)
 const viewpoint = ref<'catcher' | 'pitcher'>('catcher')
 const selected = ref('')
@@ -501,17 +510,49 @@ function openRunner() {
   runnerNotice.value = ''
   activeSheet.value = 'runner'
 }
+function openSecondary(resultId: string) {
+  if (!isLineupRecordingContext(displayed.value)) return
+  pendingSecondary.value = resultId
+  runnerNotice.value = ''
+  activeSheet.value = 'runner'
+}
+function clearSecondary() {
+  pendingSecondary.value = null
+  runnerMode.value = false
+  runnerObservation.value = null
+}
+function openBalk(resultId: string) {
+  if (!isLineupRecordingContext(displayed.value)) return
+  pendingSecondary.value = resultId
+  runnerNotice.value = ''
+  activeSheet.value = 'runner'
+}
+function selectInterference(value: string) {
+  if (!isLineupRecordingContext(displayed.value) || !hitAvailable.value) return
+  resultPicked.value = true
+  resultId.value = value as PlayScreenObservation['resultId']
+  battedHit.value = null
+  interferenceObservation.value = null
+  resultPanel.value = null
+}
 async function runnerConfirmed(value: RunnerObservationWire) {
   if (value.perPitch.pitchEventKind !== 'non-pitch-event') {
-    runnerNotice.value =
-      '投球を伴う盗塁・暴投・捕逸は、通常投球の結果と合わせて記録します。ここでは牽制・ボークなど無投球の操作を選んでください。'
-    return
+    if (
+      pendingSecondary.value !== 'secondary-result.passed-ball' &&
+      pendingSecondary.value !== 'secondary-result.wild-pitch'
+    ) {
+      runnerNotice.value =
+        '投球を伴う盗塁は、通常投球の結果と合わせて記録します。ここでは暴投・捕逸・牽制・ボークを選んでください。'
+      return
+    }
   }
   runnerMode.value = true
   runnerObservation.value = value
   activeSheet.value = null
-  await nextTick()
-  await save()
+  if (value.perPitch.pitchEventKind === 'non-pitch-event') {
+    await nextTick()
+    await save()
+  }
 }
 async function undoDone() {
   activeSheet.value = null
@@ -902,9 +943,15 @@ async function save(override?: PlayScreenObservation['resultId']) {
       if (!point.value) return
       observation = {
         resultId: resultId.value,
-        runnerEvent: runnerMode.value
-          ? structuredClone(toRaw(runnerObservation.value))
-          : null,
+        runnerEvent:
+          runnerMode.value && runnerObservation.value
+            ? (() => {
+                const value = structuredClone(toRaw(runnerObservation.value))
+                return value.perPitch.pitchEventKind === 'pitch-event'
+                  ? { ...value, primaryResultId: resultId.value }
+                  : value
+              })()
+            : null,
         battedHit: batted.value
           ? structuredClone(toRaw(battedHit.value))
           : null,
@@ -976,6 +1023,7 @@ async function save(override?: PlayScreenObservation['resultId']) {
       }
       runnerObservation.value = null
       runnerMode.value = false
+      pendingSecondary.value = null
       missingCourse.value = false
       missingPitchType.value = false
     }
@@ -1777,11 +1825,16 @@ onScopeDispose(() => {
           "
           :strikeout-double-play-available="strikeoutDoublePlayAvailable"
           :strikeout-detail-available="strikeoutDetailAvailable"
+          :secondary-pending="pendingSecondaryLabel"
           :intentional-walk-available="intentionalWalkAvailable"
           @simple="selectSimple"
           @select-in-play="selectInPlay"
           @direct="chooseDirect"
           @intentional="saveIntentionalWalk"
+          @secondary="openSecondary"
+          @interference="selectInterference"
+          @balk="openBalk"
+          @clear-secondary="clearSecondary"
         />
       </div>
     </div>
@@ -2046,6 +2099,7 @@ onScopeDispose(() => {
           :runners="runnerPeople"
           :primary-result-id="resultId"
           :source-key="runnerSourceKey"
+          :initial-operation="pendingSecondary ?? undefined"
           :disabled="busy"
           @confirmed="runnerConfirmed"
           @select-primary-result="(value) => (resultId = value)"

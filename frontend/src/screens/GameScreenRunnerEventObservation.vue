@@ -15,6 +15,7 @@ const props = defineProps<{
   runners: readonly LiveRunnerIdentity[]
   primaryResultId: string
   sourceKey: string
+  initialOperation?: string
   disabled?: boolean
 }>()
 const emit = defineEmits<{
@@ -55,6 +56,7 @@ const modes = [
   ['secondary-result.wild-pitch', '暴投'],
   ['secondary-result.passed-ball', '捕逸'],
   ['secondary-result.balk', 'ボーク'],
+  ['secondary-result.pitch-clock-violation', 'ピッチクロック違反'],
   ['pitcher-pickoff-destination.first', '投手の一塁牽制'],
   ['pitcher-pickoff-destination.second', '投手の二塁牽制'],
   ['pitcher-pickoff-destination.third', '投手の三塁牽制'],
@@ -84,8 +86,9 @@ const contextKey = computed(
       .join('|'),
 )
 watch(
-  contextKey,
+  [contextKey, () => props.initialOperation],
   () => {
+    operation.value = props.initialOperation ?? ''
     for (const key of Object.keys(outcomes)) delete outcomes[key]
     for (const r of props.runners)
       outcomes[r.base] = { kind: '', destination: '', cause: '', timing: '' }
@@ -102,7 +105,13 @@ function confirm() {
     !modes.some(([value]) => value === operation.value) ||
     !noError.value ||
     !third.value ||
-    props.runners.length === 0
+    (props.runners.length === 0 &&
+      ![
+        'secondary-result.wild-pitch',
+        'secondary-result.passed-ball',
+        'secondary-result.balk',
+        'secondary-result.pitch-clock-violation',
+      ].includes(operation.value))
   ) {
     error.value =
       '操作・走者結果・第3アウト・失策と妨害の有無を確認してください'
