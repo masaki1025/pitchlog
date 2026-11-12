@@ -124,7 +124,7 @@ async function logout(): Promise<void> {
         </RouterLink>
 
         <RouterLink
-          :to="{ name: 'games' }"
+          :to="{ name: 'games-archive' }"
           class="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-left transition hover:border-sky-400 hover:bg-sky-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-sky-950/30"
         >
           <span
@@ -182,7 +182,7 @@ async function logout(): Promise<void> {
     </section>
 
     <RouterLink
-      :to="{ name: 'games' }"
+      :to="{ name: 'games-archive' }"
       class="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 text-left transition hover:border-sky-400 hover:bg-sky-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-sky-950/30"
     >
       <span>

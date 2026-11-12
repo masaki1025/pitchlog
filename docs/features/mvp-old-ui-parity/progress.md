@@ -1,5 +1,13 @@
 # 進捗: 旧 Baseball_Scoring 画面への操作感一致
 
+## 2026-11-12 19:20 JST — 開始済み試合のサーバー一覧APIとアーカイブ画面
+
+- `GET /games/archive` を追加した。準備中・進行中・終了を、状態ごとに閉じた repository operation 3件で読み、日時・IDの降順で1ページへ統合する。tenant条件・trashed/hidden除外・keyset cursor・limit上限は既存の試合一覧と同じ。
+- フロントに `GameArchiveScreen` と `/games/archive` を追加した。状態バッジ、チーム名、日時、試合ID、開始/再開/追記・再開、閲覧、成績、CSV、状態フィルタ、ページ内検索、ページングを表示する。StartScreen・上部nav・`/games` から導線を追加した。
+- 契約: `repository-contract.json` を revision 38→39、`base-allowlist.json` を 53→54 へ更新し、3 token と `_game_archive_list_statement` の許可symbol/fixtureを追加した。**tenant-boundary の正式受理（base-allowlist 履歴・snapshot・承認）は未実施**であり、受理済みとは扱わない。
+- 回帰: フロント全件 **4125 passed**（216 files）。backend 対象 **288 passed / 2 failed**（失敗は既存の `test_allowed_repository_symbol_signatures_match_runtime` と `test_stage_a_function_registration_matches_exact_asset_and_retains_rg1`。HEADでも同じ失敗を確認）。新規 `test_game_archive_read_boundary.py` **11 passed**。
+- 残: archive API の実DB/実画面E2E、tenant-boundary 7.7 受理、authz catalog の再検査。
+
 ## 2026-11-12 18:45 JST — 付加結果の走者前提と試験を整理
 
 - PB/WPは走者がいる場合だけ有効化し、走者観測シートで実結果を確認した後、ボール・見逃し・空振り・ファウルを選ぶと同一プレイへ付加する。走者なしのPB/WPはdomainが成立させないため、UIでも無効にした。ボークも走者ありのみ。

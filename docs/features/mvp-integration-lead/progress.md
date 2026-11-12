@@ -29,6 +29,13 @@
 | 成績27項目 | 実画面実証済み | 新`test_stats_screen_e2e` **1 passed / 139.35秒**。公式モードで打撃18列＋投手13列−選手/チーム4列＝**27項目**、成績CSV 5262 bytesを実ダウンロード |
 | 毎球CSV・成績CSV | 実画面実証済み | `test_play_export_screen_e2e`、P3 CSV、ゲーム/シーズン成績CSV |
 
+### 2026-11-12 19:20 開始済み試合のサーバー一覧APIとアーカイブ画面
+
+- `GET /games/archive` を追加。準備中・進行中・終了を状態別の閉じた operation 3件で読み、日時・ID降順の1ページへ統合する。tenant条件・可視性・keyset cursor・limit上限は既存一覧と同じ。
+- `/games/archive` に状態バッジ、チーム名、日時、試合ID、開始/再開/追記・再開、閲覧、成績、CSV、状態フィルタ、ページ内検索、ページングを追加。StartScreen・nav・`/games` から導線を追加した。
+- 契約は repository-contract 39 / base-allowlist 54 へ更新したが、**tenant-boundary の正式受理は未実施**。受理済みとは扱わない。
+- フロント全件 **4125 passed**。backend 対象 **288 passed / 2 failed**（2件はHEADでも失敗する既存不整合）。新規 archive 境界試験 **11 passed**。
+
 ### 2026-11-12 18:45 付加結果の走者前提と試験を整理
 
 - PB/WP/ボークは走者ありのみ有効。PB/WPは走者確認後に主結果を選ぶと同一プレイへ付加。打撃妨害の保存をunitで確認。

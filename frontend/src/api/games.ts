@@ -94,6 +94,72 @@ export function isPreparingGame(value: unknown): value is PreparingGame {
     json(value.applied_rules)
   )
 }
+export type GameArchiveStatus = 'preparing' | 'in_progress' | 'finished'
+export interface GameArchiveGame {
+  id: string
+  scheduled_at: string
+  game_type_key: GameTypeKey
+  tournament_key: string
+  away_team_record_id: string
+  home_team_record_id: string
+  status: GameArchiveStatus
+  started_at: string | null
+}
+export interface GameArchivePage {
+  items: GameArchiveGame[]
+  next_cursor: string | null
+}
+const archiveStatuses: readonly string[] = [
+  'preparing',
+  'in_progress',
+  'finished',
+]
+function isArchiveTimestamp(value: unknown): value is string {
+  return (
+    typeof value === 'string' &&
+    /T.*(?:Z|[+-]\d{2}:\d{2})$/.test(value) &&
+    Number.isFinite(Date.parse(value))
+  )
+}
+/** 試合一覧のtransport形だけを検証し、状態や表示規則は再計算しない。 */
+export function isGameArchiveGame(value: unknown): value is GameArchiveGame {
+  if (!object(value)) return false
+  return (
+    ['id', 'away_team_record_id', 'home_team_record_id'].every(
+      (key) => typeof value[key] === 'string' && canonicalUuid.test(value[key]),
+    ) &&
+    isArchiveTimestamp(value.scheduled_at) &&
+    typeof value.game_type_key === 'string' &&
+    gameTypes.includes(value.game_type_key) &&
+    typeof value.tournament_key === 'string' &&
+    value.tournament_key.length > 0 &&
+    typeof value.status === 'string' &&
+    archiveStatuses.includes(value.status) &&
+    (value.started_at === null || isArchiveTimestamp(value.started_at))
+  )
+}
+export async function listGameArchive(
+  cursor: string | null,
+  signal?: AbortSignal,
+): Promise<GameArchivePage> {
+  const value = await apiRequest<unknown>('GET', '/games/archive', {
+    tenantBound: true,
+    signal,
+    query: { limit: 20, cursor },
+  })
+  if (
+    !object(value) ||
+    !Array.isArray(value.items) ||
+    value.items.length > 20 ||
+    !value.items.every(isGameArchiveGame) ||
+    !(
+      value.next_cursor === null ||
+      (typeof value.next_cursor === 'string' && value.next_cursor.length > 0)
+    )
+  )
+    throw new Error('試合一覧の応答が不正です')
+  return value as unknown as GameArchivePage
+}
 export async function listPreparingGames(
   cursor: string | null,
   signal?: AbortSignal,

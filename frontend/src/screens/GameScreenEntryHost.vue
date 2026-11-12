@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
+import { RouterLink } from 'vue-router'
 import { useRoute } from 'vue-router'
 import { pinia } from '../appProviders'
 import { useAuthStore } from '../stores/authStore'
@@ -23,7 +24,13 @@ function inspect() {
 }
 </script>
 <template>
-  <div class="mx-auto flex max-w-4xl justify-end px-4 pt-4">
+  <div class="mx-auto flex max-w-4xl justify-end gap-2 px-4 pt-4">
+    <RouterLink
+      :to="{ name: 'games-archive' }"
+      class="inline-flex min-h-12 items-center rounded-xl border border-slate-300 bg-white px-4 font-bold dark:border-slate-600 dark:bg-slate-800"
+    >
+      開始済み一覧
+    </RouterLink>
     <button
       v-if="!creating"
       type="button"

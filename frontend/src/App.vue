@@ -95,6 +95,11 @@ async function returnToHome(): Promise<void> {
       <RouterLink :to="{ name: 'games' }" class="min-h-11 px-3 py-2 underline"
         >試合</RouterLink
       >
+      <RouterLink
+        :to="{ name: 'games-archive' }"
+        class="min-h-11 px-3 py-2 underline"
+        >アーカイブ</RouterLink
+      >
     </nav>
     <RouterView v-slot="{ Component }">
       <component

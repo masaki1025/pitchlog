@@ -4,6 +4,7 @@ import { useAuthStore } from '../stores/authStore'
 import { setVerifiedAuthForTest } from './auth.test-support'
 import {
   createPreparingGame,
+  listGameArchive,
   listPreparingGames,
   readPreparationOptions,
   readPreparingGame,
@@ -202,4 +203,49 @@ it('作成要求を一度だけPOSTし、応答が入力と一致しなければ
     '作成結果を確認できません',
   )
   expect(fetch).toHaveBeenCalledTimes(2)
+})
+
+const archiveGame = {
+  id,
+  scheduled_at: '2026-10-24T10:00:00+09:00',
+  game_type_key: 'game_open',
+  tournament_key: 'tournament',
+  away_team_record_id: tenant,
+  home_team_record_id: id,
+  status: 'in_progress',
+  started_at: '2026-10-24T10:01:00+09:00',
+}
+it('試合一覧はGET /games/archiveとcursorを送り、3状態を返す', async () => {
+  body = {
+    items: [
+      archiveGame,
+      { ...archiveGame, status: 'preparing', started_at: null },
+      { ...archiveGame, status: 'finished' },
+    ],
+    next_cursor: 'next',
+  }
+  const signal = new AbortController().signal
+  expect(await listGameArchive('previous', signal)).toEqual(body)
+  expect(fetch).toHaveBeenLastCalledWith(
+    '/api/games/archive?limit=20&cursor=previous',
+    expect.objectContaining({ method: 'GET', signal }),
+  )
+})
+it.each([
+  null,
+  {},
+  { items: [], next_cursor: '' },
+  { items: [{ ...archiveGame, status: 'unknown' }], next_cursor: null },
+  {
+    items: [{ ...archiveGame, started_at: '2026-10-24T10:01:00' }],
+    next_cursor: null,
+  },
+  {
+    items: [{ ...archiveGame, home_team_record_id: 'unknown' }],
+    next_cursor: null,
+  },
+  { items: Array(21).fill(archiveGame), next_cursor: null },
+])('試合一覧transport不正を拒否: %j', async (value) => {
+  body = value
+  await expect(listGameArchive(null)).rejects.toThrow()
 })

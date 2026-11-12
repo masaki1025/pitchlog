@@ -769,7 +769,7 @@ it('保護画面navのチーム/試合を実RouterLinkで往復し未認証で�
       .get('nav[aria-label="画面移動"]')
       .findAll('a')
       .map((link) => link.text()),
-  ).toEqual(['チーム', '試合'])
+  ).toEqual(['チーム', '試合', 'アーカイブ'])
   await wrapper
     .get('nav[aria-label="画面移動"] a[href="/games"]')
     .trigger('click')
