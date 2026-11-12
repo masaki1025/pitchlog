@@ -1252,7 +1252,7 @@ onScopeDispose(() => {
 <template>
   <section
     aria-label="通常投球を記録"
-    class="flex h-dvh min-w-0 flex-col overflow-y-auto bg-slate-100 lg:overflow-hidden dark:bg-slate-950"
+    class="flex h-dvh min-w-0 flex-col overflow-y-auto bg-slate-100 dark:bg-slate-950"
   >
     <div
       v-if="stateFields['state.gameEnded']"
@@ -1271,7 +1271,7 @@ onScopeDispose(() => {
     <p
       v-if="isLocalMode"
       data-testid="ordinary-local-notice"
-      class="border-b border-sky-300 bg-sky-50 px-3 py-1.5 text-center text-xs font-extrabold text-sky-800 dark:border-sky-800 dark:bg-sky-950/60 dark:text-sky-200"
+      class="pointer-events-none border-b border-sky-300 bg-sky-50 px-3 py-1.5 text-center text-xs font-extrabold text-sky-800 dark:border-sky-800 dark:bg-sky-950/60 dark:text-sky-200"
     >
       通信断中は端末へ未送信の投球だけを記録します。安打の詳細観測はこの入口で確定できません。
     </p>
@@ -1483,6 +1483,10 @@ onScopeDispose(() => {
         </span>
         <span class="tabular-nums">{{ score.away }}-{{ score.home }}</span>
       </button>
+      <p data-testid="ordinary-local-balls" class="sr-only">{{ balls }}</p>
+      <p data-testid="ordinary-local-strikes" class="sr-only">
+        {{ strikes }}
+      </p>
       <div v-if="leftOpen" class="mt-2 flex flex-col gap-2 pb-1">
         <div class="grid grid-cols-2 gap-2">
           <CountDisplay :balls="balls" :strikes="strikes" :outs="outs" />
@@ -1507,10 +1511,6 @@ onScopeDispose(() => {
             compact
           />
         </div>
-        <p data-testid="ordinary-local-balls" class="sr-only">{{ balls }}</p>
-        <p data-testid="ordinary-local-strikes" class="sr-only">
-          {{ strikes }}
-        </p>
       </div>
       <p
         v-if="isLineupRecordingContext(displayed)"
@@ -2315,6 +2315,7 @@ onScopeDispose(() => {
         "
         type="button"
         data-testid="first-ball-save"
+        class="sticky bottom-0 z-20 min-h-16 w-full rounded-xl bg-sky-600 px-4 text-lg font-bold text-white shadow-lg hover:bg-sky-700 disabled:pointer-events-none disabled:opacity-40"
         :disabled="
           busy ||
           !canAppend ||

@@ -29,6 +29,12 @@
 | 成績27項目 | 実画面実証済み | 新`test_stats_screen_e2e` **1 passed / 139.35秒**。公式モードで打撃18列＋投手13列−選手/チーム4列＝**27項目**、成績CSV 5262 bytesを実ダウンロード |
 | 毎球CSV・成績CSV | 実画面実証済み | `test_play_export_screen_e2e`、P3 CSV、ゲーム/シーズン成績CSV |
 
+### 2026-11-12 22:35 通信断cold再起動・未送信2球・順序同期の実画面E2E通過
+
+- `test_offline_recording_reentry_e2e` **1 passed / 94.47秒**。production SW、完全断中、cold再起動、未送信2球、復帰後の同原文順2 POSTを実DBで確認。断中POST 0件。
+- ローカル記録画面のレイアウト（h-dvhの上への見出し積み上げ、縦スクロール、保存ボタン、結果パッド、常時カウント）を修正した。
+- 安全確認Sheetを可視導線から開くE2Eへ更新し、再接続後も再確認する。
+
 ### 2026-11-12 21:30 開始済み一覧の実ブラウザ確認とtenant照合header修正
 
 - 実ブラウザで `/games/archive` の2カード・状態・日時・試合ID・導線を確認。画像 `docs/features/mvp-old-ui-parity/images/game-archive.png`。

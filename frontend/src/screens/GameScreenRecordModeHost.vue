@@ -43,8 +43,8 @@ async function reconnect() {
 </script>
 <template>
   <template v-if="localSession">
-    <h1>端末内の記録</h1>
-    <p role="status">
+    <h1 class="sr-only">端末内の記録</h1>
+    <p class="sr-only" role="status">
       通信を確認できません。表示は端末内の暫定状態です。追加記録は未送信で、サーバーの保存・現在の記録権は未確認です。
     </p>
     <GameScreenOrdinaryPitch

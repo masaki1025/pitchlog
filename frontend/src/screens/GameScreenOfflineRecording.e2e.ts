@@ -248,6 +248,22 @@ test.afterEach(async ({ page }, info) => {
   console.log('PITCHLOG_OFFLINE_UI_DIAGNOSTIC=' + JSON.stringify(diagnostic))
 })
 
+async function confirmSafety(page: import('@playwright/test').Page) {
+  const safety = page.getByRole('button', { name: /記録端末の安全確認/ })
+  if (!(await safety.isVisible().catch(() => false))) return
+  await safety.click()
+  for (const label of [
+    'ほかの記録タブと同じブラウザプロファイルを使います',
+    '通常・プライベートなどの閲覧モードを統一します',
+    '同じサイトの保存領域を使うタブだけで記録します',
+    'この端末でLockdownモードを適用していません',
+  ])
+    await page.getByRole('checkbox', { name: label }).last().check()
+  await page
+    .getByRole('button', { name: '確認して記録へ戻る', exact: true })
+    .click()
+}
+
 test('production SWで真の断中cold再起動から2球を同原文順で同期する', async ({
   page,
   context,
@@ -293,14 +309,13 @@ test('production SWで真の断中cold再起動から2球を同原文順で同�
     page.getByRole('heading', { name: '端末内の記録' }),
   ).toBeVisible()
   await expect(page.getByTestId('ordinary-local-notice')).toBeVisible()
-  for (const name of ['profile', 'mode', 'bucket', 'lockdown'])
-    await page.getByTestId(`first-ball-env-${name}`).check()
+  await confirmSafety(page)
   for (const n of [1, 2]) {
     await expect(page.getByTestId('first-ball-pitch-type')).toBeEnabled()
     await page.getByTestId('first-ball-pitch-type').selectOption(pitchKey)
     await page.getByTestId('first-ball-course').locator('svg').click()
-    await expect(page.getByTestId('first-ball-save')).toBeEnabled()
-    await page.getByTestId('first-ball-save').click()
+    // 通常結果は可視の結果パッドが保存を開始する。sr-onlyの保存ボタンは使わない。
+    await page.locator('[data-result-id="batting-result.ball"]').click()
     await expect(page.getByTestId('ordinary-local-balls')).toHaveText(String(n))
   }
   expect(requests).toHaveLength(0)
@@ -309,8 +324,7 @@ test('production SWで真の断中cold再起動から2球を同原文順で同�
     page.getByRole('heading', { name: '端末内の記録' }),
   ).toBeVisible()
   // 新しいpageの入力開始条件は再確認し、旧mountの確認を認証済みとして持ち越さない。
-  for (const name of ['profile', 'mode', 'bucket', 'lockdown'])
-    await page.getByTestId(`first-ball-env-${name}`).check()
+  await confirmSafety(page)
   await expect(page.getByTestId('ordinary-local-balls')).toHaveText('2')
   const originals = await preparedHashes(page)
   expect(originals).toHaveLength(2)
@@ -329,8 +343,7 @@ test('production SWで真の断中cold再起動から2球を同原文順で同�
     .click()
   await verified
   await expect(page.getByTestId('ordinary-pitch-result')).toBeVisible()
-  for (const name of ['profile', 'mode', 'bucket', 'lockdown'])
-    await page.getByTestId(`first-ball-env-${name}`).check()
+  await confirmSafety(page)
   await expect.poll(() => requests.length, { timeout: 180_000 }).toBe(2)
   expect(requests).toEqual(originals)
 
