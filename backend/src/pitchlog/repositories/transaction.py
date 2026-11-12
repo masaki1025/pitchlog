@@ -1666,6 +1666,10 @@ def _is_port_command(operation):
         ProjectSubstitutionToken,
         ValidateSubstitutionToken,
     )
+    from pitchlog.sync.tiebreak_start_ports import (
+        ProjectTiebreakStartToken,
+        ValidateTiebreakStartToken,
+    )
     from pitchlog.sync.terminal_pitch_tokens import (
         ProjectLineupPrefixToken,
         ProjectPlayPrefixToken,
@@ -1692,6 +1696,8 @@ def _is_port_command(operation):
         ValidateUndoToken,
         ProjectSubstitutionToken,
         ValidateSubstitutionToken,
+        ProjectTiebreakStartToken,
+        ValidateTiebreakStartToken,
         ValidateP3CorrectionToken,
         ProjectP3CorrectionToken,
     }:
@@ -1784,6 +1790,10 @@ def _execute_port_command(handle, operation):
     from pitchlog.sync.substitution_ports import (
         ProjectSubstitutionToken,
         ValidateSubstitutionToken,
+    )
+    from pitchlog.sync.tiebreak_start_ports import (
+        ProjectTiebreakStartToken,
+        ValidateTiebreakStartToken,
     )
     from pitchlog.sync.terminal_pitch_tokens import (
         ProjectLineupPrefixToken,
@@ -1925,6 +1935,37 @@ def _execute_port_command(handle, operation):
         from pitchlog.sync.substitution_bridge import project_nonplay_substitution
 
         project_nonplay_substitution(handle, operation.event, operation.writer)
+        return TenantOperationResult(((True,),))
+    if type(operation) in {ProjectTiebreakStartToken, ValidateTiebreakStartToken}:
+        from pitchlog.sync.model import SyncEvent
+        from pitchlog.sync.ports import PortWriter
+        from pitchlog.sync.tiebreak_start_execution import (
+            tiebreak_start_content_result,
+        )
+
+        if (
+            type(operation.event) is not SyncEvent
+            or type(operation.writer) is not PortWriter
+            or type(operation.game_id) is not UUID
+            or type(operation.d5) is not UUID
+            or operation.game_id != UUID(operation.event.game_id)
+            or operation.d5 != UUID(operation.event.d5)
+        ):
+            raise TenantBindingError("タイブレーク開始Portの実元参照が不一致")
+        if type(operation) is ValidateTiebreakStartToken:
+            if phase is None or phase.kind != "content":
+                raise TenantBindingError("タイブレーク開始内容は実content phaseだけで使う")
+            accepted, reason = tiebreak_start_content_result(
+                handle, operation.event, operation.writer
+            )
+            if type(accepted) is not bool or (accepted and reason is not None):
+                raise TenantBindingError("タイブレーク開始内容の閉応答が不一致")
+            return TenantOperationResult(((accepted, reason),))
+        if phase is not None:
+            raise TenantBindingError("タイブレーク開始投影は判定phase外だけで使う")
+        from pitchlog.sync.tiebreak_start_bridge import project_nonplay_tiebreak_start
+
+        project_nonplay_tiebreak_start(handle, operation.event, operation.writer)
         return TenantOperationResult(((True,),))
     if type(operation) in {ProjectUndoToken, ValidateUndoToken}:
         from pitchlog.sync.model import SyncEvent

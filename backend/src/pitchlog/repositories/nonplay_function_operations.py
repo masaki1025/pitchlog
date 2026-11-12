@@ -18,6 +18,7 @@ from sqlalchemy.sql.selectable import Select
 
 from pitchlog.authz.nonplay_prefix_sql import candidate_function_bodies
 from pitchlog.authz.substitution_sql import candidate_substitution_function_body
+from pitchlog.authz.tiebreak_sql import candidate_tiebreak_start_function_body
 from pitchlog.repositories.function_operations import (
     FunctionOperationError,
     FunctionOperationRegistration,
@@ -97,6 +98,16 @@ class _ConsumeNonplaySubstitutionCall(_PrivateNonplayCall):
         return "CAP:sync_nonplay:consume_substitution"
 
 
+@dataclass(frozen=True, slots=True, init=False)
+class _ConsumeNonplayTiebreakStartCall(_PrivateNonplayCall):
+    """タイブレーク開始の一回CP更新site。"""
+
+    @property
+    def capability_id(self):
+        """タイブレーク開始専用能力。"""
+        return "CAP:sync_nonplay:consume_tiebreak_start"
+
+
 _COMMON = (
     ("attempt_id", UUID),
     ("phase_id", UUID),
@@ -167,6 +178,14 @@ _FAMILIES = MappingProxyType(
             1,
             1,
         ),
+        "consume_nonplay_tiebreak_start": (
+            _ConsumeNonplayTiebreakStartCall,
+            "consume_tiebreak_start",
+            (*_COMMON, ("request_json", str)),
+            (("consumed", bool),),
+            1,
+            1,
+        ),
     }
 )
 _TYPES = {UUID: Uuid, bytes: LargeBinary, int: BigInteger, str: Text, bool: Boolean}
@@ -186,7 +205,8 @@ def _statement(name, inputs, outputs):
 def _verify_renderer():
     """実body rendererの全6 ABIと引数順/型/戻り列を照合する。"""
     bodies = candidate_function_bodies() | {
-        "consume_nonplay_substitution": candidate_substitution_function_body()
+        "consume_nonplay_substitution": candidate_substitution_function_body(),
+        "consume_nonplay_tiebreak_start": candidate_tiebreak_start_function_body(),
     }
     if set(bodies) != set(_FAMILIES):
         raise FunctionOperationError("取消固定6関数のrenderer集合が不一致です")
@@ -313,6 +333,7 @@ def _actual_families():
     """循環importを避け、実呼出時にSource17 exact4型だけを解決する。"""
     from pitchlog.repositories.nonplay_prefix import (
         _ConsumeNonplaySubstitution,
+        _ConsumeNonplayTiebreakStart,
         _ConsumeNonplayUndo,
         _LockNonplayCheckpoint,
         _PrepareNonplayUndo,
@@ -327,6 +348,7 @@ def _actual_families():
         _PrepareNonplayUndo: "prepare_nonplay_undo",
         _ConsumeNonplayUndo: "consume_nonplay_undo",
         _ConsumeNonplaySubstitution: "consume_nonplay_substitution",
+        _ConsumeNonplayTiebreakStart: "consume_nonplay_tiebreak_start",
     }
 
 

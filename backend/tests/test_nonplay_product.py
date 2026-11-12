@@ -10,6 +10,7 @@ from pitchlog.authz import nonplay_product as publisher
 from pitchlog.authz.first_ball_product import _function_argument_names
 from pitchlog.authz.nonplay_prefix_sql import candidate_function_bodies
 from pitchlog.authz.substitution_sql import candidate_substitution_function_body
+from pitchlog.authz.tiebreak_sql import candidate_tiebreak_start_function_body
 from pitchlog.db.writer_binding.nonplay_models import NonplayWriteAdmission
 
 
@@ -17,9 +18,10 @@ def test_exact_six_bodies_and_catalog_signatures():
     """単一renderer全本文と既installerの引数解析を保ち、別SQLを作らない。"""
     declarations, bodies = publisher.candidate_declarations()
     original = candidate_function_bodies() | {
-        "consume_nonplay_substitution": candidate_substitution_function_body()
+        "consume_nonplay_substitution": candidate_substitution_function_body(),
+        "consume_nonplay_tiebreak_start": candidate_tiebreak_start_function_body(),
     }
-    assert len(declarations["functions"]) == 7
+    assert len(declarations["functions"]) == 8
     assert {r["function_name"] for r in declarations["functions"]} == set(original)
     for row in declarations["functions"]:
         sql = bodies["function|" + row["function_id"]]
@@ -60,6 +62,12 @@ def test_private_table_and_update_columns_are_minimal():
             "enable_row_level_security": True,
             "force_row_level_security": True,
         },
+        {
+            "table_id": "tiebreak_start_write_receipts",
+            "schema_name": "sync_fence",
+            "enable_row_level_security": True,
+            "force_row_level_security": True,
+        },
     ]
     assert declarations["acl_expectations"][0]["privilege_ids"] == ["SELECT"]
     assert declarations["acl_expectations"][1]["object_id"] == (
@@ -69,7 +77,7 @@ def test_private_table_and_update_columns_are_minimal():
         "SELECT",
         "INSERT",
     ]
-    assert len(declarations["acl_expectations"]) == 2
+    assert len(declarations["acl_expectations"]) == 3
     rows = declarations["column_acl_expectations"]
     assert len(rows) == 47
     table_rows = [r for r in rows if r["object_id"] == "nonplay_write_admissions"]
@@ -103,7 +111,7 @@ def test_private_table_and_update_columns_are_minimal():
 def test_policies_require_same_tenant_and_real_app_session():
     """GUCだけや別session userで私有表を書けるpolicyを作らない。"""
     declarations, _ = publisher.candidate_declarations()
-    assert len(declarations["policies"]) == 6
+    assert len(declarations["policies"]) == 8
     for row in declarations["policies"]:
         assert row["role_ids"] == ["pitchlog_sync_right_fn_owner"]
         assert row["command"] in {"SELECT", "INSERT", "UPDATE"}

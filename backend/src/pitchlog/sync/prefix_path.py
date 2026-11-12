@@ -883,6 +883,18 @@ def _apply_locked_in_scope(
             first_ball_stack.enter_context(
                 bind_substitution_execution(scope, writer, event, source)
             )
+        from pitchlog.sync.tiebreak_start_ports import (
+            TiebreakStartContentValidationPort,
+        )
+
+        if type(validator) is TiebreakStartContentValidationPort:
+            from pitchlog.sync.tiebreak_start_execution import (
+                bind_tiebreak_start_execution,
+            )
+
+            first_ball_stack.enter_context(
+                bind_tiebreak_start_execution(scope, writer, event, source)
+            )
         if type(validator) is FirstBallContentValidationPort:
             from pitchlog.sync.first_ball_execution import _bind_first_ball_execution
 

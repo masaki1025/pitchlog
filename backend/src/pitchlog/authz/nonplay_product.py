@@ -48,6 +48,7 @@ _FUNCTIONS = {
     "prepare_nonplay_undo": (_COMMON + ", text", "prepared boolean"),
     "consume_nonplay_undo": (_COMMON + ", text", "receipt_json text"),
     "consume_nonplay_substitution": (_COMMON + ", text", "consumed boolean"),
+    "consume_nonplay_tiebreak_start": (_COMMON + ", text", "consumed boolean"),
 }
 _PREDICATE = (
     "tenant_id = NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid"
@@ -99,9 +100,11 @@ def candidate_declarations():
         )
     }
     from pitchlog.authz.substitution_sql import candidate_substitution_function_body
+    from pitchlog.authz.tiebreak_sql import candidate_tiebreak_start_function_body
 
     sql_bodies = candidate_function_bodies() | {
-        "consume_nonplay_substitution": candidate_substitution_function_body()
+        "consume_nonplay_substitution": candidate_substitution_function_body(),
+        "consume_nonplay_tiebreak_start": candidate_tiebreak_start_function_body(),
     }
     if set(sql_bodies) != set(_FUNCTIONS):
         raise ValueError("非playの固定関数集合が不一致です")
@@ -229,6 +232,46 @@ def candidate_declarations():
             "sync_fence",
             receipt_table,
             "substitution_receipt_" + command.lower(),
+            command,
+            _PREDICATE,
+        )
+    tiebreak_receipt_table = "tiebreak_start_write_receipts"
+    declarations["tables"].append(
+        {
+            "table_id": tiebreak_receipt_table,
+            "schema_name": "sync_fence",
+            "enable_row_level_security": True,
+            "force_row_level_security": True,
+        }
+    )
+    bodies["table|" + tiebreak_receipt_table] = (
+        f"ALTER TABLE sync_fence.{tiebreak_receipt_table} ENABLE ROW LEVEL SECURITY;\n"
+        f"ALTER TABLE sync_fence.{tiebreak_receipt_table} FORCE ROW LEVEL SECURITY;\n"
+        f"REVOKE ALL ON TABLE sync_fence.{tiebreak_receipt_table} FROM PUBLIC,pitchlog_app;\n"
+    )
+    tiebreak_receipt_acl = f"ACL:sync_fence:{tiebreak_receipt_table}:{_OWNER}"
+    declarations["acl_expectations"].append(
+        {
+            "acl_id": tiebreak_receipt_acl,
+            "object_kind": "table",
+            "object_schema": "sync_fence",
+            "object_id": tiebreak_receipt_table,
+            "profile": "function_only",
+            "grantee_role_id": _OWNER,
+            "privilege_ids": ["SELECT", "INSERT"],
+            "grant_option": False,
+        }
+    )
+    bodies["acl_expectation|" + tiebreak_receipt_acl] = (
+        f"GRANT SELECT,INSERT ON TABLE sync_fence.{tiebreak_receipt_table} TO {_OWNER};\n"
+    )
+    for command in ("SELECT", "INSERT"):
+        _add_policy(
+            declarations,
+            bodies,
+            "sync_fence",
+            tiebreak_receipt_table,
+            "tiebreak_start_receipt_" + command.lower(),
             command,
             _PREDICATE,
         )

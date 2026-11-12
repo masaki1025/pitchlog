@@ -790,6 +790,9 @@ def _apply_e1_f1(
         LineupPrefixContentValidationPort,
     }
     from pitchlog.sync.substitution_ports import SubstitutionContentValidationPort
+    from pitchlog.sync.tiebreak_start_ports import (
+        TiebreakStartContentValidationPort,
+    )
     from pitchlog.sync.undo_ports import UndoContentValidationPort
 
     undo = type(validator) is UndoContentValidationPort
@@ -797,11 +800,13 @@ def _apply_e1_f1(
 
     lifecycle = type(validator) is LifecycleContentValidationPort
     substitution = type(validator) is SubstitutionContentValidationPort
+    tiebreak = type(validator) is TiebreakStartContentValidationPort
     if len(request.events) != 1 or (
         not ordinary
         and not undo
         and not lifecycle
         and not substitution
+        and not tiebreak
         and request.events[0].d1 != 1
     ):
         raise _E1OutOfScope("E1要求はF1の範囲外")
@@ -847,7 +852,7 @@ def _apply_e1_f1(
                         qualification_stack.enter_context(
                             _ordinary_qualification_scope(scope, source)
                         )
-                    if undo or substitution:
+                    if undo or substitution or tiebreak:
                         # SQL familyの既E1資格に入る前にD5だけを内部分類する。
                         # 返却は既device検証後。host/CP/frameはfresh内容段だけ。
                         from pitchlog.sync.source_binding import (

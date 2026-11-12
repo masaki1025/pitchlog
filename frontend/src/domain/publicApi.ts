@@ -34,6 +34,10 @@ import {
   finishOrdinaryContinuation,
 } from './ordinaryPitchContinuation'
 import { quantizeCourse } from './courseQuantization'
+import {
+  transitionTiebreakStart,
+  type TiebreakRestoreContext,
+} from './tiebreakStart'
 import { validateInitialGameRoster } from './initialGameRoster'
 import {
   evaluateFirstPitchContinuation,
@@ -635,7 +639,8 @@ function evaluatePitch(
   runnerEvent: boolean = false,
   interference: boolean = false,
 ): string {
-  const cursorMode = strikeout || lineup || battedHit || runnerEvent || interference
+  const cursorMode =
+    strikeout || lineup || battedHit || runnerEvent || interference
   if (typeof requestJson !== 'string') return errorResponse('INVALID_REQUEST')
   let parsed: unknown
   try {
@@ -900,7 +905,10 @@ function evaluatePitch(
       cursors,
       afterCursors,
     )
-    if ((runnerEvent || battedHit || interference) && derived.runnerScoreEffects)
+    if (
+      (runnerEvent || battedHit || interference) &&
+      derived.runnerScoreEffects
+    )
       Object.assign(output, {
         runnerScoreEffects: derived.runnerScoreEffects.map((r) => ({
           base: formatDecimalInteger(r.base),
@@ -953,7 +961,16 @@ function deriveBattedHit(requestJson: string): string {
 
 /** 審判裁定を実選手参照に束縛するsecondary-result専用入口。 */
 function deriveInterference(requestJson: string): string {
-  return evaluatePitch(requestJson, false, false, false, false, false, false, true)
+  return evaluatePitch(
+    requestJson,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    true,
+  )
 }
 
 type T1Evaluation =
@@ -1649,6 +1666,98 @@ function advanceSubstitutionAfterPitchV1(requestJson: string): string {
   }
 }
 
+type TiebreakPlacementRule =
+  'first-second' | 'second-third' | 'no_out_first_second' | null
+type TiebreakLeadoffRule = 'continue_lineup' | null
+
+/** タイブレーク開始の配置・先頭打者・責任投手を唯一artifactで確定する。 */
+function transitionTiebreakStartV1(requestJson: string): string {
+  if (typeof requestJson !== 'string') return errorResponse('INVALID_REQUEST')
+  let value: unknown
+  try {
+    value = JSON.parse(requestJson)
+    if (hasDuplicateKeys(requestJson)) return errorResponse('INVALID_JSON')
+  } catch {
+    return errorResponse('INVALID_JSON')
+  }
+  const request = asObject(value)
+  if (request === null) return errorResponse('INVALID_REQUEST')
+  if (
+    Object.keys(request).sort().join(',') !==
+    'activePlayerIds,restoreContext,rule,selection,version'
+  )
+    return errorResponse('INVALID_REQUEST')
+  if (fieldValue(request, 'version') !== 'tiebreak-start-v1')
+    return errorResponse('INVALID_REQUEST')
+  const restore = asObject(fieldValue(request, 'restoreContext'))
+  const ruleValue = asObject(fieldValue(request, 'rule'))
+  const selection = asObject(fieldValue(request, 'selection'))
+  const activeValue = fieldValue(request, 'activePlayerIds')
+  if (restore === null || ruleValue === null || selection === null)
+    return errorResponse('INVALID_REQUEST')
+  if (!Array.isArray(activeValue)) return errorResponse('INVALID_REQUEST')
+  const active = activeValue as Array<string>
+  const current = asObject(fieldValue(restore, 'current'))
+  if (current === null) return errorResponse('INVALID_REQUEST')
+  const stateFields = readState(
+    asObject(fieldValue(current, 'stateFields')) as Record<string, unknown>,
+  )
+  if (stateFields === null) return errorResponse('INVALID_REQUEST')
+  const startInning = intField(fieldValue(ruleValue, 'startInning'))
+  if (fieldValue(ruleValue, 'startInning') !== null && startInning === null)
+    return errorResponse('INVALID_DECIMAL_INTEGER')
+  const runnerPlacement = textField(fieldValue(ruleValue, 'runnerPlacement'))
+  const leadoffRule = textField(fieldValue(ruleValue, 'leadoffRule'))
+  const firstRunnerId = textField(fieldValue(selection, 'firstRunnerId'))
+  const secondRunnerId = textField(fieldValue(selection, 'secondRunnerId'))
+  if (firstRunnerId === null || secondRunnerId === null)
+    return errorResponse('INVALID_REQUEST')
+  const participants = asObject(fieldValue(restore, 'participants'))
+  const runners = fieldValue(restore, 'runners')
+  const lineup = fieldValue(restore, 'lineup')
+  const responsibility = fieldValue(restore, 'responsibility')
+  if (participants === null || !Array.isArray(runners))
+    return errorResponse('INVALID_REQUEST')
+  const context = {
+    current: {
+      stateFields: stateFields,
+      scoreboard: fieldValue(current, 'scoreboard'),
+    },
+    participants: participants,
+    runners: runners,
+    lineup: lineup,
+    responsibility: responsibility,
+  } as unknown as TiebreakRestoreContext
+  const substitutionState = fieldValue(restore, 'substitutionState')
+  if (substitutionState !== null) context.substitutionState = substitutionState
+  const result = transitionTiebreakStart(
+    context,
+    {
+      startInning: startInning,
+      runnerPlacement: runnerPlacement as TiebreakPlacementRule,
+      leadoffRule: leadoffRule as TiebreakLeadoffRule,
+    },
+    { firstRunnerId: firstRunnerId, secondRunnerId: secondRunnerId },
+    active,
+  )
+  if (!result.ok) return errorResponse('INVALID_REQUEST')
+  const after = result.afterContext
+  return JSON.stringify({
+    ok: true,
+    value: {
+      current: {
+        stateFields: stateJson(after.current.stateFields),
+        scoreboard: after.current.scoreboard,
+      },
+      participants: after.participants,
+      runners: after.runners,
+      lineup: after.lineup,
+      responsibility: after.responsibility,
+      substitutionState: after.substitutionState,
+    },
+  })
+}
+
 /** JSON文字列だけの公開表。過去訂正の有限数学はP3受理資格ではない。 */
 export const domainOperations = Object.freeze({
   ping,
@@ -1671,4 +1780,5 @@ export const domainOperations = Object.freeze({
   deriveInitialSubstitutionStateV1,
   transitionSubstitutionV1,
   advanceSubstitutionAfterPitchV1,
+  transitionTiebreakStartV1,
 })

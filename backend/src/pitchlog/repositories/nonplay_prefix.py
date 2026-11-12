@@ -87,6 +87,18 @@ class _ConsumeNonplaySubstitution(TenantOperationToken):
         return "CAP:sync_nonplay:consume_substitution"
 
 
+@dataclass(frozen=True, slots=True)
+class _ConsumeNonplayTiebreakStart(TenantOperationToken):
+    """同writerの一回タイブレーク開始CP更新だけを要求する。"""
+
+    request_json: str
+
+    @property
+    def capability_id(self):
+        """タイブレーク開始専用の限定能力。"""
+        return "CAP:sync_nonplay:consume_tiebreak_start"
+
+
 _FUNCTIONS = MappingProxyType(
     {
         _LockNonplayCheckpoint: "lock_nonplay_checkpoint",
@@ -94,6 +106,7 @@ _FUNCTIONS = MappingProxyType(
         _PrepareNonplayUndo: "prepare_nonplay_undo",
         _ConsumeNonplayUndo: "consume_nonplay_undo",
         _ConsumeNonplaySubstitution: "consume_nonplay_substitution",
+        _ConsumeNonplayTiebreakStart: "consume_nonplay_tiebreak_start",
     }
 )
 
@@ -159,6 +172,12 @@ def _call_scope(handle, source, event, operation):
         from pitchlog.sync.substitution_bridge import assert_substitution_write_call
 
         assert_substitution_write_call(handle, operation)
+    if type(operation) is _ConsumeNonplayTiebreakStart:
+        from pitchlog.sync.tiebreak_start_bridge import (
+            assert_tiebreak_start_write_call,
+        )
+
+        assert_tiebreak_start_write_call(handle, operation)
     lease = source.bound._lease
     parameters = {
         "tenant_id": handle._bound_tenant_id,
@@ -246,6 +265,12 @@ def _qualified_nonplay_call(handle, operation):
         from pitchlog.sync.substitution_bridge import consume_substitution_write_call
 
         consume_substitution_write_call(handle, operation)
+    if type(operation) is _ConsumeNonplayTiebreakStart:
+        from pitchlog.sync.tiebreak_start_bridge import (
+            consume_tiebreak_start_write_call,
+        )
+
+        consume_tiebreak_start_write_call(handle, operation)
     state[1] = True
     return QualifiedNonplayCall(
         operation, _FUNCTIONS[type(operation)], MappingProxyType(dict(params))

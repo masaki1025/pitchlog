@@ -5,6 +5,7 @@ import {
   type TiebreakRestoreContext,
   type TiebreakStartRule,
 } from './tiebreakStart'
+import { domainOperations } from './publicApi'
 
 const rule: TiebreakStartRule = {
   startInning: 10n,
@@ -176,4 +177,58 @@ describe('タイブレーク開始の製品遷移', () => {
     expect(outcome.after.battingOrder).toBe(4n)
     expect(outcome.historyEffect).toEqual({ pushes: false, kind: null })
   })
+})
+
+it('artifact入口はJSONの実選手IDと半回開始投手を同じ核で確定する', () => {
+  const source = context()
+  const fields = source.current.stateFields
+  const request = {
+    version: 'tiebreak-start-v1',
+    restoreContext: {
+      current: {
+        stateFields: {
+          'state.half': fields.half,
+          'state.count.strikes': String(fields.strikes),
+          'state.count.balls': String(fields.balls),
+          'state.outs': String(fields.outs),
+          'state.runners': fields.runners,
+          'state.battingOrder': String(fields.battingOrder),
+          'state.tiebreakActive': fields.tiebreakActive,
+          'state.gameEnded': fields.gameEnded,
+          'state.inning': String(fields.inning),
+          'state.score': {
+            home: String(fields.home),
+            away: String(fields.away),
+          },
+        },
+        scoreboard: source.current.scoreboard,
+      },
+      participants: source.participants,
+      runners: source.runners,
+      lineup: source.lineup,
+      responsibility: source.responsibility,
+    },
+    rule: {
+      startInning: '10',
+      runnerPlacement: 'no_out_first_second',
+      leadoffRule: 'continue_lineup',
+    },
+    selection: selection(),
+    activePlayerIds: active,
+  }
+  const result = JSON.parse(
+    domainOperations.transitionTiebreakStartV1(JSON.stringify(request)),
+  ) as {
+    ok: boolean
+    value: {
+      current: { stateFields: Record<string, unknown> }
+      runners: Array<{ responsiblePitcherId: string }>
+    }
+  }
+  expect(result.ok).toBe(true)
+  expect(result.value.current.stateFields['state.runners']).toBe('first-second')
+  expect(result.value.current.stateFields['state.tiebreakActive']).toBe(true)
+  expect(result.value.current.stateFields['state.inning']).toBe('10')
+  expect(result.value.runners[0]?.responsiblePitcherId).toBe(pitcher)
+  expect(result.value.runners[1]?.responsiblePitcherId).toBe(pitcher)
 })
