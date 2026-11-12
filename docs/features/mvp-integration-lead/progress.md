@@ -34,6 +34,13 @@
 - 固定HEAD `586abd72` の候補URL・ログイン方法・操作手順・実証・未達を `candidate-handoff-2026-11-12.md` にまとめた。
 - 候補環境はテスト所有の使い捨てであり、製品環境・実機・バックアップ復旧の証拠ではない。
 
+### 2026-11-13 08:10 タイブレーク候補の隔離前進
+
+- 別worktree `feature/mvp-tiebreak-pipeline-20261113`（HEAD `20839a5e`、リモートpush済み）へ、タイブレーク開始の**artifact入口**と非play保存骨格を固定した。統合ブランチへは未マージ。
+- 追加: `transitionTiebreakStartV1`（`publicApi.ts`、artifact再ビルド sha `7f6497cb...`）、payload/projection/execution/ports/bridge、`consume_nonplay_tiebreak_start` SQL、`tiebreak_start_write_receipts` migration/model、非play read SQLのフレーム/receipt照合、apply/prefix_path/transaction配線。
+- 現時点の赤: P3/nonplayの既存body pin（`read_nonplay_history_page` 等）が統合ブランチ側で既に不一致。タイブレーク候補はこの正式資産pinを更新しないとbackendテスト収集まで到達しない。画面・DB E2E・成績/CSVは未接続。
+- 次の順: ①非play/P3の既存body pinを正式受理点へ追随、②read SQLの実DB対向、③画面の「配置と回を記録」有効化、④start→次球→打球/走塁→交代→生還→次半回再配置→reload→成績/CSVのE2E。
+
 ### 2026-11-13 03:20 正式資産の現状（候補と受理を分離）
 
 - `tests/test_check_tenant_boundary_bypass.py` は **570 failed / 1237 passed / 2 errors**。`base-allowlist.json` は `contract_revision:54` のままで、統合ブランチの新規関数・経路が7.7受理へ追随していない。単一のテスト修正では閉じず、`baseline_control.history` への前後識別値・凍結射影・承認の追記が必要。
