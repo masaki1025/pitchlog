@@ -3,7 +3,7 @@
 ## 固定HEAD
 
 - ブランチ: `feature/mvp-integration-20261109`
-- HEAD: `586abd72dfa222de0e6290edc499a5116cbff2ad`
+- HEAD: `5521beef`（コードは `586abd72`、以降は台帳・引渡し資料のみ）
 - 比較元: `1989001a`（この日の開始時点）
 - main / develop への push は行っていない。すべてローカルコミット。
 
