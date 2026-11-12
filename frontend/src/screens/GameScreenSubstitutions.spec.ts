@@ -560,6 +560,62 @@ describe('交代とタイブレークの画面下書き', () => {
     )
   })
 
+  it('その場登録は提供された質問の回答だけを登録要求へ渡す', async () => {
+    const withSide: SubstitutionRequest = {
+      ...request,
+      operations: [
+        {
+          ...operation('defense'),
+          questions: [
+            {
+              key: 'side',
+              label: 'チーム',
+              input: 'choice',
+              required: true,
+              options: [
+                { id: 'away', label: '先攻' },
+                { id: 'home', label: '後攻' },
+              ],
+            },
+          ],
+        },
+      ],
+    }
+    const wrapper = mount(GameScreenSubstitutions, {
+      props: {
+        request: withSide,
+        activeContextKey: withSide.contextKey,
+        lockState: { contextKey: withSide.contextKey, state: 'open' },
+        commitEnabled: true,
+        registrationEnabled: true,
+      },
+    })
+    await wrapper.get('[data-testid="substitution-kind"]').setValue('defense')
+    await wrapper
+      .get('[data-testid="substitution-outgoing"]')
+      .setValue('defense-out')
+    await wrapper
+      .get('[data-testid="substitution-incoming-mode"]')
+      .setValue('new')
+    await wrapper.get('[data-normal-question="side"]').setValue('home')
+    await wrapper
+      .get('[data-normal-question="new-name"]')
+      .setValue('新しい選手')
+    await wrapper.get('[data-normal-question="place"]').setValue('provided-p')
+    const button = wrapper.get('[data-testid="substitution-register-player"]')
+    expect((button.element as HTMLButtonElement).disabled).toBe(false)
+    await button.trigger('click')
+    expect(wrapper.emitted('register-player')).toEqual([
+      [
+        {
+          side: 'home',
+          answers: { 'new-name': '新しい選手' },
+        },
+      ],
+    ])
+    wrapper.unmount()
+  })
+
   it('必須質問を通常・登録・配置・タイブレーク・過去訂正のラベルに示す', async () => {
     const wrapper = mountScreen()
     await wrapper.get('[data-testid="substitution-kind"]').setValue('defense')

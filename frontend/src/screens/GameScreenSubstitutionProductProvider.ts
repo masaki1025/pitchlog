@@ -15,11 +15,14 @@ import {
   type SubstitutionPayload,
 } from '../api/substitutionWire'
 import type { SyncEvent } from '../lib/sync/syncEvent'
+import type { PlayerCreate } from '../api/roster'
 import type {
+  PlayerRegistrationDraft,
   RawSubstitutionDraft,
   SubstitutionChoice,
   SubstitutionOperationSupply,
   SubstitutionRequest,
+  SubstitutionQuestion,
   SubstitutionValidation,
 } from './GameScreenSubstitutionTypes'
 
@@ -129,6 +132,67 @@ function choices(
   return [...new Set(ids)].map((id) => ({ id, label: c.names[id] ?? id }))
 }
 
+/** 画面の登録下書きを正式な選手作成入力へ写す。不正は null で閉じる。 */
+export function playerRegistration(
+  draft: PlayerRegistrationDraft,
+  teamId: string,
+): PlayerCreate | null {
+  const field = (key: string): string => {
+    const value = draft.answers[key]
+    return typeof value === 'string' ? value.trim() : ''
+  }
+  const name = field('name')
+  const throws = field('throws')
+  const bats = field('bats')
+  const uniform = field('uniformNumber')
+  if (
+    !name ||
+    (throws !== 'right' && throws !== 'left') ||
+    (bats !== 'right' && bats !== 'left' && bats !== 'both')
+  )
+    return null
+  return {
+    team_record_id: teamId,
+    name,
+    throws,
+    bats,
+    uniform_number: uniform === '' ? null : uniform,
+    roster_status_key: 'active',
+  }
+}
+
+/** その場登録の入力項目。登録APIの閉じた入力だけを供給し、意味判定はAPIへ委ねる。 */
+const registrationQuestions: readonly SubstitutionQuestion[] = [
+  { key: 'name', label: '選手名', input: 'text', required: true },
+  {
+    key: 'throws',
+    label: '投',
+    input: 'choice',
+    required: true,
+    options: [
+      { id: 'right', label: '右' },
+      { id: 'left', label: '左' },
+    ],
+  },
+  {
+    key: 'bats',
+    label: '打',
+    input: 'choice',
+    required: true,
+    options: [
+      { id: 'right', label: '右' },
+      { id: 'left', label: '左' },
+      { id: 'both', label: '両' },
+    ],
+  },
+  {
+    key: 'uniformNumber',
+    label: '背番号（任意）',
+    input: 'text',
+    required: false,
+  },
+]
+
 /** 選手候補と設問はGET由来の実配置・実在籍から供給し、画面に意味判定を置かない。 */
 export function substitutionRequest(
   c: VerifiedSubstitutionContext,
@@ -163,7 +227,7 @@ export function substitutionRequest(
       kind,
       outgoing: choices(c, [...outgoing]),
       incoming: [...new Map(incoming.map((p) => [p.id, p])).values()],
-      registrationQuestions: [],
+      registrationQuestions,
       placementQuestions: [],
       questions: [
         {

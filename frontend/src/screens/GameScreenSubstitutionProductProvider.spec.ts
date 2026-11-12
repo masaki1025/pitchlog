@@ -13,6 +13,7 @@ import { substitutionFromInitialRoster } from '../domain/substitutionKernel'
 import {
   prepareSubstitution,
   substitutionContextKey,
+  playerRegistration,
   substitutionRequest,
   validateSubstitutionDraft,
   type VerifiedSubstitutionContext,
@@ -162,4 +163,47 @@ it('無走者で代走対象がなくても実画面の投手交代は選べる'
     wrapper.find('[data-testid="substitution-unavailable"]').exists(),
   ).toBe(false)
   wrapper.unmount()
+})
+
+it('その場登録の回答を正式な選手作成入力へ写し、不正は閉じる', () => {
+  const team = '11111111-1111-4111-8111-111111111111'
+  expect(
+    playerRegistration(
+      {
+        side: 'away',
+        answers: {
+          name: ' 新しい選手 ',
+          throws: 'left',
+          bats: 'both',
+          uniformNumber: ' 18 ',
+        },
+      },
+      team,
+    ),
+  ).toEqual({
+    team_record_id: team,
+    name: '新しい選手',
+    throws: 'left',
+    bats: 'both',
+    uniform_number: '18',
+    roster_status_key: 'active',
+  })
+  expect(
+    playerRegistration(
+      { side: 'away', answers: { name: '', throws: 'left', bats: 'both' } },
+      team,
+    ),
+  ).toBeNull()
+  expect(
+    playerRegistration(
+      { side: 'away', answers: { name: 'X', throws: 'switch', bats: 'both' } },
+      team,
+    ),
+  ).toBeNull()
+  expect(
+    playerRegistration(
+      { side: 'away', answers: { name: 'X', throws: 'right', bats: 'up' } },
+      team,
+    ),
+  ).toBeNull()
 })

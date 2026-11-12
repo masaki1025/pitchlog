@@ -2,18 +2,21 @@
 import { computed, onScopeDispose, ref, watch } from 'vue'
 import { useAuthStore } from '../stores/authStore'
 import { sameOrdinaryWire } from '../api/ordinaryPitchWire'
+import { createPlayer } from '../api/roster'
 import GameScreenSubstitutions from './GameScreenSubstitutions.vue'
 import {
   GameScreenSubstitutionProductController,
   type SubstitutionProductResult,
 } from './GameScreenSubstitutionProductController'
 import {
+  playerRegistration,
   substitutionRequest,
   substitutionContextKey,
   validateSubstitutionDraft,
   type VerifiedSubstitutionContext,
 } from './GameScreenSubstitutionProductProvider'
 import type {
+  PlayerRegistrationDraft,
   RawSubstitutionDraft,
   SubstitutionDraftsSnapshot,
   SubstitutionValidation,
@@ -26,6 +29,7 @@ const context = ref<VerifiedSubstitutionContext | null>(null)
 const validation = ref<SubstitutionValidation | null>(null)
 const status = ref<SubstitutionProductResult>('blocked')
 const busy = ref(false)
+const registrationMessage = ref('')
 const sameProfile = ref(false)
 const sameMode = ref(false)
 const sameBucket = ref(false)
@@ -73,6 +77,10 @@ const canCommit = computed(
     identity().verified &&
     context.value !== null &&
     status.value === 'ready',
+)
+// 名簿登録はオンラインの正式APIだけを使い、断中は登録済み選手の選択に留める。
+const canRegister = computed(
+  () => canCommit.value && navigator.onLine !== false && context.value !== null,
 )
 const message = computed(() =>
   busy.value
@@ -145,8 +153,36 @@ async function apply(draft: RawSubstitutionDraft): Promise<void> {
   }
 }
 
+async function register(draft: PlayerRegistrationDraft): Promise<void> {
+  const current = context.value
+  if (!canRegister.value || current === null) return
+  const body = playerRegistration(draft, current.state[draft.side].teamId)
+  if (body === null) {
+    registrationMessage.value = '選手名・投・打を確認してください'
+    return
+  }
+  busy.value = true
+  registrationMessage.value = '選手を名簿へ登録しています'
+  try {
+    await createPlayer(body)
+    registrationMessage.value =
+      '選手を名簿へ登録しました。登録済み選手から選んで交代を記録してください'
+    await reload()
+  } catch {
+    registrationMessage.value =
+      '選手を登録できませんでした。入力内容と通信を確認してください'
+  } finally {
+    busy.value = false
+  }
+}
+
 async function retry(): Promise<void> {
-  if (busy.value || status.value !== 'pending' || !confirmed.value || !controller)
+  if (
+    busy.value ||
+    status.value !== 'pending' ||
+    !confirmed.value ||
+    !controller
+  )
     return
   busy.value = true
   try {
@@ -159,7 +195,13 @@ async function retry(): Promise<void> {
 }
 
 watch(
-  () => [props.gameId, auth.teamId, auth.authEpoch, auth.hasHydrated, auth.isAuthenticated],
+  () => [
+    props.gameId,
+    auth.teamId,
+    auth.authEpoch,
+    auth.hasHydrated,
+    auth.isAuthenticated,
+  ],
   reload,
   { immediate: true },
 )
@@ -175,13 +217,43 @@ onScopeDispose(() => {
     <p role="status" data-testid="substitution-product-status">{{ message }}</p>
     <fieldset :disabled="busy">
       <legend>この記録端末の条件</legend>
-      <label><input v-model="sameProfile" type="checkbox" />開始時と同じブラウザのプロフィールです</label>
-      <label><input v-model="sameMode" type="checkbox" />開始時と同じ通常・プライベートモードです</label>
-      <label><input v-model="sameBucket" type="checkbox" />開始時と同じ保存領域です</label>
-      <label><input v-model="noLockdown" type="checkbox" />ブラウザの保存制限がかかっていません</label>
+      <label
+        ><input
+          v-model="sameProfile"
+          type="checkbox"
+        />開始時と同じブラウザのプロフィールです</label
+      >
+      <label
+        ><input
+          v-model="sameMode"
+          type="checkbox"
+        />開始時と同じ通常・プライベートモードです</label
+      >
+      <label
+        ><input
+          v-model="sameBucket"
+          type="checkbox"
+        />開始時と同じ保存領域です</label
+      >
+      <label
+        ><input
+          v-model="noLockdown"
+          type="checkbox"
+        />ブラウザの保存制限がかかっていません</label
+      >
     </fieldset>
-    <button type="button" :disabled="busy" @click="reload">現在の交代原本を再取得</button>
-    <button v-if="status === 'pending'" type="button" :disabled="busy || !confirmed" @click="retry">
+    <button type="button" :disabled="busy" @click="reload">
+      現在の交代原本を再取得
+    </button>
+    <p role="status" data-testid="substitution-registration-status">
+      {{ registrationMessage }}
+    </p>
+    <button
+      v-if="status === 'pending'"
+      type="button"
+      :disabled="busy || !confirmed"
+      @click="retry"
+    >
       同じ交代要求を再送
     </button>
     <GameScreenSubstitutions
@@ -190,8 +262,10 @@ onScopeDispose(() => {
       :lock-state="key ? { contextKey: key, state: 'open' } : null"
       :validation="validation"
       :commit-enabled="canCommit"
+      :registration-enabled="canRegister"
       @draft-change="draftChanged"
       @apply-normal="apply"
+      @register-player="register"
     />
   </section>
 </template>

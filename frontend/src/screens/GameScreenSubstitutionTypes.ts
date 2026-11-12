@@ -32,6 +32,12 @@ export interface SubstitutionRequest {
   operations: readonly SubstitutionOperationSupply[]
 }
 
+/** その場登録のUI下書き。質問keyの意味は供給側だけが解釈する。 */
+export interface PlayerRegistrationDraft {
+  side: 'away' | 'home'
+  answers: Readonly<Record<string, string | null>>
+}
+
 export interface TiebreakRequest {
   contextKey: string
   placementQuestions: readonly SubstitutionQuestion[]

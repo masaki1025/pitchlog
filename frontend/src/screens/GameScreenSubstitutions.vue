@@ -21,6 +21,7 @@ import type {
   SubstitutionQuestion,
   SubstitutionRequest,
   SubstitutionValidation,
+  PlayerRegistrationDraft,
   TiebreakRequest,
 } from './GameScreenSubstitutionTypes'
 
@@ -36,10 +37,13 @@ const props = defineProps<{
   preview?: PastSubstitutionPreview | null
   /** 提供側が実保存資格を照合した場合だけ通常交代を有効にする。 */
   commitEnabled?: boolean
+  /** 提供側が名簿登録APIを呼べる場合だけ有効にする。 */
+  registrationEnabled?: boolean
 }>()
 const emit = defineEmits<{
   'draft-change': [snapshot: SubstitutionDraftsSnapshot]
   'apply-normal': [draft: RawSubstitutionDraft]
+  'register-player': [draft: PlayerRegistrationDraft]
 }>()
 
 const kindLabels: Record<SubstitutionKind, string> = {
@@ -310,6 +314,26 @@ const normalFieldsSelected = computed(
         !question.required || !!normalAnswers.value.get(question.key)?.trim(),
     ),
 )
+const registrationDraft = computed<PlayerRegistrationDraft | null>(() => {
+  if (
+    incomingMode.value !== 'new' ||
+    !selectedOperation.value ||
+    !normalFieldsSelected.value
+  )
+    return null
+  const side = normalAnswers.value.get('side')
+  if (side !== 'away' && side !== 'home') return null
+  return {
+    side,
+    answers: answerRecord(
+      selectedOperation.value.registrationQuestions,
+      normalAnswers.value,
+    ),
+  }
+})
+const canRegister = computed(
+  () => props.registrationEnabled === true && registrationDraft.value !== null,
+)
 const tiebreakQuestions = computed(() => [
   ...(tiebreakReady.value ? props.tiebreakRequest!.placementQuestions : []),
   ...(tiebreakReady.value ? props.tiebreakRequest!.leadBatterQuestions : []),
@@ -505,6 +529,10 @@ const canApplyNormal = computed(
     currentValidation.value?.kind === 'valid',
 )
 
+function registerPlayer(): void {
+  if (!canRegister.value || registrationDraft.value === null) return
+  emit('register-player', registrationDraft.value)
+}
 function applyNormal(): void {
   if (!canApplyNormal.value) return
   const draft = getDrafts().normal
@@ -765,9 +793,20 @@ onMounted(() => {
               </option>
             </select>
           </label>
-          <p v-if="incomingMode === 'new'" class="text-sm">
-            その場登録は下の提供項目を入力してください。登録はまだ行われません。
-          </p>
+          <template v-if="incomingMode === 'new'">
+            <p class="text-sm">
+              下の提供項目を入力して名簿へ登録し、登録後に「登録済み選手から選ぶ」で選んでください。
+            </p>
+            <button
+              type="button"
+              data-testid="substitution-register-player"
+              class="min-h-11 rounded-lg border border-sky-300 bg-sky-50 px-3 font-bold text-sky-800 disabled:opacity-40 dark:border-sky-700 dark:bg-sky-950/40 dark:text-sky-200"
+              :disabled="!canRegister"
+              @click.stop.prevent="registerPlayer"
+            >
+              この選手を名簿へ登録
+            </button>
+          </template>
           <fieldset
             v-for="group in [
               {
