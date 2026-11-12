@@ -1142,19 +1142,49 @@ def test_stage_a_function_registration_matches_exact_asset_and_retains_rg1() -> 
         "SYNC_PLAY_PREFIX:read_play_prefix_history_page",
         "SYNC_PLAY_PREFIX:prepare_play_prefix_projection",
         "SYNC_LINEUP_PREFIX:read_lineup_started_origin",
+        "SYNC_P3:check_p3_right",
+        "SYNC_P3:bind_p3_device",
+        "SYNC_P3:persist_p3_projection",
+        "SYNC_P3:begin_p3_projection_page",
+        "SYNC_P3:append_p3_projection_page",
+        "SYNC_P3:finalize_p3_projection_page",
+        "SYNC_P3:read_p3_current_header",
+        "SYNC_P3:read_p3_current_page",
+        "SYNC_P3:read_p3_current",
         "STATS_PRIMITIVES:save_source",
         "STATS_PRIMITIVES:read_writer_state",
         "STATS_PRIMITIVES:open_snapshot",
         "STATS_PRIMITIVES:read_page",
         "STATS_PRIMITIVES:read_totals",
+        "PLAY_EXPORT_WRITER:save_snapshot",
+        "PLAY_EXPORT_SOURCES:read_page",
+        "PLAY_EXPORT_P3:read_snapshots",
+        "STATS_BASIC:read",
+        "SYNC_NONPLAY:bind_nonplay_device",
+        "SYNC_NONPLAY:check_nonplay_right",
+        "SYNC_NONPLAY:lock_nonplay_checkpoint",
+        "SYNC_NONPLAY:read_nonplay_history_page",
+        "SYNC_NONPLAY:prepare_nonplay_undo",
+        "SYNC_NONPLAY:consume_nonplay_undo",
+        "SYNC_NONPLAY:consume_nonplay_substitution",
+        "SYNC_LIFECYCLE:bind_nonplay_device",
+        "SYNC_LIFECYCLE:check_nonplay_right",
+        "SYNC_LIFECYCLE:read_lifecycle_state",
+        "SYNC_LIFECYCLE:prepare_game_lifecycle",
+        "SYNC_LIFECYCLE:consume_game_lifecycle",
+        "GAME_LIFECYCLE:read_display",
+        "SYNC_ORDINARY_PITCH:read_nonplay_active_history",
+        "STARTED_SNAPSHOT:read_started_ordinary_history_page",
+        "STARTED_SNAPSHOT:read_started_play_prefix_history_page",
+        "STARTED_SNAPSHOT:read_started_nonplay_active_history",
+        "SYNC_PLAY_PREFIX:read_viewer_play_prefix_history_page",
+        "SYNC_PLAY_PREFIX:read_viewer_effective_version",
     )
-    assert len(expected) == 28
+    assert len(expected) == 60
     assert tuple(asset["product_function_operation_ids"]) == expected
     assert repository_contract.PRODUCT_FUNCTION_OPERATION_IDS == expected
-    assert (
-        tuple(row.operation_id for row in PRODUCT_FUNCTION_OPERATIONS[:28]) == expected
-    )
-    assert tuple(row.function_id for row in PRODUCT_FUNCTION_OPERATIONS[:28]) == (
+    assert tuple(row.operation_id for row in PRODUCT_FUNCTION_OPERATIONS) == expected
+    expected_function_ids = (
         "recording_vocab_api.read_batted_ball_options",
         "rg1_api.rg1_read_open",
         "rg1_api.rg1_assert_open_before_commit",
@@ -1178,34 +1208,23 @@ def test_stage_a_function_registration_matches_exact_asset_and_retains_rg1() -> 
         "sync_right_api.read_play_prefix_history_page",
         "sync_right_api.prepare_play_prefix_projection",
         "sync_right_api.read_lineup_started_origin",
+        "sync_right_api.check_p3_right",
+        "sync_right_api.bind_p3_device",
+        "sync_right_api.persist_p3_projection",
+        "sync_right_api.begin_p3_projection_page",
+        "sync_right_api.append_p3_projection_page",
+        "sync_right_api.finalize_p3_projection_page",
+        "sync_right_api.read_p3_current_header",
+        "sync_right_api.read_p3_current_page",
+        "sync_right_api.read_p3_current",
         "stats_api.save_primitive_source",
         "stats_api.read_primitive_writer_state",
         "stats_api.open_primitive_snapshot",
         "stats_api.read_play_export_primitives",
         "stats_api.read_primitive_totals",
-    )
-    assert tuple(row.operation_id for row in PRODUCT_FUNCTION_OPERATIONS[28:]) == (
-        "PLAY_EXPORT_WRITER:save_snapshot",
-        "PLAY_EXPORT_SOURCES:read_page",
-        "STATS_BASIC:read",
-        "SYNC_NONPLAY:bind_nonplay_device",
-        "SYNC_NONPLAY:check_nonplay_right",
-        "SYNC_NONPLAY:lock_nonplay_checkpoint",
-        "SYNC_NONPLAY:read_nonplay_history_page",
-        "SYNC_NONPLAY:prepare_nonplay_undo",
-        "SYNC_NONPLAY:consume_nonplay_undo",
-        "SYNC_NONPLAY:consume_nonplay_substitution",
-        "SYNC_LIFECYCLE:bind_nonplay_device",
-        "SYNC_LIFECYCLE:check_nonplay_right",
-        "SYNC_LIFECYCLE:read_lifecycle_state",
-        "SYNC_LIFECYCLE:prepare_game_lifecycle",
-        "SYNC_LIFECYCLE:consume_game_lifecycle",
-        "GAME_LIFECYCLE:read_display",
-        "SYNC_ORDINARY_PITCH:read_nonplay_active_history",
-    )
-    assert tuple(row.function_id for row in PRODUCT_FUNCTION_OPERATIONS[28:]) == (
         "stats_api.save_writer_play_export_snapshot",
         "stats_api.read_play_export_source_page",
+        "stats_api.read_play_export_p3_snapshots",
         "stats_basic_api.read_basic_stats",
         "sync_right_api.bind_nonplay_device",
         "sync_right_api.check_nonplay_right",
@@ -1221,8 +1240,21 @@ def test_stage_a_function_registration_matches_exact_asset_and_retains_rg1() -> 
         "sync_right_api.consume_game_lifecycle",
         "sync_right_api.read_lifecycle_display",
         "sync_right_api.read_nonplay_active_history",
+        "sync_right_api.read_started_ordinary_history_page",
+        "sync_right_api.read_started_play_prefix_history_page",
+        "sync_right_api.read_started_nonplay_active_history",
+        "sync_right_api.read_viewer_play_prefix_history_page",
+        "sync_right_api.read_viewer_effective_version",
     )
-    stats_tail = PRODUCT_FUNCTION_OPERATIONS[23:28]
+    assert tuple(row.function_id for row in PRODUCT_FUNCTION_OPERATIONS) == (
+        expected_function_ids
+    )
+    stats_tail = tuple(
+        row
+        for row in PRODUCT_FUNCTION_OPERATIONS
+        if row.operation_id.startswith("STATS_PRIMITIVES:")
+    )
+    assert len(stats_tail) == 5
     assert tuple(
         f"{row.token_type.__module__}.{row.token_type.__qualname__}"
         for row in stats_tail

@@ -5,7 +5,7 @@ CONTRACT_REVISION = 39
 ASSET_KIND = "tenant_repository_contract"
 CANONICALIZATION = "json-sort-keys-utf8-v1"
 SOURCE_ASSET = "contracts/tenant_boundary/repository-contract.json"
-SOURCE_DIGEST = "7b0a84ea39c70c581728c118384262f25d91a4ce5aec2e126453e37ae7e8dc38"
+SOURCE_DIGEST = "76b416212f536d1e66e13cfbed58ee322529858028772e8228c5e7a415ab61f4"
 
 REPOSITORY_TYPE = "pitchlog.repositories.base.TenantRepositoryBase"
 CONTEXT_BINDING_ENTRY = "pitchlog.repositories.base.TenantRepositoryBase.execute"
@@ -222,9 +222,41 @@ PRODUCT_FUNCTION_OPERATION_IDS = (
     "SYNC_PLAY_PREFIX:read_play_prefix_history_page",
     "SYNC_PLAY_PREFIX:prepare_play_prefix_projection",
     "SYNC_LINEUP_PREFIX:read_lineup_started_origin",
+    "SYNC_P3:check_p3_right",
+    "SYNC_P3:bind_p3_device",
+    "SYNC_P3:persist_p3_projection",
+    "SYNC_P3:begin_p3_projection_page",
+    "SYNC_P3:append_p3_projection_page",
+    "SYNC_P3:finalize_p3_projection_page",
+    "SYNC_P3:read_p3_current_header",
+    "SYNC_P3:read_p3_current_page",
+    "SYNC_P3:read_p3_current",
     "STATS_PRIMITIVES:save_source",
     "STATS_PRIMITIVES:read_writer_state",
     "STATS_PRIMITIVES:open_snapshot",
     "STATS_PRIMITIVES:read_page",
     "STATS_PRIMITIVES:read_totals",
+    "PLAY_EXPORT_WRITER:save_snapshot",
+    "PLAY_EXPORT_SOURCES:read_page",
+    "PLAY_EXPORT_P3:read_snapshots",
+    "STATS_BASIC:read",
+    "SYNC_NONPLAY:bind_nonplay_device",
+    "SYNC_NONPLAY:check_nonplay_right",
+    "SYNC_NONPLAY:lock_nonplay_checkpoint",
+    "SYNC_NONPLAY:read_nonplay_history_page",
+    "SYNC_NONPLAY:prepare_nonplay_undo",
+    "SYNC_NONPLAY:consume_nonplay_undo",
+    "SYNC_NONPLAY:consume_nonplay_substitution",
+    "SYNC_LIFECYCLE:bind_nonplay_device",
+    "SYNC_LIFECYCLE:check_nonplay_right",
+    "SYNC_LIFECYCLE:read_lifecycle_state",
+    "SYNC_LIFECYCLE:prepare_game_lifecycle",
+    "SYNC_LIFECYCLE:consume_game_lifecycle",
+    "GAME_LIFECYCLE:read_display",
+    "SYNC_ORDINARY_PITCH:read_nonplay_active_history",
+    "STARTED_SNAPSHOT:read_started_ordinary_history_page",
+    "STARTED_SNAPSHOT:read_started_play_prefix_history_page",
+    "STARTED_SNAPSHOT:read_started_nonplay_active_history",
+    "SYNC_PLAY_PREFIX:read_viewer_play_prefix_history_page",
+    "SYNC_PLAY_PREFIX:read_viewer_effective_version",
 )
