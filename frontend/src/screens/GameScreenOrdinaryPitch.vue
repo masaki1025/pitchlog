@@ -38,6 +38,7 @@ import { ordinaryPitchLockReason } from './ordinaryPitchLock'
 import { useAuthStore } from '../stores/authStore'
 import {
   GameScreenOrdinaryPitchController,
+  type AttemptInspection,
   type OrdinaryOperationResult,
   type LocalOrdinaryResult,
 } from './GameScreenOrdinaryPitchController'
@@ -719,6 +720,8 @@ const nextCursor = ref<string | null>(null)
 const loading = ref(false)
 const failed = ref(false)
 const busy = ref(false)
+const inspecting = ref(false)
+const inspectState = ref<AttemptInspection | 'idle'>('idle')
 const status = ref<OrdinaryOperationResult | LocalOrdinaryResult>('blocked')
 const sameProfile = ref(false),
   sameMode = ref(false),
@@ -797,6 +800,10 @@ const message = computed(() => {
     return 'サーバーの最新記録を確認しています。入力と再送を一時停止します'
   if (retryEvidenceUnavailable.value)
     return '再送に必要な元要求の送信記録を確認できません。新しい要求に置き換えず、運用責任者に確認してください'
+  if (inspectState.value === 'unresolved')
+    return '保存済みか未確定かを断定できません。結果確認中です'
+  if (inspectState.value === 'retry_allowed' && status.value === 'pending')
+    return '元の要求を照会し、後着を遮断して再送できることを確認しました'
   if (busy.value)
     return isLocalMode.value
       ? '端末の未送信記録を確認しています'
@@ -1011,6 +1018,7 @@ async function save(override?: PlayScreenObservation['resultId']) {
       ? current.canAppendLocal
       : current.canAppend
     retryEvidenceUnavailable.value = current.retryEvidenceUnavailable
+    if (result === 'saved') inspectState.value = 'idle'
     if (
       result === 'saved' ||
       result === 'pending' ||
@@ -1068,6 +1076,28 @@ async function saveIntentionalWalk() {
     if (controller === current) busy.value = false
   }
 }
+async function inspect(): Promise<AttemptInspection> {
+  if (
+    localRequested.value ||
+    props.suspended ||
+    !controller ||
+    !confirmed.value ||
+    !identity().verified ||
+    inspecting.value
+  )
+    return 'blocked'
+  const current = controller
+  inspecting.value = true
+  try {
+    const resolution = await current.inspectAttempt()
+    if (controller !== current || props.suspended) return 'blocked'
+    inspectState.value = resolution
+    retryEvidenceUnavailable.value = current.retryEvidenceUnavailable
+    return resolution
+  } finally {
+    if (controller === current) inspecting.value = false
+  }
+}
 async function retry(): Promise<OrdinaryOperationResult | null> {
   if (
     localRequested.value ||
@@ -1087,6 +1117,7 @@ async function retry(): Promise<OrdinaryOperationResult | null> {
     displayed.value = current.context
     canAppend.value = current.canAppend
     retryEvidenceUnavailable.value = current.retryEvidenceUnavailable
+    if (result === 'saved') inspectState.value = 'idle'
     if (result === 'saved' || result === 'pending') point.value = null
     if (result === 'saved') emit('saved')
     return result
@@ -1106,9 +1137,8 @@ watch(confirmed, async (ready) => {
     canAppend.value = current.canAppendLocal
     retryEvidenceUnavailable.value = current.retryEvidenceUnavailable
     if (result === 'ready' || result === 'pending') await load(null)
-  } else if (status.value === 'pending' && identity().verified) {
-    await retry()
   }
+  // 未確認要求は自動送信しない。利用者が「結果を照会」で終結を確認してから再送する。
 })
 let watchedInput: {
   context: RecordingContext
@@ -1226,9 +1256,7 @@ watch(
         ? current.canAppendLocal
         : current.canAppend
       retryEvidenceUnavailable.value = current.retryEvidenceUnavailable
-      if (result === 'pending' && !localRequested.value && confirmed.value) {
-        if ((await retry()) === 'saved' || controller !== current) return
-      }
+      // reload直後は自動送信せず、利用者の照会から再開する。
       if (
         items.value.length === 0 &&
         (result === 'ready' || result === 'pending')
@@ -1284,9 +1312,20 @@ onScopeDispose(() => {
       >
       <button
         type="button"
+        data-testid="first-ball-inspect"
+        class="min-h-9 rounded-lg border border-red-300 bg-white px-2 font-bold text-red-800 disabled:opacity-40 dark:border-red-700 dark:bg-slate-900 dark:text-red-200"
+        :disabled="inspecting || !confirmed"
+        @click="inspect"
+      >
+        結果を照会
+      </button>
+      <button
+        type="button"
         data-testid="first-ball-retry"
         class="min-h-9 rounded-lg border border-red-300 bg-white px-2 font-bold text-red-800 disabled:opacity-40 dark:border-red-700 dark:bg-slate-900 dark:text-red-200"
-        :disabled="busy || !confirmed"
+        :disabled="
+          busy || !confirmed || inspecting || inspectState === 'unresolved'
+        "
         @click="retry"
       >
         再送
@@ -2058,15 +2097,42 @@ onScopeDispose(() => {
         >
           未確認の要求が端末に残っています。同じ要求を再送し、サーバーの受理結果を確認してください。
         </p>
-        <button
-          v-if="status === 'pending' && !isLocalMode"
-          type="button"
-          class="min-h-12 w-full rounded-xl bg-sky-600 px-4 font-bold text-white disabled:opacity-40"
-          :disabled="busy || !confirmed"
-          @click="retry"
-        >
-          同じ要求を再送
-        </button>
+        <div v-if="status === 'pending' && !isLocalMode" class="space-y-2">
+          <button
+            type="button"
+            data-testid="sync-inspect"
+            class="min-h-12 w-full rounded-xl border border-sky-300 bg-white px-4 font-bold text-sky-800 disabled:opacity-40 dark:border-sky-700 dark:bg-slate-900 dark:text-sky-200"
+            :disabled="inspecting || !confirmed"
+            @click="inspect"
+          >
+            結果を照会（保存要求は送りません）
+          </button>
+          <button
+            type="button"
+            data-testid="sync-retry"
+            class="min-h-12 w-full rounded-xl bg-sky-600 px-4 font-bold text-white disabled:opacity-40"
+            :disabled="
+              busy || !confirmed || inspecting || inspectState === 'unresolved'
+            "
+            @click="retry"
+          >
+            同じ要求を再送
+          </button>
+          <p
+            v-if="inspectState === 'unresolved'"
+            role="status"
+            class="rounded-lg border border-amber-300 bg-amber-50 p-2 text-xs font-bold text-amber-900"
+          >
+            照会では保存済み・未保存を確定できませんでした。結果確認中のまま、再送しません。
+          </p>
+          <p
+            v-else-if="inspectState === 'retry_allowed'"
+            role="status"
+            class="rounded-lg border border-emerald-300 bg-emerald-50 p-2 text-xs font-bold text-emerald-900"
+          >
+            旧要求を終結し、後着を遮断しました。同じ本文のまま再送できます。
+          </p>
+        </div>
         <p v-else class="text-slate-500">
           現在のこの画面からの未確認要求はありません。
         </p>

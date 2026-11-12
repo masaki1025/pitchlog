@@ -25,6 +25,8 @@ import {
   type PreparedEnvelope,
 } from '../lib/ordinaryPreparedEnvelopePersistence'
 import * as transport from '../api/client.syncEvents'
+import * as recovery from '../api/syncAttemptRecovery'
+import { SyncAttemptBarrier } from '../lib/syncAttemptBarrier'
 import type { SingleWriterInjections } from '../lib/sync/singleWriter'
 import type { OrdinaryScreenObservation } from './GameScreenOrdinaryPitchProvider'
 import { GameScreenOrdinaryPitchController } from './GameScreenOrdinaryPitchController'
@@ -1500,4 +1502,98 @@ it('0件の真正v3 seedから初球送信失敗後も2球目を耐久appendし�
     first.syncCredentials?.attempt,
   )
   expect(post.mock.calls[1]![0].slots[0]!.d5).toBe(first.slots[0]!.d5)
+})
+
+it('照会は保存要求を送らず、旧attemptの終結後だけ同じ本文を次attemptで再送する', async () => {
+  const post = vi
+    .spyOn(transport, 'postSyncEvents')
+    .mockResolvedValue({ sent: false, reason: 'no-response' })
+  const c = controller()
+  expect(await c.inspect()).toBe('ready')
+  expect(await c.submit(observation, vocabulary)).toBe('pending')
+  const first = post.mock.calls[0]![0]
+  const body = transport.buildSyncEventRequestBody(first)
+  if (!('events' in body)) throw new Error('単一要求不正')
+  const origin = first.syncCredentials!.attempt
+  const barrier = await SyncAttemptBarrier.open()
+  let advanced: string
+  try {
+    const prepared = await barrier.prepare(tenant, raw.id, body, tenant, origin)
+    expect(prepared.created).toBe(true)
+  } finally {
+    barrier.close()
+  }
+  const recover = vi
+    .spyOn(recovery, 'recoverSyncAttempt')
+    .mockResolvedValue('retry_allowed')
+  // 照会だけでは保存POSTを増やさない。
+  expect(await c.inspectAttempt()).toBe('retry_allowed')
+  expect(post).toHaveBeenCalledOnce()
+  expect(recover).toHaveBeenCalledOnce()
+  expect(recover.mock.calls[0]![2].attempt).toBe(origin)
+  const afterInspect = await SyncAttemptBarrier.open()
+  try {
+    const prepared = await afterInspect.prepare(
+      tenant,
+      raw.id,
+      body,
+      tenant,
+      origin,
+    )
+    advanced = prepared.barrier.currentAttemptId
+    expect(advanced).not.toBe(origin)
+  } finally {
+    afterInspect.close()
+  }
+  const acceptedPost = accepted()
+  acceptedPost.mockClear()
+  expect(await c.retry()).toBe('saved')
+  expect(acceptedPost).toHaveBeenCalledOnce()
+  const retried = acceptedPost.mock.calls[0]![0]
+  expect(acceptedPost.mock.calls[0]![1]).toMatchObject({ skipRecovery: true })
+  expect(transport.buildSyncEventRequestBody(retried)).toEqual(body)
+  expect(retried.slots[0]!.d5).toBe(first.slots[0]!.d5)
+})
+
+it('照会unresolvedでは再送せず、結果確認中を維持する', async () => {
+  const post = vi
+    .spyOn(transport, 'postSyncEvents')
+    .mockResolvedValue({ sent: false, reason: 'no-response' })
+  const c = controller()
+  expect(await c.inspect()).toBe('ready')
+  expect(await c.submit(observation, vocabulary)).toBe('pending')
+  const first = post.mock.calls[0]![0]
+  const body = transport.buildSyncEventRequestBody(first)
+  if (!('events' in body)) throw new Error('単一要求不正')
+  const origin = first.syncCredentials!.attempt
+  const barrier = await SyncAttemptBarrier.open()
+  try {
+    await barrier.prepare(tenant, raw.id, body, tenant, origin)
+  } finally {
+    barrier.close()
+  }
+  vi.spyOn(recovery, 'recoverSyncAttempt').mockResolvedValue('unresolved')
+  expect(await c.inspectAttempt()).toBe('unresolved')
+  expect(post).toHaveBeenCalledOnce()
+  expect(await c.retry()).toBe('pending')
+  expect(post).toHaveBeenCalledOnce()
+  const after = await SyncAttemptBarrier.open()
+  try {
+    const prepared = await after.prepare(tenant, raw.id, body, tenant, origin)
+    expect(prepared.barrier.currentAttemptId).toBe(origin)
+  } finally {
+    after.close()
+  }
+})
+
+it('未送信バリアが無いpendingは照会でretry_allowedとし、保存POSTを送らない', async () => {
+  const post = vi
+    .spyOn(transport, 'postSyncEvents')
+    .mockResolvedValue({ sent: false, reason: 'no-response' })
+  const c = controller()
+  expect(await c.inspect()).toBe('ready')
+  expect(await c.submit(observation, vocabulary)).toBe('pending')
+  expect(post).toHaveBeenCalledOnce()
+  expect(await c.inspectAttempt()).toBe('retry_allowed')
+  expect(post).toHaveBeenCalledOnce()
 })

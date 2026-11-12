@@ -659,9 +659,24 @@ it('online復帰後は確認済み条件の後だけ先頭同attemptを1回再�
         resumed.find('[data-testid="first-ball-env-profile"]').exists(),
       ).toBe(true),
     )
+    // 未確認要求の復元が終わってから安全確認を済ませ、照会→再送を一度だけ起こす。
+    await vi.waitFor(() =>
+      expect(resumed.find('[data-testid="first-ball-inspect"]').exists()).toBe(
+        true,
+      ),
+    )
     expect(post).toHaveBeenCalledTimes(1)
     for (const name of ['profile', 'mode', 'bucket', 'lockdown'])
       await resumed.get(`[data-testid="first-ball-env-${name}"]`).setValue(true)
+    // 自動送信せず、照会で終結を確認した後だけ再送する。
+    await resumed.get('[data-testid="first-ball-inspect"]').trigger('click')
+    await vi.waitFor(() =>
+      expect(
+        resumed.find('[data-testid="first-ball-retry"]').attributes('disabled'),
+      ).toBeUndefined(),
+    )
+    expect(post).toHaveBeenCalledTimes(1)
+    await resumed.get('[data-testid="first-ball-retry"]').trigger('click')
     await vi.waitFor(() => expect(resumed.emitted('saved')).toHaveLength(1))
     expect(post).toHaveBeenCalledTimes(2)
     expect(post.mock.calls[1]![0].syncCredentials?.attempt).toBe(

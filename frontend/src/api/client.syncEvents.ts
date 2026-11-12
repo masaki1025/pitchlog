@@ -255,6 +255,7 @@ export function buildSyncEventRequestBody(
  */
 export async function postSyncEvents(
   request: SyncEventSendRequest,
+  options: { skipRecovery?: boolean; signal?: AbortSignal } = {},
 ): Promise<SyncEventSendResult> {
   const built = buildSyncEventRequestBody(request)
   if ('sent' in built) {
@@ -266,6 +267,7 @@ export async function postSyncEvents(
       request.gameId,
       built,
       request.syncCredentials,
+      options,
     )
     return { sent: true, requestBody: sent.body, response: sent.response }
   } catch (error) {

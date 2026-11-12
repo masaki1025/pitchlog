@@ -263,24 +263,35 @@ test('実browserを閉じて同profileを再起動し、元要求を復旧して
         timeout: 60_000,
       })
       await confirmSafety(page)
-      // 確認後の自動再送が走る場合は完了を待ち、失敗時だけ可視の再送導線を使う。
+      // 未確認要求は自動送信しない。可視の照会導線からだけ終結を確認する。
+      const inspect = page.getByTestId('first-ball-inspect')
+      await expect(inspect).toBeVisible({ timeout: 60_000 })
+      await expect(inspect).toBeEnabled({ timeout: 60_000 })
+      let recoverAttempts = 0
+      const recoverPath = `/api/games/${gameId}/sync/attempts/recover`
+      await page.route(`**${recoverPath}`, async (route) => {
+        recoverAttempts += 1
+        // 1回目は照会中の切断。保存要求へ進まず、再照会できることを確認する。
+        if (recoverAttempts === 1) return route.abort('failed')
+        return route.continue()
+      })
+      await inspect.click()
+      await expect.poll(() => recoverAttempts, { timeout: 30_000 }).toBe(1)
+      await expect(inspect).toBeEnabled({ timeout: 60_000 })
+      expect(resent).toHaveLength(0)
+      await inspect.click()
+      await expect.poll(() => resolutions.length, { timeout: 120_000 }).toBe(1)
+      await page.unroute(`**${recoverPath}`)
       const retry = page.getByTestId('first-ball-retry')
-      await retry
-        .waitFor({ state: 'visible', timeout: 60_000 })
-        .catch(() => undefined)
-      if (await retry.isVisible().catch(() => false)) {
-        await retry.click()
-      } else {
-        await page.getByTestId('record-sync').click()
-        const sync = page.getByRole('dialog', { name: '同期センター' })
-        await sync.getByRole('button', { name: '同じ要求を再送' }).click()
-        await sync.getByRole('button', { name: '閉じる' }).click()
-      }
+      await expect(retry).toBeEnabled({ timeout: 60_000 })
+      await retry.click()
       await expect
         .poll(() => acknowledgements.length, { timeout: 180_000 })
         .toBe(1)
       expect(resolutions).toEqual(['retry_allowed'])
+      // 切断された照会も成功した照会も、元本文/元attemptのまま。
       expect(recoveries).toEqual([
+        { body: originalBodySha, attempt: originalAttemptSha },
         { body: originalBodySha, attempt: originalAttemptSha },
       ])
       expect(resent).toHaveLength(1)

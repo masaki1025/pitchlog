@@ -40,6 +40,8 @@ import artifactIdentity from '../../public/domain/pitchlog-domain.json'
 import { invokeFirstBallDomain } from '../lib/generated/wrappers/domainArtifact'
 import { GameStartPersistence } from '../lib/gameStartPersistence'
 import { FirstBallAttemptPersistence } from '../lib/firstBallAttemptPersistence'
+import { SyncAttemptBarrier } from '../lib/syncAttemptBarrier'
+import { recoverSyncAttempt } from '../api/syncAttemptRecovery'
 import { OrdinaryPitchAttemptPersistence } from '../lib/ordinaryPitchAttemptPersistence'
 import {
   digestPreparedEnvelope,
@@ -92,6 +94,8 @@ function isLegacyLineupPayload(
   return value.calculation.formatVersion === 'play-prefix-calculation-v3'
 }
 export type OrdinaryOperationResult = 'ready' | 'saved' | 'pending' | 'blocked'
+/** 旧要求の権威照会だけを表す。保存要求の送信とは区別する。 */
+export type AttemptInspection = 'retry_allowed' | 'unresolved' | 'blocked'
 export type LocalOrdinaryResult = 'queued-local' | 'pending' | 'blocked'
 type Resources = {
   queue: DurableQueue
@@ -123,6 +127,10 @@ export class GameScreenOrdinaryPitchController {
   #head: number
   #canAppend = true
   #retryEvidenceUnavailable = false
+  #inspection: Promise<AttemptInspection> | null = null
+  #inspectionResult: AttemptInspection | null = null
+  #recovery: string | null = null
+  #sendAbort: AbortController | null = null
   #localBoundary: LocalAcceptanceBoundary | null
   #localAcceptanceActive = false
   #onSubmitError: ((error: unknown, detail: unknown) => void) | undefined
@@ -819,6 +827,8 @@ export class GameScreenOrdinaryPitchController {
     )
       return 'blocked'
     if (this.#busy || !this.#canAppend) return 'blocked'
+    // 新しい独立操作は直前の照会結果を引き継がない。
+    this.#inspectionResult = null
     this.#busy = true
     let stage = 'open'
     try {
@@ -1200,15 +1210,104 @@ export class GameScreenOrdinaryPitchController {
       this.#closeIfDisposed()
     }
   }
+  /**
+   * 保存要求を送らず、旧attemptの権威照会だけを行う。
+   *
+   * 照会でretry_allowedが確定した場合だけ、同じ本文の次attemptを固定して
+   * 再送可能にする。unresolvedでは保存済み/未保存を断定しない。
+   */
+  async inspectAttempt(): Promise<AttemptInspection> {
+    if (this.#localBoundary || this.#disposed) return 'blocked'
+    if (this.#inspection) return this.#inspection
+    const running = this.#inspectAttempt()
+      .then((result) => {
+        this.#inspectionResult = result
+        return result
+      })
+      .finally(() => {
+        if (this.#inspection === running) this.#inspection = null
+      })
+    this.#inspection = running
+    return running
+  }
+  async #inspectAttempt(): Promise<AttemptInspection> {
+    try {
+      await this.#open()
+      this.#assert()
+      const first = await this.#oldestUnsettledD1()
+      if (first === null) return 'retry_allowed'
+      this.#head = first
+      const slot = await this.#resources!.queue.readSlot(this.#scope(), first)
+      if (
+        !slot ||
+        typeof slot.d5 !== 'string' ||
+        slot.state !== queueStateId('未送信')
+      )
+        return 'unresolved'
+      const request: SyncEventSendRequest = {
+        gameId: this.#context.game.id,
+        recordingRightProof: this.#resources!.grant.recording_right_proof,
+        slots: [slot],
+        eventKinds: kinds,
+      }
+      let credentials: SyncRequestCredentials
+      try {
+        credentials = await this.#credentials(request, 'retry')
+      } catch {
+        this.#retryEvidenceUnavailable = true
+        return 'blocked'
+      }
+      this.#retryEvidenceUnavailable = false
+      const body = buildSyncEventRequestBody(request)
+      if (!('events' in body)) return 'blocked'
+      const barrier = await SyncAttemptBarrier.open()
+      try {
+        const prepared = await barrier.prepare(
+          this.#identity.tenantId!,
+          this.#context.game.id,
+          body,
+          credentials.deviceId,
+          credentials.attempt,
+        )
+        // 送信前バリアが無ければ、この端末からは未送信。再送してよい。
+        if (prepared.created) return 'retry_allowed'
+        const resolution = await recoverSyncAttempt(
+          this.#context.game.id,
+          body,
+          { ...credentials, attempt: prepared.barrier.currentAttemptId },
+        )
+        if (resolution !== 'retry_allowed') return 'unresolved'
+        const nextAttemptId = crypto.randomUUID()
+        await barrier.advance(prepared.barrier, nextAttemptId)
+        this.#recovery = nextAttemptId
+        // 旧attemptを終結済みなので、進行中の同一要求は遅着遮断の対象。
+        this.#sendAbort?.abort()
+        return 'retry_allowed'
+      } finally {
+        barrier.close()
+      }
+    } catch {
+      return 'blocked'
+    }
+  }
   /** 同じslot/body/attemptだけを送る。新規D1/D5は作らない。 */
   async retry(): Promise<OrdinaryOperationResult> {
     if (this.#localBoundary) return 'blocked'
     if (this.#busy) return 'blocked'
+    // 照会で未確定のままなら、保存要求を送らず結果確認中を維持する。
+    if (this.#inspectionResult === 'unresolved') return 'pending'
+    // 照会と送信を同じ要求で競合させない。照会が未確定なら送らない。
+    if (this.#inspection) {
+      const inspected = await this.#inspection
+      if (inspected !== 'retry_allowed') return 'pending'
+    }
     this.#busy = true
+    let recovery: string | null = null
     try {
       await this.#open()
       const r = this.#resources!
       this.#assert()
+      recovery = this.#recovery
       const result = await runAsSingleWriter<OrdinaryOperationResult>(
         { gameIdentifier: this.#context.game.id },
         async () => {
@@ -1238,10 +1337,16 @@ export class GameScreenOrdinaryPitchController {
           }
           this.#retryEvidenceUnavailable = false
           this.#assert()
-          const sent = await postSyncEvents({
-            ...request,
-            syncCredentials: credentials,
-          })
+          const abort = new AbortController()
+          this.#sendAbort = abort
+          const sent = await postSyncEvents(
+            {
+              ...request,
+              syncCredentials: credentials,
+            },
+            { skipRecovery: recovery !== null, signal: abort.signal },
+          )
+          if (this.#sendAbort === abort) this.#sendAbort = null
           if (!sent.sent) return 'pending'
           this.#assert()
           const ack = readOrdinaryPitchAck(sent.response, {
@@ -1256,6 +1361,7 @@ export class GameScreenOrdinaryPitchController {
           this.#assert()
           if (applied.outcome !== 'applied') return 'pending'
           this.#head = slot.d1 + 1
+          this.#inspectionResult = null
           return 'saved'
         },
         withNonBlockingSingleWriter(this.#writerInjections()),
@@ -1264,6 +1370,8 @@ export class GameScreenOrdinaryPitchController {
     } catch {
       return 'pending'
     } finally {
+      if (recovery !== null && this.#recovery === recovery)
+        this.#recovery = null
       this.#busy = false
       this.#closeIfDisposed()
     }

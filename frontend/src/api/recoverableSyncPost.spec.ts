@@ -7,6 +7,7 @@ import {
   postRecoverableP3Change,
   postRecoverableSyncRequest,
 } from './recoverableSyncPost'
+import { SyncAttemptBarrier } from '../lib/syncAttemptBarrier'
 
 const tenant = '00000000-0000-4000-8000-000000000011'
 const game = '00000000-0000-4000-8000-000000000012'
@@ -123,4 +124,55 @@ it('P3原本文を旧events入口へ送信しない', async () => {
     postRecoverableSyncRequest(game, body(), credentials),
   ).rejects.toThrow()
   expect(fetcher).not.toHaveBeenCalled()
+})
+
+it('照会済みの本文は再照会せず、固定した次attemptで送る', async () => {
+  const d5 = '00000000-0000-4000-8000-000000000015'
+  const original = {
+    recording_right_proof: 'original-proof',
+    events: [
+      {
+        d5,
+        d1: 1,
+        d4: 'D4',
+        game_id: game,
+        event_kind: 'play',
+        payload: { observed: 'original' },
+      },
+    ],
+  }
+  const sent: { url: string; attempt: string | null }[] = []
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url: string, init?: RequestInit) => {
+      sent.push({
+        url,
+        attempt: new Headers(init?.headers).get('X-Pitchlog-Sync-Attempt'),
+      })
+      return response(init, { testOnly: 'not-a-product-ack' })
+    }),
+  )
+  await postRecoverableSyncRequest(game, original, credentials)
+  expect(sent).toEqual([{ url: `/api/games/${game}/sync/events`, attempt }])
+  const barrier = await SyncAttemptBarrier.open()
+  const next = '00000000-0000-4000-8000-000000000099'
+  try {
+    const prepared = await barrier.prepare(
+      tenant,
+      game,
+      original,
+      device,
+      attempt,
+    )
+    await barrier.advance(prepared.barrier, next)
+  } finally {
+    barrier.close()
+  }
+  sent.length = 0
+  await postRecoverableSyncRequest(game, original, credentials, {
+    skipRecovery: true,
+  })
+  expect(sent).toEqual([
+    { url: `/api/games/${game}/sync/events`, attempt: next },
+  ])
 })
