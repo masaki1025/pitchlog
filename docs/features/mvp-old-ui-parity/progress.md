@@ -1,5 +1,12 @@
 # 進捗: 旧 Baseball_Scoring 画面への操作感一致
 
+## 2026-11-13 00:35 JST — 55プレイ通しE2E通過
+
+- `test_screen_nine_innings_batted_out_stats_and_csv` が **1 passed / 636.91秒**。実HTTPS・実ブラウザ・owned DBで、新規作成→開始→55プレイ（18半回、本塁打1＋凡打54）→終了宣言→reload→成績27項目→毎球ZIP/成績CSVまで保存原本と照合した。
+- 打球観測の停止原因は、打球結果の選択直後に親contextが暫定→確認済みへ変わり、観測フォームが再生成されて選択中の値selectがDOMから外れる競合だった。語彙を同一tenant/epochの先頭ページだけモジュールcacheで再利用し、フォーム再生成時の語彙再取得待ちをなくした。
+- 終了宣言はメニュー→「試合の終了・再開」Sheetを実画面で開き、確認4項目→`lifecycle-refresh`→終了の順で操作する。最終head/成績/CSVの証拠readはtenant照合header付きの実GETで取得する。
+- フロント全件 **4135 passed**。backend対象 **281 passed**。
+
 ## 2026-11-13 00:00 JST — 55プレイE2Eの打球観測ブロッカーを特定
 
 - 55プレイE2Eは最初の半回（4球、1回表完了）まで実画面で保存できた。5球目以降の打球観測で `batted-value-typeKey` がdisabledのまま30秒で停止する。
