@@ -302,7 +302,7 @@ function inPlayDisabled(result: string): boolean {
           <button
             type="button"
             class="min-h-10 rounded-lg border border-slate-300 bg-white px-1 text-[11px] font-bold text-slate-700 disabled:pointer-events-none disabled:opacity-40 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
-            :disabled="disabled || busy || !hitAvailable"
+            :disabled="disabled || busy || !hitAvailable || !hasRunners"
             title="走者の実結果を確認して付加結果を記録します"
             @click="emit('secondary', 'secondary-result.passed-ball')"
           >
@@ -311,7 +311,7 @@ function inPlayDisabled(result: string): boolean {
           <button
             type="button"
             class="min-h-10 rounded-lg border border-slate-300 bg-white px-1 text-[11px] font-bold text-slate-700 disabled:pointer-events-none disabled:opacity-40 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
-            :disabled="disabled || busy || !hitAvailable"
+            :disabled="disabled || busy || !hitAvailable || !hasRunners"
             title="走者の実結果を確認して付加結果を記録します"
             @click="emit('secondary', 'secondary-result.wild-pitch')"
           >
@@ -350,7 +350,8 @@ function inPlayDisabled(result: string): boolean {
           <button
             type="button"
             class="min-h-10 rounded-lg border border-slate-300 bg-white px-1 text-[11px] font-bold text-slate-700 disabled:pointer-events-none disabled:opacity-40 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
-            :disabled="disabled || busy || !hitAvailable"
+            :disabled="disabled || busy || !hitAvailable || !hasRunners"
+            title="走者がいる場合に記録できます"
             @click="emit('balk', 'secondary-result.balk')"
           >
             ボーク

@@ -107,8 +107,6 @@ function confirm() {
     !third.value ||
     (props.runners.length === 0 &&
       ![
-        'secondary-result.wild-pitch',
-        'secondary-result.passed-ball',
         'secondary-result.balk',
         'secondary-result.pitch-clock-violation',
       ].includes(operation.value))

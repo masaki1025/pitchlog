@@ -677,9 +677,12 @@ async function confirmNextBatter() {
   await nextTick()
   await save()
 }
-watch([runnerMode, battedContextKey], () => {
+watch(battedContextKey, () => {
   runnerObservation.value = null
   if (batted.value || interference.value) runnerMode.value = false
+})
+watch(runnerMode, (value) => {
+  if (!value) runnerObservation.value = null
 })
 watch([resultId, battedContextKey], () => {
   battedHit.value = null
@@ -901,6 +904,9 @@ async function save(override?: PlayScreenObservation['resultId']) {
       verified: identity().verified,
       hydrated: auth.hasHydrated,
       authenticated: auth.isAuthenticated,
+      controller: controller !== null,
+      runnerMode: runnerMode.value,
+      runnerObservation: runnerObservation.value !== null,
     }
   }
   missingCourse.value = !runnerNonpitch.value && point.value === null

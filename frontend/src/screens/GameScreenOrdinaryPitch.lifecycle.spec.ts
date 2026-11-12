@@ -26,6 +26,24 @@ const raw = JSON.parse(
   readFileSync(resolve('src/api/fixtures/recordedPrefixGame.v1.json'), 'utf8'),
 ).positive[0].value
 const tenant = raw.prefix_ref.tenantId
+async function lineupContextWithRunner() {
+  const source = structuredClone(lineupFixture.value)
+  if (!isLineupPrefixGame(source)) throw new Error('構造fixture不正')
+  const ctx = (await lineupContextFromRead(source, tenant)) as any
+  const after = structuredClone(ctx.after)
+  after.stateFields['state.runners'] = 'first'
+  const runner = {
+    runnerId: ctx.game.roster.teams[0].participants[1].player.player_id,
+    responsiblePitcherId: ctx.lineupSource.participants.pitcherId,
+    base: '1',
+    status: '継続',
+    statusSource: 'auto',
+  }
+  ctx.after = after
+  ctx.lineupSource.after = structuredClone(after)
+  ctx.lineupSource.runners = [runner]
+  return ctx
+}
 const context = () => ({
   ...ordinaryContextFromRead(raw, tenant),
   serverStamp: {
@@ -853,6 +871,12 @@ it('旧画面の可視ボールボタンから実Controllerへ1球を送信す�
     wrapper.getComponent(StrikeZone).vm.$emit('tap', 131.5, 124)
     await flushPromises()
     await wrapper.get('[data-result-id="batting-result.ball"]').trigger('click')
+    await flushPromises()
+    console.log(
+      'SUBMIT_ERR',
+      (globalThis as any).__pitchlogSubmitError,
+      (globalThis as any).__pitchlogSubmitDetail,
+    )
     await vi.waitFor(() => expect(post).toHaveBeenCalledOnce(), {
       timeout: 6000,
     })
@@ -979,10 +1003,8 @@ it('lineup-prefixのreadがないときは過去訂正を無効にする', async
 })
 
 it('付加結果PBから走者観測シートを開き、対象操作をプリセットする', async () => {
-  const source = structuredClone(lineupFixture.value)
-  if (!isLineupPrefixGame(source)) throw new Error('構造fixture不正')
   const wrapper = mount(GameScreenOrdinaryPitch, {
-    props: { context: await lineupContextFromRead(source, tenant) },
+    props: { context: await lineupContextWithRunner() },
     global: { plugins: [pinia] },
   })
   try {

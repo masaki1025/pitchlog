@@ -84,7 +84,7 @@ describe('LegacyResultPad', () => {
 })
 
 it('PB/WPを付加結果として通知し、付加結果中は打球結果を止める', async () => {
-  const wrapper = mountPad()
+  const wrapper = mountPad({ hasRunners: true })
   const pb = wrapper.findAll('button').find((button) => button.text() === 'PB')
   expect(pb).toBeDefined()
   await pb!.trigger('click')
@@ -108,7 +108,7 @@ it('PB/WPを付加結果として通知し、付加結果中は打球結果を�
 })
 
 it('打撃妨害・守備妨害・ボークを通知する', async () => {
-  const wrapper = mountPad()
+  const wrapper = mountPad({ hasRunners: true })
   for (const label of ['打撃妨害', '守備妨害', 'ボーク']) {
     await wrapper
       .findAll('button')
