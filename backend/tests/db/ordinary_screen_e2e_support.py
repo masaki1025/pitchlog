@@ -345,7 +345,7 @@ test('実HTTPSの新規試合で通常3球を保存・同要求再送・reload�
       }
     })
     await page
-      .getByRole('button', { name: '新規作成', exact: true })
+      .getByRole('button', { name: '新しい試合', exact: true })
       .click()
     const form = page.getByRole('region', {
       name: '試合の新規作成',
