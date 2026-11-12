@@ -3,14 +3,14 @@
 ## 固定HEAD
 
 - ブランチ: `feature/mvp-integration-20261109`
-- HEAD: `5521beef`（コードは `586abd72`、以降は台帳・引渡し資料のみ）
+- HEAD: `6b20083c`（コードは `586abd72`、以降は台帳・引渡し資料のみ）
 - 比較元: `1989001a`（この日の開始時点）
 - main / develop への push は行っていない。すべてローカルコミット。
 
 ## 候補環境（テスト所有・使い捨て）
 
-- URL: `https://127.0.0.1:40803`
-- チーム名: `initial-scope-56e8275d279c43309cb2047bfbeef2c5`
+- URL: `https://127.0.0.1:60933`
+- チーム名: `initial-scope-0ec4f78636a446758004f48109885242`
 - パスワード: `public-owned-vertical-password-A1`
 - これは `test_manual_app.py` が起動する owned DB / 実app / Vite の隔離環境であり、製品環境・実機・本番TLSの証拠ではない。環境を再起動すると URL・チーム名は変わる。
 
