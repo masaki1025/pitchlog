@@ -1,5 +1,12 @@
 # 進捗: 旧 Baseball_Scoring 画面への操作感一致
 
+## 2026-11-13 00:00 JST — 55プレイE2Eの打球観測ブロッカーを特定
+
+- 55プレイE2Eは最初の半回（4球、1回表完了）まで実画面で保存できた。5球目以降の打球観測で `batted-value-typeKey` がdisabledのまま30秒で停止する。
+- 切り分け: `GET /api/vocabularies/batted-balls` は **200**、`X-Pitchlog-Tenant-Match: 1` とchallenge付き、items 2件。コンポーネントの `load` も `items.length=2` で完了している。
+- 可視パネルに限定しても、同じ画面に複数の `GameScreenBattedHitObservation` 状態が存在するタイミングがあり、E2Eがdisabled側のselectを掴む。次は「可視パネルのactive instanceだけがload結果を持つ」ようにコンポーネントの再生成・watchを整理する。固定語彙での補完や保存成功の偽装はしない。
+- 通常3球E2Eの最初のケース、通信断cold再起動E2Eは通過済み。55プレイ通しは未通過のまま。
+
 ## 2026-11-12 23:00 JST — ACK喪失E2Eの追従と残差
 
 - `GameScreenAttemptRecovery.e2e.ts` の安全確認を可視Sheet導線へ、通常結果の保存を可視結果パッドへ追従させた。復元後に別Sheetが開いていてもEscapeで戻る。
