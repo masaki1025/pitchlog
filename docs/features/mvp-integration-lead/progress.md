@@ -29,6 +29,11 @@
 | 成績27項目 | 実画面実証済み | 新`test_stats_screen_e2e` **1 passed / 139.35秒**。公式モードで打撃18列＋投手13列−選手/チーム4列＝**27項目**、成績CSV 5262 bytesを実ダウンロード |
 | 毎球CSV・成績CSV | 実画面実証済み | `test_play_export_screen_e2e`、P3 CSV、ゲーム/シーズン成績CSV |
 
+### 2026-11-12 23:00 ACK喪失E2Eの追従と残差
+
+- ACK喪失E2Eの安全確認・通常結果保存を現行UIへ追従させたが、再起動後の再送ボタンがdisabledのままで未通過。原因は次に特定する。
+- フロント全件 **4134 passed**。
+
 ### 2026-11-12 22:35 通信断cold再起動・未送信2球・順序同期の実画面E2E通過
 
 - `test_offline_recording_reentry_e2e` **1 passed / 94.47秒**。production SW、完全断中、cold再起動、未送信2球、復帰後の同原文順2 POSTを実DBで確認。断中POST 0件。

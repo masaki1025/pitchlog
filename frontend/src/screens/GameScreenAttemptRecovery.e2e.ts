@@ -14,6 +14,24 @@ function path(url: string): string {
   return new URL(url).pathname
 }
 
+async function confirmSafety(page: Page) {
+  // 復元後に別Sheetが開いていても、安全確認の可視導線へ戻る。
+  await page.keyboard.press('Escape').catch(() => undefined)
+  const safety = page.getByRole('button', { name: /記録端末の安全確認/ })
+  if (!(await safety.isVisible().catch(() => false))) return
+  await safety.click()
+  for (const label of [
+    'ほかの記録タブと同じブラウザプロファイルを使います',
+    '通常・プライベートなどの閲覧モードを統一します',
+    '同じサイトの保存領域を使うタブだけで記録します',
+    'この端末でLockdownモードを適用していません',
+  ])
+    await page.getByRole('checkbox', { name: label }).last().check()
+  await page
+    .getByRole('button', { name: '確認して記録へ戻る', exact: true })
+    .click()
+}
+
 async function login(page: Page): Promise<void> {
   await page.goto(`${baseURL}/login?redirect=/games`)
   await expect(page.locator('form[aria-busy]')).toHaveAttribute(
@@ -175,12 +193,10 @@ test('実browserを閉じて同profileを再起動し、元要求を復旧して
         }
         await route.abort('failed')
       })
-      for (const name of ['profile', 'mode', 'bucket', 'lockdown'])
-        await page.getByTestId(`first-ball-env-${name}`).check()
+      await confirmSafety(page)
       await page.getByTestId('first-ball-pitch-type').selectOption(pitchKey)
       await page.getByTestId('first-ball-course').locator('svg').click()
-      await expect(page.getByTestId('first-ball-save')).toBeEnabled()
-      await page.getByTestId('first-ball-save').click()
+      await page.locator('[data-result-id="batting-result.ball"]').click()
       await expect
         .poll(() => originalBodySha, { timeout: 120_000 })
         .toMatch(/^[a-f0-9]{64}$/)
@@ -240,9 +256,17 @@ test('実browserを閉じて同profileを再起動し、元要求を復旧して
         await login(page)
         await page.goto(recordingUrl)
       }
-      for (const name of ['profile', 'mode', 'bucket', 'lockdown'])
-        await page.getByTestId(`first-ball-env-${name}`).check()
-      // 環境の確認完了で既controllerが自動再送する。消えるretryボタンとは競争しない。
+      await confirmSafety(page)
+      // 結果不明は自動成功にせず、可視の再送導線から同じ要求を照会・終結する。
+      const retry = page.getByTestId('first-ball-retry')
+      if (await retry.isVisible().catch(() => false)) {
+        await retry.click()
+      } else {
+        await page.getByTestId('record-sync').click()
+        const sync = page.getByRole('dialog', { name: '同期センター' })
+        await sync.getByRole('button', { name: '同じ要求を再送' }).click()
+        await sync.getByRole('button', { name: '閉じる' }).click()
+      }
       await expect
         .poll(() => acknowledgements.length, { timeout: 180_000 })
         .toBe(1)

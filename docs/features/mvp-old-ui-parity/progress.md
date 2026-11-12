@@ -1,5 +1,11 @@
 # 進捗: 旧 Baseball_Scoring 画面への操作感一致
 
+## 2026-11-12 23:00 JST — ACK喪失E2Eの追従と残差
+
+- `GameScreenAttemptRecovery.e2e.ts` の安全確認を可視Sheet導線へ、通常結果の保存を可視結果パッドへ追従させた。復元後に別Sheetが開いていてもEscapeで戻る。
+- ただし同E2Eは再起動後の「同じ要求を再送」が**disabled**のままで、ACK 0件のままタイムアウトする。安全確認の`confirmed`が同期センターへ反映されない実画面の状態を次に特定する。ACK喪失・結果不明の部品単体（`GameScreenAttemptRecovery` のunit、`test_ordinary_ack_loss_e2e`）は別途維持する。
+- フロント全件 **4134 passed**。
+
 ## 2026-11-12 22:35 JST — 通信断cold再起動・未送信2球・順序同期の実画面E2E通過
 
 - `test_offline_recording_reentry_e2e` が **1 passed / 94.47秒**。production SWでオンライン開始→reload→完全断中→cold再起動→未送信2球→復帰→同原文順の2 POSTを実DBで確認した。断中はPOST 0件、復帰後の要求は保存済み原文とattemptのhashが一致した。
