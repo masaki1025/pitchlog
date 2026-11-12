@@ -238,6 +238,10 @@ export async function recordRealPitch(
         ),
       )
     if (!fielder) throw new Error('実守備rosterに右翼手がいない')
+    const panel = page
+      .getByTestId('batted-hit-observation')
+      .filter({ visible: true })
+      .last()
     for (const [key, value] of [
       ['typeKey', 'batted.screen.line'],
       ['strengthKey', 'batted.screen.hard'],
@@ -246,8 +250,8 @@ export async function recordRealPitch(
       ['rawFielderPosition', '9'],
       ['resolvedFielderId', fielder.player.player_id],
     ] as const) {
-      await page.getByTestId(`batted-mode-${key}`).selectOption('observed')
-      const input = page.getByTestId(`batted-value-${key}`)
+      await panel.getByTestId(`batted-mode-${key}`).selectOption('observed')
+      const input = panel.getByTestId(`batted-value-${key}`)
       // 打球語彙の実GETが終わるまで観測値はdisabled。固定値で補完しない。
       await expect(input).toBeEnabled({ timeout: 30_000 })
       if (
@@ -259,8 +263,7 @@ export async function recordRealPitch(
       else await input.fill(value)
     }
     for (const key of ['scoring', 'interference', 'overrides', 'thirdOut'])
-      await page
-        .getByTestId('batted-hit-observation')
+      await panel
         .locator(`[data-question-key="${key}"] select`)
         .selectOption('confirmed')
   }
