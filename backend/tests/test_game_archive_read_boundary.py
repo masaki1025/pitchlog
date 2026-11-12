@@ -9,6 +9,7 @@ from typing import cast
 from uuid import uuid4
 
 import pytest
+from fastapi.routing import APIRoute
 
 from pitchlog.api.routers import games as games_router
 from pitchlog.api.routers.games import _archive_page
@@ -188,3 +189,16 @@ def test_archive_route_runs_three_statuses_and_merges(monkeypatch) -> None:
     assert [item.id for item in page.items] == [ids[2], ids[1]]
     assert page.next_cursor is not None
     assert decode_preparing_game_cursor(page.next_cursor) == (times[1], ids[1])
+
+
+def test_archive_route_precedes_parameterized_game_route() -> None:
+    """静的 /games/archive が /games/{game_id} に吸われない順序で登録される。"""
+    routes = [
+        route for route in games_router.router.routes if isinstance(route, APIRoute)
+    ]
+    paths = [route.path for route in routes]
+    archive_index = paths.index("/games/archive")
+    detail_index = paths.index("/games/{game_id}")
+    assert archive_index < detail_index
+    assert routes[archive_index].operation_id == "game_archive_list"
+    assert routes[detail_index].operation_id == "preparing_game_detail"
