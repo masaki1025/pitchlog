@@ -25,6 +25,9 @@ export interface GameListItem {
   tenantId: string
   label: string
   stateLabel: string
+  scheduledAt?: string
+  awayTeamRecordId?: string
+  homeTeamRecordId?: string
 }
 
 export interface GameListPage {
@@ -185,7 +188,16 @@ export function isGameListPage(value: GameListPage, tenantId: string): boolean {
       !canonicalUuid.test(item.gameId) ||
       item.tenantId !== tenantId ||
       typeof item.label !== 'string' ||
-      typeof item.stateLabel !== 'string'
+      typeof item.stateLabel !== 'string' ||
+      (item.scheduledAt !== undefined &&
+        (typeof item.scheduledAt !== 'string' ||
+          !Number.isFinite(Date.parse(item.scheduledAt)))) ||
+      (item.awayTeamRecordId !== undefined &&
+        (typeof item.awayTeamRecordId !== 'string' ||
+          !canonicalUuid.test(item.awayTeamRecordId))) ||
+      (item.homeTeamRecordId !== undefined &&
+        (typeof item.homeTeamRecordId !== 'string' ||
+          !canonicalUuid.test(item.homeTeamRecordId)))
     )
       return false
   }

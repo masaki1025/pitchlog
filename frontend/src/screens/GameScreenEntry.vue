@@ -31,6 +31,7 @@ const priorPageKey = ref<string | null | undefined>(undefined)
 const pageRequestPending = ref(false)
 const selectedGameId = ref('')
 const keyword = ref('')
+const searchOpen = ref(false)
 
 // 供給値の参照交換では保持し、認証または経路の実変更時だけ旧選択を破棄する。
 watch(
@@ -68,6 +69,9 @@ const visiblePage = computed(() => {
     ? source.data
     : null
 })
+function gameDate(value: string | undefined): string {
+  return value ? value.slice(0, 10).replaceAll('-', '/') : '日時未取得'
+}
 const filteredItems = computed(() => {
   const items = visiblePage.value?.items ?? []
   const needle = keyword.value.trim()
@@ -272,9 +276,17 @@ function returnToPriorPage(): void {
                 {{ game.gameId.slice(0, 8) }}
               </span>
             </div>
-            <p class="min-w-0 break-words text-sm font-extrabold">
-              {{ game.label }}
-            </p>
+            <div class="min-w-0">
+              <p class="text-xs font-semibold text-slate-500">
+                {{ gameDate(game.scheduledAt) }}
+              </p>
+              <p class="mt-0.5 min-w-0 break-words text-sm font-extrabold">
+                {{ game.label }}
+              </p>
+              <p class="mt-1 break-all text-[10px] text-slate-400">
+                {{ game.gameId }}
+              </p>
+            </div>
             <div class="mt-auto flex flex-wrap items-center gap-2">
               <RouterLink
                 :to="{ name: 'game-record', params: { gameId: game.gameId } }"
