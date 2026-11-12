@@ -12,6 +12,39 @@ if (!baseURL || !team || !password || !away || !home)
 function apiPath(url: string): string {
   return new URL(url).pathname
 }
+
+async function openLifecycle(page: Page) {
+  const product = page.getByTestId('lifecycle-product')
+  if (await product.isVisible().catch(() => false)) return product
+  // 追記用の取消Sheetが開いていれば閉じ、メニュー導線へ戻る。
+  await page.keyboard.press('Escape').catch(() => undefined)
+  await page
+    .getByRole('button', { name: 'メニュー', exact: true })
+    .last()
+    .click()
+  await page
+    .getByRole('button', { name: /試合の終了・再開/ })
+    .last()
+    .click()
+  await expect(product).toBeVisible({ timeout: 30_000 })
+  return product
+}
+
+async function confirmSafety(page: Page) {
+  const safety = page.getByRole('button', { name: /記録端末の安全確認/ })
+  if (!(await safety.isVisible().catch(() => false))) return
+  await safety.click()
+  for (const label of [
+    'ほかの記録タブと同じブラウザプロファイルを使います',
+    '通常・プライベートなどの閲覧モードを統一します',
+    '同じサイトの保存領域を使うタブだけで記録します',
+    'この端末でLockdownモードを適用していません',
+  ])
+    await page.getByRole('checkbox', { name: label }).last().check()
+  await page
+    .getByRole('button', { name: '確認して記録へ戻る', exact: true })
+    .click()
+}
 async function login(page: Page, redirect = '/games'): Promise<string> {
   await page.goto(`${baseURL}/login?redirect=${encodeURIComponent(redirect)}`)
   await expect(page.locator('form[aria-busy]')).toHaveAttribute(
@@ -250,8 +283,7 @@ test('実画面の新規作成→開始→1球→終了→再開→2球→再終
     await expect(page.getByTestId('ordinary-state-source')).toHaveText(
       'サーバー確認済み',
     )
-    for (const name of ['profile', 'mode', 'bucket', 'lockdown'])
-      await page.getByTestId(`first-ball-env-${name}`).check()
+    await confirmSafety(page)
     await page
       .getByTestId('ordinary-pitch-result')
       .selectOption('batting-result.ball')
@@ -268,7 +300,7 @@ test('実画面の新規作成→開始→1球→終了→再開→2球→再終
         { timeout: 30_000 },
       )
       .catch(() => null)
-    await page.getByTestId('first-ball-save').click()
+    await page.locator('[data-result-id="batting-result.ball"]').click()
     const response = await posted
     syncDurationsMs.push(Date.now() - syncStarted)
     const timing = response?.request().timing()
@@ -320,7 +352,7 @@ test('実画面の新規作成→開始→1球→終了→再開→2球→再終
     expect(a5).toBe('受理')
     await expect(page.getByTestId('restore-history')).toHaveText(`${n}件`)
   }
-  const lifecycle = page.getByTestId('lifecycle-product')
+  const lifecycle = await openLifecycle(page)
   await lifecycle.getByTestId('lifecycle-refresh').click()
   for (const box of await lifecycle.locator('input[type=checkbox]').all())
     await box.check()
@@ -395,6 +427,10 @@ test('実画面の新規作成→開始→1球→終了→再開→2球→再終
       { timeout: 30_000 },
     )
   }
+  // 再開後の追記は取消Sheetで行うため、終了前に終了・再開Sheetを開き直す。
+  await openLifecycle(page)
+  for (const box of await lifecycle.locator('input[type=checkbox]').all())
+    await box.check()
   await lifecycle.getByTestId('lifecycle-refresh').click()
   await lifecycleOperation('end', '終了')
   await expect(lifecycle.getByTestId('lifecycle-last-version')).toContainText(
