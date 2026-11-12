@@ -34,6 +34,13 @@
 - 固定HEAD `586abd72` の候補URL・ログイン方法・操作手順・実証・未達を `candidate-handoff-2026-11-12.md` にまとめた。
 - 候補環境はテスト所有の使い捨てであり、製品環境・実機・バックアップ復旧の証拠ではない。
 
+### 2026-11-13 03:20 正式資産の現状（候補と受理を分離）
+
+- `tests/test_check_tenant_boundary_bypass.py` は **570 failed / 1237 passed / 2 errors**。`base-allowlist.json` は `contract_revision:54` のままで、統合ブランチの新規関数・経路が7.7受理へ追随していない。単一のテスト修正では閉じず、`baseline_control.history` への前後識別値・凍結射影・承認の追記が必要。
+- `test_sync_apply_product_supply.py` は3件赤。`catalog_after_revision` が現在の `ddl-elements.json` と一致せず、非play通常保存で変更した prepare/finish projection と旧batted参照fixtureの同時更新が必要。
+- `test_batted_hit_product_declarations.py` / `test_batted_hit_storage_boundaries.py` は、意図的SQL変更へ固定値を追随して通過。
+- 候補の機能証拠（ACK喪失E2E・55プレイE2E・終了再開）と、正式受理（7.7・全件CI）を混同しない。
+
 ### 2026-11-13 03:05 独立レビューP1/P2の是正
 
 - Codex敵対レビュー（対象 `88652997`）の指摘3件を是正した。

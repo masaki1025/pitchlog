@@ -3,7 +3,7 @@
 ## 固定HEAD
 
 - ブランチ: `feature/mvp-integration-20261109`
-- コード固定HEAD: `ad7a431d`（以降は台帳・引渡し資料のみ。最終HEADはブランチ先頭）
+- コード固定HEAD: `dd2a999f`（以降は台帳・引渡し資料のみ。最終HEADはブランチ先頭）
 - 比較元: `1989001a`（この日の開始時点）
 - main / develop への push は行っていない。すべてローカルコミット。
 
@@ -24,6 +24,9 @@
 6. 通信断の確認は、開始済み試合を一度開いてから DevTools の Network を Offline にし、reload して「端末内の記録」へ入る。未送信球は端末に残り、復帰後に「接続を確認して未送信記録を同期する」で送信される。
 
 ## このHEADで実証したこと
+
+- **独立レビュー是正**: Codex敵対レビュー（`88652997`）のP1 1件・P2 2件を是正。P1は照会 `unresolved` 後も次attemptの回復許可が残り、次の独立操作後の再送で `skipRecovery` が適用され得た点。回復許可をslot/d5/attemptへ結び、`unresolved` で失効、送信直前にも一致を検査した。P2は停止解除時の自動再送と、打球語彙cacheの寿命・上限・認証切替時破棄。
+- **ACK喪失E2E（是正後）**: `test_attempt_recovery_screen_e2e` **1 passed / 109.29秒**。
 
 - **ACK喪失E2E**: `test_attempt_recovery_screen_e2e` **1 passed / 103.46秒**。ack-lost/before-httpの両モードで、再起動→復元→安全確認→「結果を照会」→「同じ要求を再送」→次球reloadを実画面・実DBで通過。照会は保存POSTを送らず、旧本文/旧attemptのまま権威照会だけを行う。照会中の切断でも保存POST 0件、再送は1回だけ（ack-lost=重複、before-http=受理）。
 
@@ -47,7 +50,8 @@
 - **記録担当端末の引き継ぎ（FR-013）**: 通常/緊急引き継ぎ、世代更新、旧世代イベントの退避・閲覧の製品経路が未実装。
 - **その場の選手登録の断中キュー**: オンラインの `POST /players` は接続したが、FR-015の一時ID・断中登録・交代との順序保証は未実装。断中は登録導線を閉じている。
 - **登録の冪等性**: `POST /players` は要求ごとに新しいIDを作る。応答喪失時は「結果不明」として名簿再取得を促すが、同じ安定キーでの照会・再送は未実装。
-- **tenant-boundary 7.7 正式受理**: `repository-contract` 39 / `base-allowlist` 54 の履歴・snapshot・承認が未追随。受理済みとして扱わない。
+- **tenant-boundary 7.7 正式受理**: `base-allowlist` は `contract_revision:54` のまま。統合ブランチの新規関数・経路に対して `tests/test_check_tenant_boundary_bypass.py` が多数赤（単一ファイルで570 failed / 1237 passed / 2 errors）。`repository-contract` 39 の履歴・snapshot・承認も未追随。受理済みとして扱わない。
+- **歴史的射影の固定値**: `test_sync_apply_product_supply.py` の `catalog_before_revision`/`catalog_after_revision` が現在の `ddl-elements.json` と一致せず、3件が赤。非play通常保存で prepare/finish projection のSQL本文が意図的に変わったため、旧batted参照fixtureとの同時更新（正式受理）が必要。
 - 実機・本番TLS・バックアップ復旧・運用公開は未実施（開発完了後の受入項目）。
 
 ## 次の作業
