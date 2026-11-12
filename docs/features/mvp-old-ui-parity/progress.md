@@ -1,5 +1,13 @@
 # 進捗: 旧 Baseball_Scoring 画面への操作感一致
 
+## 2026-11-13 02:20 JST — ACK喪失の照会・終結・再送を分離してE2E通過
+
+- `test_attempt_recovery_screen_e2e` が **1 passed / 103.46秒**。ack-lost（保存済みACK喪失）とbefore-http（HTTP前断）の両方で、実ブラウザ再起動→復元入口→安全確認→**結果を照会**→**同じ要求を再送**→次球reloadまで通過。
+- 照会は保存要求を送らない。旧本文・旧attemptのまま `/sync/attempts/recover` だけを呼び、`retry_allowed` のときだけ次attemptを耐久バリアへ固定する。`unresolved` では再送せず「結果確認中」を維持する。
+- 照会中の切断を実画面で注入し、切断後も保存POST 0件・再照会で復旧できることを確認。再送は1回だけ、ACKはack-lost=`重複`・before-http=`受理`。照会2回（切断1・成功1）はいずれも元本文/元attemptのsha一致、再送本文は同一・attemptのみ更新。
+- 終了・再開Sheetの再表示時は安全確認4項目を再確認する導線へ追従済み。
+- フロント全件 **216 files / 4139 tests passed**。backend対象 **193 passed**。
+
 ## 2026-11-13 01:30 JST — ACK喪失E2Eの残差（自動再送中の手動導線）
 
 - 再起動後に「サーバーから復元」で記録画面へ戻り、安全確認4項目を確認すると `confirmed=true` になることを実画面で確認した。

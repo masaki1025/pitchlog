@@ -3,7 +3,7 @@
 ## 固定HEAD
 
 - ブランチ: `feature/mvp-integration-20261109`
-- コード固定HEAD: `2171bba2`（以降は台帳・引渡し資料のみ。最終HEADはブランチ先頭）
+- コード固定HEAD: `ad7a431d`（以降は台帳・引渡し資料のみ。最終HEADはブランチ先頭）
 - 比較元: `1989001a`（この日の開始時点）
 - main / develop への push は行っていない。すべてローカルコミット。
 
@@ -25,6 +25,8 @@
 
 ## このHEADで実証したこと
 
+- **ACK喪失E2E**: `test_attempt_recovery_screen_e2e` **1 passed / 103.46秒**。ack-lost/before-httpの両モードで、再起動→復元→安全確認→「結果を照会」→「同じ要求を再送」→次球reloadを実画面・実DBで通過。照会は保存POSTを送らず、旧本文/旧attemptのまま権威照会だけを行う。照会中の切断でも保存POST 0件、再送は1回だけ（ack-lost=重複、before-http=受理）。
+
 - **55プレイ通しE2E**: `test_screen_nine_innings_batted_out_stats_and_csv` **1 passed / 636.91秒**。新規作成→開始→55プレイ（18半回、本塁打1＋凡打54）→終了宣言→reload→成績27項目→毎球ZIP/成績CSVを保存原本と照合。
 
 - `GET /games/archive` の実DB/実HTTP/実ブラウザ表示（2カード、状態、日時、試合ID、開始/成績/CSV導線）。比較画像: `docs/features/mvp-old-ui-parity/images/game-archive.png`。
@@ -45,7 +47,6 @@
 - **記録担当端末の引き継ぎ（FR-013）**: 通常/緊急引き継ぎ、世代更新、旧世代イベントの退避・閲覧の製品経路が未実装。
 - **その場の選手登録の断中キュー**: オンラインの `POST /players` は接続したが、FR-015の一時ID・断中登録・交代との順序保証は未実装。断中は登録導線を閉じている。
 - **登録の冪等性**: `POST /players` は要求ごとに新しいIDを作る。応答喪失時は「結果不明」として名簿再取得を促すが、同じ安定キーでの照会・再送は未実装。
-- **ACK喪失E2E**: 再起動後の復元入口・安全確認までは通過。確認直後の自動再送が `busy` の間は手動再送もdisabledで、自動再送が完了しない場合に照会・終結へ進めない。busy中でも二重送信しない「結果を照会」導線が次に必要。
 - **tenant-boundary 7.7 正式受理**: `repository-contract` 39 / `base-allowlist` 54 の履歴・snapshot・承認が未追随。受理済みとして扱わない。
 - 実機・本番TLS・バックアップ復旧・運用公開は未実施（開発完了後の受入項目）。
 
