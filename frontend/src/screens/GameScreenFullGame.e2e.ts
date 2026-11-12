@@ -70,7 +70,7 @@ test('実画面で9回・163球を保存し終了確定版をreloadする', asyn
       await page.reload()
       await expect(page.getByTestId('restore-history')).toHaveText('82件')
       await expect(page.getByTestId('ordinary-state-source')).toHaveText(
-        'サーバー確認済みの状態',
+        'サーバー確認済み',
       )
     }
   }

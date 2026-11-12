@@ -38,7 +38,7 @@ async function login(page: Page): Promise<void> {
 }
 
 async function createStartedGame(page: Page): Promise<string> {
-  await page.getByRole('button', { name: '新規作成', exact: true }).click()
+  await page.getByRole('button', { name: '新しい試合', exact: true }).click()
   const form = page.getByRole('region', {
     name: '試合の新規作成',
     exact: true,
@@ -110,7 +110,7 @@ async function createStartedGame(page: Page): Promise<string> {
 
 async function recordBall(page: Page, game: string): Promise<void> {
   await expect(page.getByTestId('ordinary-state-source')).toHaveText(
-    'サーバー確認済みの状態',
+    'サーバー確認済み',
   )
   for (const name of ['profile', 'mode', 'bucket', 'lockdown'])
     await page.getByTestId(`first-ball-env-${name}`).check()

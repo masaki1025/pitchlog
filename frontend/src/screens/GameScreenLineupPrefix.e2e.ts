@@ -98,7 +98,7 @@ test('実HTTPS画面で三振3PA・攻守交代・相手側球・元D5・ACK喪�
   })
 
   await login(page)
-  await page.getByRole('button', { name: '新規作成', exact: true }).click()
+  await page.getByRole('button', { name: '新しい試合', exact: true }).click()
   const form = page.getByRole('region', {
     name: '試合の新規作成',
     exact: true,
@@ -203,7 +203,7 @@ test('実HTTPS画面で三振3PA・攻守交代・相手側球・元D5・ACK喪�
   async function selectAndSave(result: string, loseAck = false) {
     // 履歴表示と入力context再束縛は別の更新。実server由来の入力へ戻ってから操作する。
     await expect(page.getByTestId('ordinary-state-source')).toHaveText(
-      'サーバー確認済みの状態',
+      'サーバー確認済み',
     )
     await expect(page.getByTestId('ordinary-pitch-result')).toBeVisible()
     for (const name of ['profile', 'mode', 'bucket', 'lockdown'])

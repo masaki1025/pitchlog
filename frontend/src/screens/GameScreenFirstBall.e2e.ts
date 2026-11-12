@@ -81,7 +81,7 @@ test('実HTTPS画面で新規作成・開始・初球ボール保存・同要求
   })
 
   await login(page)
-  await page.getByRole('button', { name: '新規作成', exact: true }).click()
+  await page.getByRole('button', { name: '新しい試合', exact: true }).click()
   const form = page.getByRole('region', {
     name: '試合の新規作成',
     exact: true,

@@ -25,7 +25,7 @@ export type InterferenceStep =
 
 async function commonPitch(page: Page, result: string) {
   await expect(page.getByTestId('ordinary-state-source')).toHaveText(
-    'サーバー確認済みの状態',
+    'サーバー確認済み',
   )
   for (const name of ['profile', 'mode', 'bucket', 'lockdown'])
     await page.getByTestId(`first-ball-env-${name}`).check()

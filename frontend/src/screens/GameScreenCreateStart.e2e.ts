@@ -41,7 +41,7 @@ test('実画面で新規作成し、その試合を開始してGET /started init
 }) => {
   try {
     const tenant = await login(page)
-    await page.getByRole('button', { name: '新規作成', exact: true }).click()
+    await page.getByRole('button', { name: '新しい試合', exact: true }).click()
     const form = page.getByRole('region', {
       name: '試合の新規作成',
       exact: true,

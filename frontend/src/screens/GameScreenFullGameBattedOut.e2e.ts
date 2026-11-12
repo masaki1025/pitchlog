@@ -76,7 +76,7 @@ test('実画面で9回・55プレイを保存し終了確定版をreloadする',
       await page.reload()
       await expect(page.getByTestId('restore-history')).toHaveText('28件')
       await expect(page.getByTestId('ordinary-state-source')).toHaveText(
-        'サーバー確認済みの状態',
+        'サーバー確認済み',
       )
     }
   }

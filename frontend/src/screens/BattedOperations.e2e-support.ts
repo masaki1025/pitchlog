@@ -21,7 +21,7 @@ export async function recordBattedOperation(
   count: number,
 ) {
   await expect(page.getByTestId('ordinary-state-source')).toHaveText(
-    'サーバー確認済みの状態',
+    'サーバー確認済み',
   )
   for (const key of ['profile', 'mode', 'bucket', 'lockdown'])
     await page.getByTestId(`first-ball-env-${key}`).check()

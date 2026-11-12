@@ -78,7 +78,7 @@ type StartedGame = {
   applied_rules: { dh: boolean }
 }
 async function createGame(page: Page, label: string): Promise<StartedGame> {
-  await page.getByRole('button', { name: '新規作成', exact: true }).click()
+  await page.getByRole('button', { name: '新しい試合', exact: true }).click()
   const form = page.getByRole('region', {
     name: '試合の新規作成',
     exact: true,
@@ -165,7 +165,7 @@ async function selectPitch(
   runnerDestination: 'hold' | '2' | '3' | '4' | null,
 ) {
   await expect(page.getByTestId('ordinary-state-source')).toHaveText(
-    'サーバー確認済みの状態',
+    'サーバー確認済み',
   )
   for (const name of ['profile', 'mode', 'bucket', 'lockdown'])
     await page.getByTestId(`first-ball-env-${name}`).check()
@@ -387,7 +387,7 @@ test('実画面の一三塁から申告敬遠を非投球として保存し次�
   expect(requests[1]).toEqual(original)
 
   await expect(page.getByTestId('ordinary-state-source')).toHaveText(
-    'サーバー確認済みの状態',
+    'サーバー確認済み',
   )
   for (const name of ['profile', 'mode', 'bucket', 'lockdown'])
     await page.getByTestId(`first-ball-env-${name}`).check()

@@ -37,7 +37,7 @@ async function login(page: Page): Promise<string> {
 }
 
 async function createAndStart(page: Page) {
-  await page.getByRole('button', { name: '新規作成', exact: true }).click()
+  await page.getByRole('button', { name: '新しい試合', exact: true }).click()
   const form = page.getByRole('region', { name: '試合の新規作成', exact: true })
   await form.getByLabel('日時（日本時間）').fill('2026-11-11T11:00')
   await form.getByTestId('game-type').selectOption('game_other')
@@ -108,7 +108,7 @@ async function createAndStart(page: Page) {
   expect((await started).status()).toBe(200)
   await expect(page).toHaveURL(/\/record\?recording=play-prefix-v3/)
   await expect(page.getByTestId('ordinary-state-source')).toHaveText(
-    'サーバー確認済みの状態',
+    'サーバー確認済み',
   )
   return saved.id
 }

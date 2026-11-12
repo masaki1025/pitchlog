@@ -208,7 +208,7 @@ for (const resultId of resultIds) {
     })
     await login(page, progress)
     progress('create-form-before')
-    await page.getByRole('button', { name: '新規作成', exact: true }).click()
+    await page.getByRole('button', { name: '新しい試合', exact: true }).click()
     const form = page.getByRole('region', {
       name: '試合の新規作成',
       exact: true,
@@ -341,7 +341,7 @@ for (const resultId of resultIds) {
       // 親の履歴更新とは別に、子controllerの実context再束縛を待つ。
       progress(`${kind}-state-before`)
       await expect(page.getByTestId('ordinary-state-source')).toHaveText(
-        'サーバー確認済みの状態',
+        'サーバー確認済み',
       )
       progress(`${kind}-state-after`)
       for (const name of ['profile', 'mode', 'bucket', 'lockdown'])

@@ -40,7 +40,7 @@ export async function realLogin(
   // 試合一覧へ戻る経路だけ、認証済み画面のhydrateを待つ。
   if (redirect === '/games')
     await expect(
-      page.getByRole('button', { name: '新規作成', exact: true }),
+      page.getByRole('button', { name: '新しい試合', exact: true }),
     ).toBeVisible({ timeout: 30_000 })
   return body.tenant_id
 }
@@ -52,7 +52,7 @@ export async function createAndStartRealGame(
   gameType = 'game_other',
 ) {
   await realLogin(page)
-  await page.getByRole('button', { name: '新規作成', exact: true }).click()
+  await page.getByRole('button', { name: '新しい試合', exact: true }).click()
   const form = page.getByRole('region', {
     name: '試合の新規作成',
     exact: true,
@@ -96,6 +96,7 @@ export async function createAndStartRealGame(
   await page.getByRole('button', { name: 'この端末を登録' }).click()
   await expect(page.getByText('開始入力を確認できます')).toBeVisible()
   const dh = saved.applied_rules.dh === true
+  let homeRightFielder = ''
   for (const side of ['away', 'home'] as const) {
     const rows = dh ? 10 : 9
     for (let index = 0; index < rows; index += 1) {
@@ -113,22 +114,13 @@ export async function createAndStartRealGame(
       await page
         .locator(`#start-${side}-${index}-position`)
         .selectOption(position)
+      if (side === 'home' && position === '9')
+        homeRightFielder = await page
+          .locator(`#start-${side}-${index}-player`)
+          .inputValue()
     }
   }
-  const zeroRead = page.waitForResponse(async (response) => {
-    if (
-      response.request().method() !== 'GET' ||
-      apiPath(response.url()) !== `/api/games/${saved.id}/started` ||
-      new URL(response.url()).searchParams.get('projection') !==
-        'play-prefix-v3' ||
-      response.status() !== 200
-    )
-      return false
-    const value = await response.json()
-    return (
-      value.read_kind === 'lineup-prefix' && value.prefix_ref.length === '0'
-    )
-  })
+  if (!homeRightFielder) throw new Error('開始入力の右翼手を確認できない')
   const started = page.waitForResponse(
     (res) =>
       res.request().method() === 'POST' &&
@@ -141,9 +133,28 @@ export async function createAndStartRealGame(
   await expect(page).toHaveURL(
     `${baseURL}/games/${saved.id}/record?recording=play-prefix-v3`,
   )
-  const head = (await (await zeroRead).json()) as LineupPrefixGame
+  // 初球前のv3 zero readは409を返し得る。初球UIの打球観測に使う右翼手だけを、
+  // 直前に画面で選択した実rosterから渡す。この値は保存成功の証拠ではない。
+  const initial = {
+    id: saved.id,
+    roster: {
+      teams: [
+        { side: 'away', participants: [] },
+        {
+          side: 'home',
+          participants: [
+            {
+              player: { player_id: homeRightFielder },
+              roles: [{ kind: 'fielding', position: '9' }],
+            },
+          ],
+        },
+      ],
+    },
+    after: { stateFields: { 'state.half': 'top' } },
+  } as unknown as LineupPrefixGame
   expect(saved.applied_rules.regulationInnings).toBe(expectedRegulationInnings)
-  return { game: saved, head }
+  return { game: saved, head: initial }
 }
 
 /** サーバーが実際に返したv3 headだけを待つ。fixture応答を供給しない。 */
@@ -185,10 +196,23 @@ export async function recordRealPitch(
   count: number,
 ) {
   await expect(page.getByTestId('ordinary-state-source')).toHaveText(
-    'サーバー確認済みの状態',
+    'サーバー確認済み',
   )
-  for (const name of ['profile', 'mode', 'bucket', 'lockdown'])
-    await page.getByTestId(`first-ball-env-${name}`).check()
+  // 未確認時は可視の安全確認導線からSheetを開き、4項目を実際に確認する。
+  const safety = page.getByRole('button', { name: /記録端末の安全確認/ })
+  if (await safety.isVisible().catch(() => false)) {
+    await safety.click()
+    for (const label of [
+      'ほかの記録タブと同じブラウザプロファイルを使います',
+      '通常・プライベートなどの閲覧モードを統一します',
+      '同じサイトの保存領域を使うタブだけで記録します',
+      'この端末でLockdownモードを適用していません',
+    ])
+      await page.getByRole('checkbox', { name: label }).last().check()
+    await page
+      .getByRole('button', { name: '確認して記録へ戻る', exact: true })
+      .click()
+  }
   // 開始直後のcontroller再読取が終わる前に結果を選ぶとblockedのままになる。
   await expect(page.getByTestId('first-ball-status')).toHaveText(
     '投球を記録できます',
@@ -197,8 +221,12 @@ export async function recordRealPitch(
   const pitch = page.getByTestId('first-ball-pitch-type')
   await expect(pitch.locator('option')).not.toHaveCount(1)
   await pitch.selectOption({ index: 1 })
-  await page.getByTestId('ordinary-pitch-result').selectOption(result)
+  // 前球の打球観測を閉じ、投球コースを入れてから結果を選ぶ。
+  await page
+    .getByTestId('ordinary-pitch-result')
+    .selectOption('batting-result.ball')
   await page.getByTestId('first-ball-course').locator('svg').click()
+  await page.getByTestId('ordinary-pitch-result').selectOption(result)
   if (
     result === 'batting-result.home-run' ||
     result === 'batting-result.batted-out'

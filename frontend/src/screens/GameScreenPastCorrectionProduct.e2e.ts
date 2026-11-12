@@ -176,7 +176,7 @@ test('真正HTTPS画面で三球の末尾過去訂正、同要求再掲、再読
   })
   await login(page)
   stage('login')
-  await page.getByRole('button', { name: '新規作成', exact: true }).click()
+  await page.getByRole('button', { name: '新しい試合', exact: true }).click()
   const form = page.getByRole('region', { name: '試合の新規作成', exact: true })
   await form.getByLabel('日時（日本時間）').fill('2026-11-07T10:00')
   await form.getByTestId('game-type').selectOption('game_other')
@@ -241,7 +241,7 @@ test('真正HTTPS画面で三球の末尾過去訂正、同要求再掲、再読
   stage('started')
   await expect(page).toHaveURL(/\/record\?recording=play-prefix-v3/)
   await expect(page.getByTestId('ordinary-state-source')).toHaveText(
-    'サーバー確認済みの状態',
+    'サーバー確認済み',
   )
   for (let number = 1; number <= pitchCount; number++) {
     for (const name of ['profile', 'mode', 'bucket', 'lockdown'])
@@ -483,7 +483,7 @@ test('真正HTTPS画面で三球の末尾過去訂正、同要求再掲、再読
     stage('p3-26-reloaded')
   }
   await expect(page.getByTestId('ordinary-state-source')).toHaveText(
-    'サーバー確認済みの状態',
+    'サーバー確認済み',
   )
   for (let suffix = 1; suffix <= 1; suffix++) {
     for (const name of ['profile', 'mode', 'bucket', 'lockdown'])

@@ -119,7 +119,7 @@ test('実画面の新規作成→開始→2球→ACK喪失/reload/同要求再�
     }
   })
   await login(page)
-  await page.getByRole('button', { name: '新規作成', exact: true }).click()
+  await page.getByRole('button', { name: '新しい試合', exact: true }).click()
   const form = page.getByRole('region', {
     name: '試合の新規作成',
     exact: true,
@@ -216,7 +216,7 @@ test('実画面の新規作成→開始→2球→ACK喪失/reload/同要求再�
     .toBe('play-prefix-v3')
   for (let n = 1; n <= 2; n++) {
     await expect(page.getByTestId('ordinary-state-source')).toHaveText(
-      'サーバー確認済みの状態',
+      'サーバー確認済み',
     )
     for (const name of ['profile', 'mode', 'bucket', 'lockdown'])
       await page.getByTestId(`first-ball-env-${name}`).check()

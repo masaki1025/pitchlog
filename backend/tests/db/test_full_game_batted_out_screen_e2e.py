@@ -248,7 +248,7 @@ def test_screen_nine_innings_batted_out_stats_and_csv(vertical_database):
     with psycopg.connect(db.authority.database.business_admin) as admin:
         _explain_read_sql(admin, db.tenant_id, db.game_id)
         assert admin.execute(_READ_SQL["read_0"]).fetchone() == (
-            "0049_pitcher_entry_sources",
+            "0050_play_export_p3_snapshots",
         )
         teams = admin.execute(
             _READ_SQL["read_1"],

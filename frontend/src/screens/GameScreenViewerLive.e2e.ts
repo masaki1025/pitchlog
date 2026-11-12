@@ -37,7 +37,7 @@ async function login(page: Page): Promise<string> {
     throw new Error('login応答のtenantがない')
   await expect(page).toHaveURL(`${baseURL}/games`)
   await expect(
-    page.getByRole('button', { name: '新規作成', exact: true }),
+    page.getByRole('button', { name: '新しい試合', exact: true }),
   ).toBeVisible()
   return body.tenant_id
 }
@@ -50,7 +50,7 @@ test('別contextの保存済み閲覧は10秒以内に1球へ更新し、断中�
   if (new URL(baseURL!).protocol !== 'https:')
     throw new Error('HTTPSが必要です')
   await login(page)
-  await page.getByRole('button', { name: '新規作成', exact: true }).click()
+  await page.getByRole('button', { name: '新しい試合', exact: true }).click()
   const form = page.getByRole('region', {
     name: '試合の新規作成',
     exact: true,
@@ -124,7 +124,7 @@ test('別contextの保存済み閲覧は10秒以内に1球へ更新し、断中�
   ): Promise<{ head: LineupPrefixGame; savedAt: number }> {
     // 履歴表示と入力context再束縛は別の更新。実server由来の入力へ戻ってから操作する。
     await expect(page.getByTestId('ordinary-state-source')).toHaveText(
-      'サーバー確認済みの状態',
+      'サーバー確認済み',
     )
     await expect(page.getByTestId('ordinary-pitch-result')).toBeVisible()
     for (const name of ['profile', 'mode', 'bucket', 'lockdown'])
@@ -224,7 +224,7 @@ test('別contextの保存済み閲覧は10秒以内に1球へ更新し、断中�
     ).toBeVisible()
     // 新規開始の受理後は現入口が自動的にv3記録へ接ぐ。
     await expect(page.getByTestId('ordinary-state-source')).toHaveText(
-      'サーバー確認済みの状態',
+      'サーバー確認済み',
     )
     const recorded = await selectAndSave('batting-result.called-pitch', 1)
     const head = recorded.head

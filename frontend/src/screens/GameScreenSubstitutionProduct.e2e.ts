@@ -54,7 +54,7 @@ test('実画面の新規作成→開始→投手交代→次球→再取得', as
   if (new URL(baseURL!).protocol !== 'https:')
     throw new Error('実HTTPSが必要です')
   await login(page)
-  await page.getByRole('button', { name: '新規作成', exact: true }).click()
+  await page.getByRole('button', { name: '新しい試合', exact: true }).click()
   const form = page.getByRole('region', { name: '試合の新規作成', exact: true })
   await form.getByLabel('日時（日本時間）').fill('2026-11-06T10:00')
   await form.getByTestId('game-type').selectOption('game_other')
@@ -116,7 +116,7 @@ test('実画面の新規作成→開始→投手交代→次球→再取得', as
   expect((await started).status()).toBe(200)
   await expect(page).toHaveURL(/\/record\?recording=play-prefix-v3/)
   await expect(page.getByTestId('ordinary-state-source')).toHaveText(
-    'サーバー確認済みの状態',
+    'サーバー確認済み',
   )
   for (const name of ['profile', 'mode', 'bucket', 'lockdown'])
     await page.getByTestId(`first-ball-env-${name}`).check()
