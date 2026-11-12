@@ -30,6 +30,7 @@ const requestedPageKey = ref<string | null>(null)
 const priorPageKey = ref<string | null | undefined>(undefined)
 const pageRequestPending = ref(false)
 const selectedGameId = ref('')
+const keyword = ref('')
 
 // 供給値の参照交換では保持し、認証または経路の実変更時だけ旧選択を破棄する。
 watch(
@@ -66,6 +67,14 @@ const visiblePage = computed(() => {
     isGameListPage(source.data, auth.teamId)
     ? source.data
     : null
+})
+const filteredItems = computed(() => {
+  const items = visiblePage.value?.items ?? []
+  const needle = keyword.value.trim()
+  if (!needle) return items
+  return items.filter(
+    (item) => item.label.includes(needle) || item.stateLabel.includes(needle),
+  )
 })
 const pageMessage = computed(() => {
   if (pageRequestPending.value) return '確認中'
@@ -137,34 +146,83 @@ function returnToPriorPage(): void {
 
 <template>
   <main class="mx-auto max-w-4xl space-y-5 p-4 pb-12 wrap-anywhere">
-    <header class="space-y-2">
-      <h1 class="text-2xl font-extrabold">
-        {{ mode === 'preparing-read' ? '準備中の試合' : '試合' }}
-      </h1>
-      <p v-if="mode === 'preparing-read'">
-        準備中の試合だけを表示します。開始・再開・保存・送信はできません。
-      </p>
-      <p v-else>
-        正式な試合一覧・開始情報は未接続です。ここから試合の開始・再開・保存・送信はできません。
-      </p>
+    <header class="mb-4 flex items-end justify-between gap-3">
+      <div class="min-w-0">
+        <p class="text-xs font-bold uppercase tracking-widest text-sky-600">
+          Baseball scoring
+        </p>
+        <h1 class="text-2xl font-extrabold">
+          {{ mode === 'preparing-read' ? '準備中の試合' : '試合一覧' }}
+        </h1>
+        <p v-if="mode === 'preparing-read'" class="mt-1 text-sm text-slate-500">
+          準備中の試合だけを表示します。開始・再開・保存・送信はできません。
+        </p>
+        <p v-else class="mt-1 text-sm text-slate-500">
+          試合の開始・再開・保存・送信の正式な入口です。
+        </p>
+      </div>
     </header>
 
-    <GameScreenEntryPremises :environment="environment" />
-
-    <section
-      aria-label="試合一覧"
-      class="min-w-0 space-y-3 rounded-2xl border p-4"
+    <details
+      class="mb-4 rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900"
     >
-      <h2 class="text-lg font-bold">試合一覧</h2>
+      <summary class="cursor-pointer px-4 py-3 text-sm font-bold">
+        通信・端末の前提
+      </summary>
+      <div class="px-4 pb-3">
+        <GameScreenEntryPremises :environment="environment" />
+      </div>
+    </details>
+
+    <section aria-label="試合一覧" class="min-w-0 space-y-3">
+      <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <h2 class="text-lg font-bold">試合一覧</h2>
+        <div class="ml-auto flex items-center gap-2">
+          <button
+            type="button"
+            class="min-h-11 rounded-xl border border-slate-300 bg-white px-3 text-sm font-bold dark:border-slate-600 dark:bg-slate-800"
+            :aria-expanded="searchOpen"
+            @click="searchOpen = !searchOpen"
+          >
+            {{ searchOpen ? '検索を閉じる' : '検索' }}
+          </button>
+          <label
+            v-if="
+              searchOpen &&
+              visiblePage &&
+              auth.hasHydrated &&
+              auth.isAuthenticated
+            "
+            class="relative block w-full sm:w-64"
+          >
+            <span class="sr-only">試合を検索</span>
+            <input
+              v-model="keyword"
+              type="search"
+              placeholder="試合を検索"
+              class="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 pr-9 text-sm dark:border-slate-600 dark:bg-slate-800"
+            />
+            <span
+              class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
+              >⌕</span
+            >
+          </label>
+        </div>
+      </div>
       <template v-if="visiblePage === null">
-        <p role="status">試合一覧：{{ pageMessage }}</p>
+        <p
+          role="status"
+          class="rounded-xl border border-slate-200 bg-white p-3 text-sm dark:border-slate-700 dark:bg-slate-900"
+        >
+          試合一覧：{{ pageMessage }}
+        </p>
         <div
           v-if="pageRecoveryAvailable"
           class="flex flex-col gap-2 sm:flex-row"
         >
           <button
             type="button"
-            class="min-h-11 rounded-lg border px-3 py-2"
+            class="min-h-11 rounded-xl border border-slate-300 bg-white px-3 py-2 font-bold dark:border-slate-600 dark:bg-slate-800"
             @click="retryPage"
           >
             このページを再試行
@@ -172,7 +230,7 @@ function returnToPriorPage(): void {
           <button
             v-if="priorPageKey !== undefined"
             type="button"
-            class="min-h-11 rounded-lg border px-3 py-2"
+            class="min-h-11 rounded-xl border border-slate-300 bg-white px-3 py-2 font-bold dark:border-slate-600 dark:bg-slate-800"
             @click="returnToPriorPage"
           >
             直前のページに戻る
@@ -180,30 +238,57 @@ function returnToPriorPage(): void {
         </div>
       </template>
       <template v-else>
-        <p>表示ページ：{{ visiblePage.pageLabel }}</p>
-        <p v-if="visiblePage.items.length === 0">
-          このページに試合はありません。
+        <p class="text-xs font-semibold text-slate-500">
+          表示ページ：{{ visiblePage.pageLabel }}
         </p>
-        <ul class="space-y-3">
+        <p
+          v-if="filteredItems.length === 0"
+          class="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900"
+        >
+          {{
+            visiblePage.items.length === 0
+              ? 'このページに試合はありません。'
+              : '検索条件に一致する試合はありません。'
+          }}
+        </p>
+        <ul class="grid gap-3 sm:grid-cols-2">
           <li
-            v-for="game in visiblePage.items"
+            v-for="game in filteredItems"
             :key="game.gameId"
-            class="min-w-0 space-y-2 rounded-xl border p-3"
+            class="flex min-w-0 flex-col gap-2 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900"
           >
-            <p class="font-bold">{{ game.label }}</p>
-            <p>状態：{{ game.stateLabel }}</p>
-            <RouterLink
-              :to="{ name: 'game-record', params: { gameId: game.gameId } }"
-              class="inline-block min-h-11 rounded-lg border px-3 py-2 underline"
-              >閲覧画面へ</RouterLink
-            >
-            <button
-              type="button"
-              disabled
-              class="block min-h-11 rounded-lg border px-3 py-2"
-            >
-              再開（未提供）
-            </button>
+            <div class="flex items-center justify-between gap-2">
+              <span
+                :class="[
+                  'rounded-full px-2 py-0.5 text-[11px] font-extrabold',
+                  game.stateLabel === '準備中'
+                    ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200'
+                    : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200',
+                ]"
+              >
+                {{ game.stateLabel }}
+              </span>
+              <span class="text-[11px] font-semibold text-slate-400">
+                {{ game.gameId.slice(0, 8) }}
+              </span>
+            </div>
+            <p class="min-w-0 break-words text-sm font-extrabold">
+              {{ game.label }}
+            </p>
+            <div class="mt-auto flex flex-wrap items-center gap-2">
+              <RouterLink
+                :to="{ name: 'game-record', params: { gameId: game.gameId } }"
+                class="inline-flex min-h-10 items-center rounded-xl border border-sky-300 bg-sky-50 px-3 text-sm font-bold text-sky-800 hover:bg-sky-100 dark:border-sky-700 dark:bg-sky-950/40 dark:text-sky-200"
+                >閲覧画面へ</RouterLink
+              >
+              <button
+                type="button"
+                disabled
+                class="min-h-10 rounded-xl border border-slate-200 px-3 text-sm font-bold text-slate-400 dark:border-slate-700"
+              >
+                再開（未提供）
+              </button>
+            </div>
           </li>
         </ul>
         <nav
@@ -215,7 +300,7 @@ function returnToPriorPage(): void {
             :disabled="
               !visiblePage.canPrevious && visiblePage.previousKey === null
             "
-            class="min-h-11 rounded-lg border px-3 py-2 disabled:opacity-50"
+            class="min-h-11 rounded-xl border border-slate-300 bg-white px-3 py-2 font-bold disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800"
             @click="requestPage(visiblePage?.previousKey ?? null)"
           >
             前のページ
@@ -223,7 +308,7 @@ function returnToPriorPage(): void {
           <button
             type="button"
             :disabled="visiblePage.nextKey === null"
-            class="min-h-11 rounded-lg border px-3 py-2 disabled:opacity-50"
+            class="min-h-11 rounded-xl border border-slate-300 bg-white px-3 py-2 font-bold disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800"
             @click="requestPage(visiblePage?.nextKey ?? null)"
           >
             次のページ

@@ -23,14 +23,15 @@ function inspect() {
 }
 </script>
 <template>
-  <div class="mx-auto max-w-4xl px-4 pt-4">
+  <div class="mx-auto flex max-w-4xl justify-end px-4 pt-4">
     <button
       v-if="!creating"
       type="button"
+      class="min-h-12 rounded-xl bg-sky-600 px-5 font-bold text-white shadow-sm hover:bg-sky-700 disabled:opacity-40"
       :disabled="!auth.hasHydrated || !auth.isAuthenticated"
       @click="creating = true"
     >
-      新規作成
+      新しい試合
     </button>
   </div>
   <GameScreenPreparingCreate
