@@ -220,7 +220,7 @@ onBeforeUnmount(() => {
           v-for="filter in filters"
           :key="filter.key"
           type="button"
-          class="min-h-9 rounded-lg border px-3 text-xs font-bold"
+          class="min-h-10 rounded-lg border px-3 text-xs font-bold"
           :class="
             statusFilter === filter.key
               ? 'border-sky-500 bg-sky-50 text-sky-800 dark:bg-sky-950/50 dark:text-sky-200'
@@ -254,7 +254,7 @@ onBeforeUnmount(() => {
       <p>{{ message }}</p>
       <button
         type="button"
-        class="mt-2 min-h-9 rounded-lg border border-red-300 bg-white px-3 font-bold text-red-800"
+        class="mt-2 min-h-11 rounded-lg border border-red-300 bg-white px-3 font-bold text-red-800"
         @click="retry"
       >
         再試行
@@ -294,26 +294,26 @@ onBeforeUnmount(() => {
         <div class="mt-auto flex flex-wrap gap-1.5">
           <RouterLink
             :to="{ name: 'game-record', params: { gameId: game.id } }"
-            class="inline-flex min-h-9 items-center rounded-lg bg-sky-600 px-3 text-xs font-bold text-white hover:bg-sky-700"
+            class="inline-flex min-h-11 items-center rounded-lg bg-sky-600 px-3 text-xs font-bold text-white hover:bg-sky-700"
           >
             {{ recordLabel(game) }}
           </RouterLink>
           <RouterLink
             v-if="game.status !== 'preparing'"
             :to="{ name: 'game-viewer', params: { gameId: game.id } }"
-            class="inline-flex min-h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-bold dark:border-slate-600 dark:bg-slate-800"
+            class="inline-flex min-h-11 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-bold dark:border-slate-600 dark:bg-slate-800"
           >
             閲覧
           </RouterLink>
           <RouterLink
             :to="{ name: 'game-stats', params: { gameId: game.id } }"
-            class="inline-flex min-h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-bold dark:border-slate-600 dark:bg-slate-800"
+            class="inline-flex min-h-11 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-bold dark:border-slate-600 dark:bg-slate-800"
           >
             成績
           </RouterLink>
           <RouterLink
             :to="{ name: 'game-export', params: { gameId: game.id } }"
-            class="inline-flex min-h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-bold dark:border-slate-600 dark:bg-slate-800"
+            class="inline-flex min-h-11 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-bold dark:border-slate-600 dark:bg-slate-800"
           >
             CSV
           </RouterLink>
@@ -327,7 +327,7 @@ onBeforeUnmount(() => {
     >
       <button
         type="button"
-        class="min-h-10 rounded-xl border border-slate-300 bg-white px-3 text-sm font-bold disabled:opacity-40 dark:border-slate-600 dark:bg-slate-800"
+        class="min-h-11 rounded-xl border border-slate-300 bg-white px-3 text-sm font-bold disabled:opacity-40 dark:border-slate-600 dark:bg-slate-800"
         :disabled="!canPrevious"
         @click="previousPage"
       >
@@ -336,7 +336,7 @@ onBeforeUnmount(() => {
       <span class="text-xs text-slate-500">{{ pageLabel }}</span>
       <button
         type="button"
-        class="min-h-10 rounded-xl border border-slate-300 bg-white px-3 text-sm font-bold disabled:opacity-40 dark:border-slate-600 dark:bg-slate-800"
+        class="min-h-11 rounded-xl border border-slate-300 bg-white px-3 text-sm font-bold disabled:opacity-40 dark:border-slate-600 dark:bg-slate-800"
         :disabled="!canNext"
         @click="nextPage"
       >
