@@ -24,6 +24,7 @@ interface Choice {
   id: string
   name: string
   number: string | null
+  bats: 'right' | 'left' | 'both' | null
 }
 interface DraftRow {
   player: Choice | null
@@ -123,10 +124,30 @@ function candidate(value: unknown, team: string): Choice | null {
     item.hidden_at !== null ||
     item.roster_status_key !== 'active' ||
     typeof item.name !== 'string' ||
-    !(item.uniform_number === null || typeof item.uniform_number === 'string')
+    !(
+      item.uniform_number === null || typeof item.uniform_number === 'string'
+    ) ||
+    !(
+      item.bats === undefined ||
+      item.bats === null ||
+      item.bats === 'right' ||
+      item.bats === 'left' ||
+      item.bats === 'both'
+    )
   )
     return null
-  return { id: item.id, name: item.name, number: item.uniform_number }
+  return {
+    id: item.id,
+    name: item.name,
+    number: item.uniform_number,
+    bats: (item.bats ?? null) as Choice['bats'],
+  }
+}
+function batsLabel(choice: Choice | null): string {
+  if (choice?.bats === 'left') return '左'
+  if (choice?.bats === 'both') return '両'
+  if (choice?.bats === 'right') return '右'
+  return '—'
 }
 async function load(
   side: Side,
@@ -332,6 +353,19 @@ onScopeDispose(() => {
       class="space-y-4"
       @submit.prevent="start"
     >
+      <section
+        class="rounded-2xl border border-slate-200 bg-white p-3 text-sm dark:border-slate-700 dark:bg-slate-900"
+      >
+        <p class="font-extrabold">試合情報</p>
+        <p class="mt-1">
+          試合日：{{ detail.scheduled_at.slice(0, 10).replaceAll('-', '/') }}
+        </p>
+        <p class="mt-0.5 text-xs text-slate-500">
+          先攻 {{ detail.away_team_record_id.slice(0, 8) }} ／ 後攻
+          {{ detail.home_team_record_id.slice(0, 8) }}
+        </p>
+      </section>
+
       <p>
         {{
           detail.applied_rules.dh
@@ -339,74 +373,146 @@ onScopeDispose(() => {
             : 'DHなしのスタメンを選択してください。'
         }}
       </p>
-      <div class="grid gap-5 lg:grid-cols-2">
-        <fieldset
+
+      <div class="grid gap-4 lg:grid-cols-2">
+        <section
           v-for="side in sides"
           :key="side"
-          class="min-w-0 space-y-3 rounded-xl border p-3"
+          class="min-w-0 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-700 dark:bg-slate-900"
         >
-          <legend class="font-bold">{{ labels[side] }}</legend>
-          <p v-if="pages[side].loading" role="status">選手を取得しています</p>
-          <p v-if="pages[side].failed" role="status">選手を取得できません</p>
-          <div
-            v-for="(row, index) in drafts[side]"
-            :key="index"
-            class="grid min-w-0 gap-2"
-          >
-            <label :for="`start-${side}-${index}-player`"
-              >{{ index < 9 ? `${index + 1}番` : '投手専用' }}の選手</label
+          <div class="mb-2 flex items-center gap-2">
+            <span
+              :class="[
+                'rounded-full px-2 py-0.5 text-xs font-extrabold text-white',
+                side === 'away' ? 'bg-slate-800' : 'bg-sky-700',
+              ]"
             >
-            <select
-              :id="`start-${side}-${index}-player`"
-              :value="row.player?.id ?? ''"
-              class="min-h-11 min-w-0 rounded-lg border p-2"
-              @change="choose(side, index, $event)"
-            >
-              <option value="">選択してください</option>
-              <option
-                v-if="
-                  row.player &&
-                  !pages[side].items.some((item) => item.id === row.player?.id)
-                "
-                :value="row.player.id"
-              >
-                {{ name(row.player) }}
-              </option>
-              <option
-                v-for="player in pages[side].items"
-                :key="player.id"
-                :value="player.id"
-              >
-                {{ name(player) }}
-              </option>
-            </select>
-            <label :for="`start-${side}-${index}-position`"
-              >{{ index < 9 ? `${index + 1}番` : '投手専用' }}の守備位置</label
-            >
-            <select
-              :id="`start-${side}-${index}-position`"
-              v-model="row.position"
-              class="min-h-11 min-w-0 rounded-lg border p-2"
-            >
-              <option value="">選択してください</option>
-              <template v-for="[value, label] in positions" :key="value"
-                ><option v-if="index < 9 || value === '1'" :value="value">
-                  {{ label }}
-                </option></template
-              >
-              <option
-                v-if="index < 9 && detail.applied_rules.dh === true"
-                value="DH"
-              >
-                指名打者
-              </option>
-            </select>
+              {{ labels[side] }}
+            </span>
+            <h3 class="min-w-0 truncate text-base font-extrabold">
+              {{ labels[side] }}のスタメン
+            </h3>
           </div>
-          <div class="flex flex-wrap gap-2">
+          <p v-if="pages[side].loading" role="status" class="text-sm">
+            選手を取得しています
+          </p>
+          <p
+            v-if="pages[side].failed"
+            role="status"
+            class="text-sm text-red-700"
+          >
+            選手を取得できません
+          </p>
+          <div class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_10rem]">
+            <div class="min-w-0 overflow-x-auto">
+              <table class="w-full min-w-[20rem] text-xs">
+                <thead>
+                  <tr class="text-slate-400">
+                    <th class="w-8 py-1 text-left font-semibold">打順</th>
+                    <th class="w-16 py-1 text-left font-semibold">守備</th>
+                    <th class="w-10 py-1 text-left font-semibold">背番号</th>
+                    <th class="py-1 text-left font-semibold">氏名</th>
+                    <th class="w-8 py-1 text-left font-semibold">左右</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="(row, index) in drafts[side]"
+                    :key="index"
+                    class="border-t border-slate-100 dark:border-slate-800"
+                  >
+                    <td class="py-1.5 font-bold tabular-nums">
+                      {{ index < 9 ? index + 1 : 'P' }}
+                    </td>
+                    <td class="py-1.5">
+                      <select
+                        :id="`start-${side}-${index}-position`"
+                        v-model="row.position"
+                        class="min-h-10 w-full rounded border border-slate-300 bg-white p-1 text-xs dark:border-slate-600 dark:bg-slate-800"
+                      >
+                        <option value="">選択してください</option>
+                        <template
+                          v-for="[value, label] in positions"
+                          :key="value"
+                        >
+                          <option
+                            v-if="index < 9 || value === '1'"
+                            :value="value"
+                          >
+                            {{ label }}
+                          </option>
+                        </template>
+                        <option
+                          v-if="index < 9 && detail.applied_rules.dh === true"
+                          value="DH"
+                        >
+                          指名打者
+                        </option>
+                      </select>
+                    </td>
+                    <td class="py-1.5 tabular-nums">
+                      {{ row.player?.number ?? '—' }}
+                    </td>
+                    <td class="min-w-0 py-1.5">
+                      <select
+                        :id="`start-${side}-${index}-player`"
+                        :value="row.player?.id ?? ''"
+                        class="min-h-10 w-full min-w-0 rounded border border-slate-300 bg-white p-1 text-xs dark:border-slate-600 dark:bg-slate-800"
+                        @change="choose(side, index, $event)"
+                      >
+                        <option value="">選択してください</option>
+                        <option
+                          v-if="
+                            row.player &&
+                            !pages[side].items.some(
+                              (item) => item.id === row.player?.id,
+                            )
+                          "
+                          :value="row.player.id"
+                        >
+                          {{ name(row.player) }}
+                        </option>
+                        <option
+                          v-for="player in pages[side].items"
+                          :key="player.id"
+                          :value="player.id"
+                        >
+                          {{ name(player) }}
+                        </option>
+                      </select>
+                    </td>
+                    <td class="py-1.5">{{ batsLabel(row.player) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <aside class="rounded-xl bg-slate-50 p-2 dark:bg-slate-800/60">
+              <h4 class="mb-1 text-[11px] font-extrabold text-slate-500">
+                名簿
+              </h4>
+              <ol class="space-y-0.5 text-[11px]">
+                <li
+                  v-for="person in pages[side].items"
+                  :key="person.id"
+                  class="flex min-w-0 items-center gap-1"
+                >
+                  <span
+                    class="w-5 shrink-0 text-right font-bold tabular-nums text-slate-500"
+                    >{{ person.number ?? '—' }}</span
+                  >
+                  <span class="min-w-0 flex-1 truncate">{{ person.name }}</span>
+                  <span class="shrink-0 text-slate-400">{{
+                    batsLabel(person)
+                  }}</span>
+                </li>
+              </ol>
+            </aside>
+          </div>
+          <div class="mt-2 flex flex-wrap gap-2">
             <button
               v-if="pages[side].failed"
               type="button"
-              class="min-h-11 rounded-lg border px-3 py-2"
+              class="min-h-10 rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-bold dark:border-slate-600"
               :disabled="pages[side].loading"
               @click="load(side, pages[side].cursor, 'retry')"
             >
@@ -414,7 +520,7 @@ onScopeDispose(() => {
             </button>
             <button
               type="button"
-              class="min-h-11 rounded-lg border px-3 py-2"
+              class="min-h-10 rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-bold disabled:opacity-40 dark:border-slate-600"
               :disabled="pages[side].loading || pages[side].index === 0"
               @click="
                 load(
@@ -428,18 +534,19 @@ onScopeDispose(() => {
             </button>
             <button
               type="button"
-              class="min-h-11 rounded-lg border px-3 py-2"
+              class="min-h-10 rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-bold disabled:opacity-40 dark:border-slate-600"
               :disabled="pages[side].loading || pages[side].next === null"
               @click="load(side, pages[side].next, 'next')"
             >
               {{ labels[side] }}の次のページ
             </button>
           </div>
-        </fieldset>
+        </section>
       </div>
+
       <button
         type="submit"
-        class="min-h-11 rounded-lg border px-4 py-2 font-bold"
+        class="min-h-14 w-full rounded-xl bg-sky-600 px-4 text-lg font-extrabold text-white hover:bg-sky-700 disabled:pointer-events-none disabled:opacity-40"
         :disabled="!complete || !connection.canStart.value"
       >
         試合を開始
