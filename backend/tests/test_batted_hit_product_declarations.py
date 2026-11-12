@@ -295,8 +295,8 @@ PRESERVED_FUNCTION_BODIES = {
         '_prefix_projection(uuid, uuid, uuid, bytea, u'
         'uid, uuid, text)'
     ): (
-        '8bad44e2d4047504ef19e1a48b777d9540d9bc4275441'
-        '0bfe36c2f7b271faddb'
+        '8ecb27091e345d8f5aa34ca16b60395eebced913d2099'
+        'e4772229bc048647a72'
     ),
     (
         'function|FUNCTION:sync_right_api:assert_play_'
@@ -309,15 +309,15 @@ PRESERVED_FUNCTION_BODIES = {
         'function|FUNCTION:sync_right_api:finish_play_'
         'prefix_projection()'
     ): (
-        '54995cbd181d5593e81196334e5574b1ad2284ab5c9a7'
-        'a9a317084062625b2d8'
+        '41de006a775062d83238ae3905889e5310b1df46c9d527'
+        '41e8d1a4f7397ab36a'
     ),
     (
         'function|FUNCTION:sync_right_api:guard_play_p'
         'refix_runner_insert()'
     ): (
-        '5a7b8c541d9ace59d62206c3a3194b6b588a1ef81ec10'
-        '74991897358c835c43e'
+        '8f9cd90e0941156a0f68d70c936091f908fce50544ef6'
+        '6a52c7f6d79b6141bac'
     ),
 }
 # fmt: on

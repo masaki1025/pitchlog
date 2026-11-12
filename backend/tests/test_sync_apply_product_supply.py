@@ -198,6 +198,25 @@ def test_catalog_keeps_added_objects_and_actual_bodies():
         "publish_writer_binding",
     }
     recovery_names = {"read_attempt_d5", "retire_sync_attempt"}
+    p3_names = {
+        "append_p3_projection_page",
+        "begin_p3_projection_page",
+        "bind_p3_device",
+        "check_p3_right",
+        "finalize_p3_projection_page",
+        "persist_p3_projection",
+        "read_p3_current",
+        "read_p3_current_header",
+        "read_p3_current_page",
+        "read_p3_writer_binding",
+    }
+    started_read_names = {
+        "read_started_nonplay_active_history",
+        "read_started_ordinary_history_page",
+        "read_started_play_prefix_history_page",
+        "read_viewer_effective_version",
+        "read_viewer_play_prefix_history_page",
+    }
     preceding_names = {
         "bind_nonplay_device",
         "check_nonplay_right",
@@ -213,15 +232,23 @@ def test_catalog_keeps_added_objects_and_actual_bodies():
         "read_nonplay_history_page",
         "verify_replay_device",
     }
-    assert {r[1] for r in rows} == old_names | preceding_names | recovery_names | {
+    assert {r[1] for r in rows} == (
+        old_names
+        | preceding_names
+        | recovery_names
+        | p3_names
+        | started_read_names
+        | {
         value.split(":")[-1].split("(")[0]
-        for value in _TERMINAL_FUNCTION_IDS | _LINEUP_FUNCTION_IDS
-    }
+            for value in _TERMINAL_FUNCTION_IDS | _LINEUP_FUNCTION_IDS
+        }
+    )
     assert len(old_names) == 20
     assert len(preceding_names) == 13
+    assert len(p3_names) == 10 and len(started_read_names) == 5
     assert len(_TERMINAL_FUNCTION_IDS) == 7 and len(_LINEUP_FUNCTION_IDS) == 1
-    assert len(rows) - len(_TERMINAL_FUNCTION_IDS) - len(_LINEUP_FUNCTION_IDS) == 35
-    assert len(rows) == 43
+    assert len(rows) - len(_TERMINAL_FUNCTION_IDS) - len(_LINEUP_FUNCTION_IDS) == 50
+    assert len(rows) == 58
     assert sum(r[4] is False for r in rows) == 2
     assert all(r[9] and r[8] == ("search_path=pg_catalog, pg_temp",) for r in rows)
 
@@ -240,14 +267,14 @@ def test_full_apply_has_attempt_retirement_definitions_and_six_guards():
     """実認可資産の閉集合と失敗条件を検査する。"""
     _, s = prov._build_operation_statements(prov.ProductOperation.APPLY)
     sql = "\n".join(r.sql for r in s)
-    assert sql.count("CREATE FUNCTION sync_fence_api.") == 9
+    assert sql.count("CREATE FUNCTION sync_fence_api.") == 10
     assert (
         sql.count("CREATE FUNCTION sync_right_api.")
         - len(_TERMINAL_FUNCTION_IDS)
         - len(_LINEUP_FUNCTION_IDS)
-        == 26
+        == 38
     )
-    assert sql.count("CREATE FUNCTION sync_right_api.") == 34
+    assert sql.count("CREATE FUNCTION sync_right_api.") == 46
     assert sql.count("CREATE TRIGGER trg_play_prefix_") == 2
     assert sql.count("CREATE TRIGGER sync_writer_") == 4
     assert sql.count("CREATE TRIGGER sync_attempt_retirement_") == 2
@@ -278,16 +305,24 @@ def test_unapply_rejects_before_generation_or_execution(monkeypatch):
 
 def test_reapply_is_closed_to_exact_nine_and_preserves_frozen_first_apply():
     """新9は未存在分岐だけで元全文を実行し既存時は検査だけを行う。"""
-    from pitchlog.authz.first_ball_product import application_function_sql, body
+    from pitchlog.authz.first_ball_product import (
+        application_function_sql,
+        body,
+        function_details,
+    )
 
+    volatilities = {row[1]: row[7] for row in function_details()}
     for row in ADDITIONS["functions"]:
         original = body("function", row["function_id"])
         assert original is not None
+        # triggerの付与取消は別の再適用試験が検査する。
+        if not original.lstrip().startswith("CREATE FUNCTION"):
+            continue
         wrapped = application_function_sql(row["function_id"], original)
         assert wrapped is not None
         assert wrapped.startswith("DO $first_ball_reapply$")
-        assert wrapped.count("EXECUTE ") == original.count("EXECUTE ") + 1
         literal = "'" + original.replace("'", "''") + "'"
+        assert wrapped.count("EXECUTE " + literal) == 1
         assert (
             f"IF existing IS NULL THEN\n        EXECUTE {literal};\n        RETURN;"
             in wrapped
@@ -300,15 +335,7 @@ def test_reapply_is_closed_to_exact_nine_and_preserves_frozen_first_apply():
         assert "REVOKE " not in existing_branch
         assert "DROP " not in existing_branch
         # 新しい語彙readだけは採用済みSTABLE。他の旧関数はVOLATILEを維持する。
-        expected_volatility = (
-            "s"
-            if row["function_id"]
-            == (
-                "FUNCTION:recording_vocab_api:read_batted_ball_options("
-                "uuid, integer, text)"
-            )
-            else "v"
-        )
+        expected_volatility = volatilities[row["function_name"]]
         for required in (
             "p.prokind='f'",
             f"p.provolatile='{expected_volatility}'",
@@ -874,7 +901,12 @@ def test_reapply_is_per_function_and_normalizes_only_new_table_spacing():
     assert _pg_result_type("void") == "void"
     for row in function_details():
         assert isinstance(row[6], str)
-        assert row[6] == "void" or row[6] == "trigger" or row[6].startswith("TABLE(")
+        assert (
+            row[6] == "void"
+            or row[6] == "trigger"
+            or row[6].startswith("TABLE(")
+            or " " not in row[6]
+        )
     key = "FUNCTION:sync_fence_api:read_writer_identity(uuid)"
     original = body("function", key)
     assert original is not None
@@ -946,12 +978,16 @@ def test_device_state_overload_guard_only_extends_new_wrapper():
         wrapped = application_function_sql(row["function_id"], canonical)
         assert wrapped is not None
         has_guard = "other.oid IS DISTINCT FROM existing" in wrapped
-        assert has_guard is (row["function_name"] == "read_device_state")
+        assert has_guard is (
+            row["function_name"] in {"read_device_state", "verify_replay_device"}
+        )
         if has_guard:
             assert wrapped.index("other.oid IS DISTINCT FROM existing") < wrapped.index(
                 "IF existing IS NULL THEN"
             )
-            assert "AND other.proname='read_device_state'" in wrapped
+            assert (
+                f"AND other.proname='{row['function_name']}'" in wrapped
+            )
 
 
 def test_expected_source_pin_fixture_has_all_thirty_independent_values():
