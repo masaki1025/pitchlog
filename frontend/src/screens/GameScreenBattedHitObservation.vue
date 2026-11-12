@@ -7,7 +7,9 @@ import type {
   BattedOtherResult,
 } from '../api/lineupPrefixWire'
 import {
+  cachedBattedBallOptions,
   readBattedBallOptions,
+  rememberBattedBallOptions,
   type BattedBallOption,
 } from '../api/battedBallOptions'
 import GameScreenObservationField from './GameScreenObservationField.vue'
@@ -79,6 +81,9 @@ const emit = defineEmits<{
   ]
 }>()
 const auth = useAuthStore()
+const vocabCacheKey = computed(
+  () => `${auth.teamId ?? 'none'}/${auth.authEpoch}`,
+)
 const fields = [
   'typeKey',
   'strengthKey',
@@ -195,6 +200,16 @@ async function load(page: string | null) {
   loading.value = true
   failed.value = false
   confirmations.value = {}
+  if (page === null) {
+    const cached = cachedBattedBallOptions(vocabCacheKey.value)
+    if (cached !== null) {
+      items.value = cached.items
+      cursor.value = null
+      nextCursor.value = cached.next_cursor
+      loading.value = false
+      return
+    }
+  }
   try {
     const result = await readBattedBallOptions(page, 25, request.signal)
     if (own !== sequence || auth.teamId !== tenant || auth.authEpoch !== epoch)
@@ -202,6 +217,7 @@ async function load(page: string | null) {
     items.value = result.items
     cursor.value = page
     nextCursor.value = result.next_cursor
+    if (page === null) rememberBattedBallOptions(vocabCacheKey.value, result)
   } catch {
     if (own === sequence) {
       failed.value = true
@@ -211,17 +227,19 @@ async function load(page: string | null) {
     if (own === sequence) loading.value = false
   }
 }
+// 文脈が変わっても語彙は同じtenantの間で再利用し、入力だけを初期化する。
 watch(
-  () => [
-    props.contextKey,
-    props.resultId,
-    props.adoptInterference,
-    auth.teamId,
-    auth.authEpoch,
-  ],
+  () => [props.contextKey, props.resultId, props.adoptInterference],
   () => {
     previousPages.value = []
     reset()
+  },
+  { immediate: true },
+)
+watch(
+  () => [auth.teamId, auth.authEpoch],
+  () => {
+    previousPages.value = []
     void load(null)
   },
   { immediate: true },

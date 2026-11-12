@@ -153,7 +153,7 @@ export async function createAndStartRealGame(
     runners: [],
   } as unknown as LineupPrefixGame
   expect(saved.applied_rules.regulationInnings).toBe(expectedRegulationInnings)
-  return { game: saved, head: initial }
+  return { game: saved, head: initial, tenantId }
 }
 
 /** サーバーが実際に返したv3 headだけを待つ。fixture応答を供給しない。 */
@@ -242,6 +242,10 @@ export async function recordRealPitch(
       .getByTestId('batted-hit-observation')
       .filter({ visible: true })
       .last()
+    // 打球結果の選択直後に親の確認済みcontextへ切り替わる。入力欄の再生成が
+    // 落ち着いてから実観測を入れる（固定値での補完はしない）。
+    await expect(panel).toBeVisible({ timeout: 30_000 })
+    await page.waitForTimeout(750)
     for (const [key, value] of [
       ['typeKey', 'batted.screen.line'],
       ['strengthKey', 'batted.screen.hard'],
@@ -258,9 +262,9 @@ export async function recordRealPitch(
         key === 'typeKey' ||
         key === 'strengthKey' ||
         key === 'resolvedFielderId'
-      )
+      ) {
         await input.selectOption(value)
-      else await input.fill(value)
+      } else await input.fill(value)
     }
     for (const key of ['scoring', 'interference', 'overrides', 'thirdOut'])
       await panel

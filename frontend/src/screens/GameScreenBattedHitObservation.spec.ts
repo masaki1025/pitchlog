@@ -5,6 +5,7 @@ import * as options from '../api/battedBallOptions'
 import GameScreenBattedHitObservation from './GameScreenBattedHitObservation.vue'
 let pinia: Pinia
 beforeEach(() => {
+  options.clearBattedBallOptionsCache()
   pinia = createPinia()
   setActivePinia(pinia)
   vi.spyOn(options, 'readBattedBallOptions').mockResolvedValue({

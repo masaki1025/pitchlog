@@ -7,6 +7,21 @@ export type BattedBallPage = Readonly<{
 function invalid(): never {
   throw new Error('打球語彙の選択肢を確認できません')
 }
+
+// 同一tenant/epochの間だけ先頭ページを再利用する。ページ再読込で消える。
+const firstPageCache = new Map<string, BattedBallPage>()
+export function cachedBattedBallOptions(key: string): BattedBallPage | null {
+  return firstPageCache.get(key) ?? null
+}
+export function rememberBattedBallOptions(
+  key: string,
+  page: BattedBallPage,
+): void {
+  if (page.next_cursor === null) firstPageCache.set(key, page)
+}
+export function clearBattedBallOptionsCache(): void {
+  firstPageCache.clear()
+}
 /** 実tenant限定の1ページだけを読む。全件読み込み・固定語彙補完はしない。 */
 export async function readBattedBallOptions(
   cursor: string | null = null,

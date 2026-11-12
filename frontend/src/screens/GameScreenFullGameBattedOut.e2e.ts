@@ -2,7 +2,7 @@
 import { expect, test } from '@playwright/test'
 import { lstatSync, writeFileSync } from 'node:fs'
 import { isAbsolute, resolve, basename } from 'node:path'
-import { createHash } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import {
   apiPath,
   baseURL,
@@ -16,10 +16,15 @@ test('実画面で9回・55プレイを保存し終了確定版をreloadする',
   page.setDefaultTimeout(30_000)
   const selfTeam = process.env.PITCHLOG_E2E_SELF_TEAM
   if (!selfTeam) throw new Error('実fixtureの自チームIDが不足')
-  const { game, head: initial } = await createAndStartRealGame(
-    page,
-    '九回凡打成績CSV通し',
-  )
+  const tenantHeaders = () => ({
+    'X-Pitchlog-Expected-Tenant': tenantId,
+    'X-Pitchlog-Tenant-Challenge': randomUUID(),
+  })
+  const {
+    game,
+    head: initial,
+    tenantId,
+  } = await createAndStartRealGame(page, '九回凡打成績CSV通し')
   let head = initial
   const times: number[] = []
   const opening = await recordRealPitch(
@@ -86,6 +91,14 @@ test('実画面で9回・55プレイを保存し終了確定版をreloadする',
   expect(head.after.scoreboard.hits).toBe('1')
   expect(head.after.scoreboard.walks).toBe('0')
   expect(head.after.battingOrderBySide).toEqual({ away: '2', home: '1' })
+  await page
+    .getByRole('button', { name: 'メニュー', exact: true })
+    .last()
+    .click()
+  await page
+    .getByRole('button', { name: /試合の終了・再開/ })
+    .last()
+    .click()
   const lifecycle = page.getByTestId('lifecycle-product')
   await lifecycle.getByTestId('lifecycle-refresh').click()
   for (const box of await lifecycle.locator('input[type=checkbox]').all())
@@ -128,7 +141,9 @@ test('実画面で9回・55プレイを保存し終了確定版をreloadする',
   )
     throw new Error('実証出力先の所有/権限が不正')
   async function fetchJson(path: string, filename: string) {
-    const response = await page.request.get(new URL(path, baseURL).href)
+    const response = await page.request.get(new URL(path, baseURL).href, {
+      headers: tenantHeaders(),
+    })
     expect(response.status()).toBe(200)
     const value = await response.json()
     expect(value.next_cursor).toBeNull()
@@ -146,6 +161,7 @@ test('実画面で9回・55プレイを保存し終了確定版をreloadする',
           '/started?projection=lifecycle-prefix-v1&limit=25',
         baseURL,
       ).href,
+      { headers: tenantHeaders() },
     )
     expect(response.status()).toBe(200)
     const value = await response.json()
@@ -196,7 +212,9 @@ test('実画面で9回・55プレイを保存し終了確定版をreloadする',
     ['/api/stats/seasons/2026/stats.csv?category=practice', 'season-stats.csv'],
     ['/api/games/' + game.id + '/exports/plays.zip', 'plays.zip'],
   ]) {
-    const response = await page.request.get(new URL(path!, baseURL).href)
+    const response = await page.request.get(new URL(path!, baseURL).href, {
+      headers: tenantHeaders(),
+    })
     expect(response.status()).toBe(200)
     const data = await response.body()
     expect(data.length).toBeGreaterThan(0)

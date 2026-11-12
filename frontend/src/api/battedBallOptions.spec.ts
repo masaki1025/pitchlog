@@ -1,6 +1,11 @@
 import { beforeEach, expect, it, vi } from 'vitest'
 import * as client from './client'
-import { readBattedBallOptions } from './battedBallOptions'
+import {
+  cachedBattedBallOptions,
+  clearBattedBallOptionsCache,
+  readBattedBallOptions,
+  rememberBattedBallOptions,
+} from './battedBallOptions'
 beforeEach(() => vi.restoreAllMocks())
 it('C2 tenant照合を使い1ページだけ取得する', async () => {
   const call = vi.spyOn(client, 'apiRequest').mockResolvedValue({
@@ -74,4 +79,21 @@ it('同一cursorの再掲を拒否し、opaqueな値の順序を推測しない'
     next_cursor: cursor,
   })
   await expect(readBattedBallOptions(cursor, 1)).rejects.toThrow()
+})
+
+it('同一tenantの先頭ページだけをキャッシュし、次ページは覚えない', () => {
+  clearBattedBallOptionsCache()
+  const first = {
+    items: [{ key: 'pitch.a', display_name: 'A' }],
+    next_cursor: null,
+  }
+  rememberBattedBallOptions('tenant/1', first)
+  expect(cachedBattedBallOptions('tenant/1')).toEqual(first)
+  rememberBattedBallOptions('tenant/2', {
+    items: [{ key: 'pitch.b', display_name: 'B' }],
+    next_cursor: 'next',
+  })
+  expect(cachedBattedBallOptions('tenant/2')).toBeNull()
+  clearBattedBallOptionsCache()
+  expect(cachedBattedBallOptions('tenant/1')).toBeNull()
 })
