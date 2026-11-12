@@ -3,6 +3,7 @@ import * as client from './client'
 import {
   cachedBattedBallOptions,
   clearBattedBallOptionsCache,
+  noteBattedBallAuthKey,
   readBattedBallOptions,
   rememberBattedBallOptions,
 } from './battedBallOptions'
@@ -119,4 +120,18 @@ it('先頭ページは5分で失効し、保持件数は8件に制限する', ()
   expect(cachedBattedBallOptions('tenant/0')).toBeNull()
   expect(cachedBattedBallOptions('tenant/1')).not.toBeNull()
   expect(cachedBattedBallOptions('tenant/8')).not.toBeNull()
+})
+
+it('認証キーが変わった時だけ語彙cacheを破棄し、同tenant再表示では保持する', () => {
+  clearBattedBallOptionsCache()
+  const page = {
+    items: [{ key: 'pitch.a', display_name: 'A' }],
+    next_cursor: null,
+  }
+  noteBattedBallAuthKey('tenant/1')
+  rememberBattedBallOptions('tenant/1', page)
+  noteBattedBallAuthKey('tenant/1')
+  expect(cachedBattedBallOptions('tenant/1')).toEqual(page)
+  noteBattedBallAuthKey('tenant/2')
+  expect(cachedBattedBallOptions('tenant/1')).toBeNull()
 })

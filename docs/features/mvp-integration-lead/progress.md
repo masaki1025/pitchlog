@@ -34,6 +34,13 @@
 - 固定HEAD `586abd72` の候補URL・ログイン方法・操作手順・実証・未達を `candidate-handoff-2026-11-12.md` にまとめた。
 - 候補環境はテスト所有の使い捨てであり、製品環境・実機・バックアップ復旧の証拠ではない。
 
+### 2026-11-13 08:10 再レビューP1/P2の是正
+
+- Codex再レビュー（`1989001a..90c1def4`、P0なし）の指摘2件を是正した。
+  - **P1**: `retry()` が照会済みattemptを局所変数へ取り込んだ後、資格読取の待機中に再照会が `unresolved` を返すと、局所変数の `skipRecovery` でPOSTへ進み得た。POST直前に `#inspectionResult` と `#recovery.attemptId` を再検査し、未確定・不一致なら送らない。
+  - **P2**: 打球語彙cacheの破棄が認証watchの `immediate` に依存し、同tenantの再表示でも毎回消え、フォーム非表示中の認証切替では残った。`noteBattedBallAuthKey` を導入し、認証キーが変わった時だけ一度破棄する（初回マウント・同tenant再表示では保持）。
+- ACK喪失E2Eは是正後も **1 passed / 105.31秒**。
+
 ### 2026-11-13 08:10 タイブレーク候補の隔離前進
 
 - 別worktree `feature/mvp-tiebreak-pipeline-20261113`（HEAD `20839a5e`、リモートpush済み）へ、タイブレーク開始の**artifact入口**と非play保存骨格を固定した。統合ブランチへは未マージ。

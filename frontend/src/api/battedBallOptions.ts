@@ -43,6 +43,12 @@ export function rememberBattedBallOptions(
 export function clearBattedBallOptionsCache(): void {
   firstPageCache.clear()
 }
+let lastAuthKey: string | null = null
+/** 認証状態の変更点で一度だけ破棄し、初回マウントや同tenant再表示では消さない。 */
+export function noteBattedBallAuthKey(key: string): void {
+  if (lastAuthKey !== null && lastAuthKey !== key) clearBattedBallOptionsCache()
+  lastAuthKey = key
+}
 /** 実tenant限定の1ページだけを読む。全件読み込み・固定語彙補完はしない。 */
 export async function readBattedBallOptions(
   cursor: string | null = null,
