@@ -321,10 +321,10 @@ async def test_forbidden_response_is_hidden_as_not_found() -> None:
 
 
 def test_router_routes_are_static_login_roster_and_meta() -> None:
-    """閲覧2本を含む静的route全40本を照合する。"""
+    """閲覧2本を含む静的route全41本を照合する。"""
     routes = _router_routes()
 
-    assert len(routes) == 40
+    assert len(routes) == 41
     assert tuple((route.path, frozenset(route.methods or ())) for route in routes) == (
         ("/health", frozenset({"GET"})),
         ("/version", frozenset({"GET"})),
@@ -345,6 +345,7 @@ def test_router_routes_are_static_login_roster_and_meta() -> None:
         ("/team-records/{team_record_id:uuid}", frozenset({"DELETE"})),
         ("/team-records/{team_record_id:uuid}/lineup-memory", frozenset({"GET"})),
         ("/games", frozenset({"GET"})),
+        ("/games/archive", frozenset({"GET"})),
         ("/games/preparation-options", frozenset({"GET"})),
         ("/games", frozenset({"POST"})),
         ("/games/{game_id}", frozenset({"GET"})),

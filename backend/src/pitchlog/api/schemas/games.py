@@ -93,6 +93,45 @@ class PreparingGameRead(BaseSchema):
         return value.astimezone(timezone.utc)
 
 
+class GameArchiveRead(BaseSchema):
+    """同tenantの可視な試合一覧（準備中・進行中・終了）を返す。"""
+
+    id: EntityId
+    scheduled_at: Timestamp
+    game_type_key: GameTypeKey
+    tournament_key: str = Field(min_length=1)
+    away_team_record_id: EntityId
+    home_team_record_id: EntityId
+    status: Literal["preparing", "in_progress", "finished"]
+    started_at: Timestamp | None
+
+    @field_validator("scheduled_at", "started_at")
+    @classmethod
+    def normalize_timestamp(cls, value: datetime | None) -> datetime | None:
+        """保存後readと同じUTC表現へ揃える。"""
+        return value.astimezone(timezone.utc) if value is not None else None
+
+
+class GameArchiveListRequest(PageRequest):
+    """試合一覧の件数と不透明なページ位置を指定する。"""
+
+    limit: int = Field(default=20, ge=1, le=PREPARING_GAME_PAGE_SIZE_MAX, strict=True)
+
+    @field_validator("limit", mode="before")
+    @classmethod
+    def parse_query_limit(cls, value: object) -> object:
+        """HTTP query の ASCII 十進表記だけを strict int へ変換する。"""
+        return PreparingGameListRequest.parse_query_limit(value)
+
+    @field_validator("cursor")
+    @classmethod
+    def validate_cursor(cls, value: str | None) -> str | None:
+        """存在するカーソルをデコードできる正規形に限定する。"""
+        if value is not None:
+            decode_preparing_game_cursor(value)
+        return value
+
+
 def encode_preparation_options_cursor(key: str) -> str:
     """大会キーを値を変えずに不透明なページ位置へ写す。"""
     if type(key) is not str or not key:

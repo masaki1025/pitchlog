@@ -15,6 +15,8 @@ from pitchlog.api.schemas.game_start import (
     InitialGameStartResponse,
 )
 from pitchlog.api.schemas.games import (
+    GameArchiveListRequest,
+    GameArchiveRead,
     PreparationOptionsRequest,
     PreparingGameCreate,
     PreparingGameListRequest,
@@ -41,7 +43,13 @@ from pitchlog.recording_rights.initial_grant_broker import (
 )
 from pitchlog.repositories.context import TenantContext
 from pitchlog.repositories.game_start import InitialStartPayload, _entries
-from pitchlog.repositories.games import PreparingGameDetailToken, PreparingGameListToken
+from pitchlog.repositories.games import (
+    GameArchiveFinishedListToken,
+    GameArchiveInProgressListToken,
+    GameArchivePreparingListToken,
+    PreparingGameDetailToken,
+    PreparingGameListToken,
+)
 from pitchlog.repositories.rule_resolution import RuleResolutionError
 from pitchlog.repositories.tokens import ImmutableValue
 from pitchlog.repositories.transaction import tenant_transaction_scope
@@ -67,6 +75,45 @@ _FIELDS = (
     "status",
     "applied_rules",
 )
+
+
+_ARCHIVE_FIELDS = (
+    "id",
+    "scheduled_at",
+    "game_type_key",
+    "tournament_key",
+    "away_team_record_id",
+    "home_team_record_id",
+    "status",
+    "started_at",
+)
+
+
+def _read_archive(row: tuple[ImmutableValue, ...]) -> GameArchiveRead:
+    """scope内で検証済みの試合一覧行をDTOへ写す。"""
+    values: dict[str, object] = dict(zip(_ARCHIVE_FIELDS, row, strict=True))
+    return GameArchiveRead.model_validate(values)
+
+
+def _archive_page(
+    rows: tuple[tuple[ImmutableValue, ...], ...],
+    limit: int,
+) -> Page[GameArchiveRead]:
+    """3状態の行を1つの降順ページへ統合し、次cursorを返す。"""
+    items = sorted(
+        (_read_archive(row) for row in rows),
+        key=lambda item: (item.scheduled_at, item.id),
+        reverse=True,
+    )
+    last = items[limit - 1] if len(items) > limit else None
+    return Page[GameArchiveRead](
+        items=items[:limit],
+        next_cursor=(
+            encode_preparing_game_cursor(last.scheduled_at, last.id)
+            if last is not None
+            else None
+        ),
+    )
 
 
 def _read_game(row: tuple[ImmutableValue, ...]) -> PreparingGameRead:
@@ -99,6 +146,32 @@ def list_preparing_games(
         return page
     except Exception:
         # rollback後に固定外形だけを返し、DB値や原例外を公開しない。
+        raise HTTPException(status_code=503) from None
+
+
+@router.get(
+    "/games/archive",
+    response_model=Page[GameArchiveRead],
+    operation_id="game_archive_list",
+)
+def list_game_archive(
+    query: Annotated[GameArchiveListRequest, Query()],
+    context: Annotated[TenantContext, Depends(require_tenant_access)],
+) -> Page[GameArchiveRead]:
+    """可視な準備中・進行中・終了試合を keyset で返す。"""
+    try:
+        with tenant_transaction_scope(context) as scope:
+            rows = tuple(
+                row
+                for token_type in (
+                    GameArchivePreparingListToken,
+                    GameArchiveInProgressListToken,
+                    GameArchiveFinishedListToken,
+                )
+                for row in scope.run(token_type(query.limit, query.cursor)).rows
+            )
+        return _archive_page(rows, query.limit)
+    except Exception:
         raise HTTPException(status_code=503) from None
 
 

@@ -38,6 +38,16 @@ _READ_COLUMNS = (
     _GAMES.c.status,
     _GAMES.c.applied_rules,
 )
+_ARCHIVE_COLUMNS = (
+    _GAMES.c.id,
+    _GAMES.c.scheduled_at,
+    _GAMES.c.game_type_key,
+    _GAMES.c.tournament_key,
+    _GAMES.c.away_team_record_id,
+    _GAMES.c.home_team_record_id,
+    _GAMES.c.status,
+    _GAMES.c.started_at,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,6 +66,65 @@ class PreparingGameListToken(TenantOperationToken):
             raise ValueError("limit は 1〜100 が必要")
         if self.cursor is not None:
             decode_preparing_game_cursor(self.cursor)
+
+    @property
+    def capability_id(self) -> str:
+        """既存の試合 read capability を返す。"""
+        return "CAP:games:read"
+
+
+def _validate_archive_list(limit: int, cursor: str | None) -> None:
+    """一覧 token の件数とカーソルを実行前に検査する。"""
+    if type(limit) is not int or not 1 <= limit <= PREPARING_GAME_PAGE_SIZE_MAX:
+        raise ValueError("limit は 1〜100 が必要")
+    if cursor is not None:
+        decode_preparing_game_cursor(cursor)
+
+
+@dataclass(frozen=True, slots=True)
+class GameArchivePreparingListToken(TenantOperationToken):
+    """認証済み tenant の可視な準備中試合を一覧する。"""
+
+    limit: int = 20
+    cursor: str | None = None
+
+    def __post_init__(self) -> None:
+        """件数とカーソルの型・内容を実行前に検査する。"""
+        _validate_archive_list(self.limit, self.cursor)
+
+    @property
+    def capability_id(self) -> str:
+        """既存の試合 read capability を返す。"""
+        return "CAP:games:read"
+
+
+@dataclass(frozen=True, slots=True)
+class GameArchiveInProgressListToken(TenantOperationToken):
+    """認証済み tenant の可視な進行中試合を一覧する。"""
+
+    limit: int = 20
+    cursor: str | None = None
+
+    def __post_init__(self) -> None:
+        """件数とカーソルの型・内容を実行前に検査する。"""
+        _validate_archive_list(self.limit, self.cursor)
+
+    @property
+    def capability_id(self) -> str:
+        """既存の試合 read capability を返す。"""
+        return "CAP:games:read"
+
+
+@dataclass(frozen=True, slots=True)
+class GameArchiveFinishedListToken(TenantOperationToken):
+    """認証済み tenant の可視な終了試合を一覧する。"""
+
+    limit: int = 20
+    cursor: str | None = None
+
+    def __post_init__(self) -> None:
+        """件数とカーソルの型・内容を実行前に検査する。"""
+        _validate_archive_list(self.limit, self.cursor)
 
     @property
     def capability_id(self) -> str:
@@ -108,6 +177,34 @@ def _preparing_game_list_statement(
     )
 
 
+def _game_archive_list_statement(
+    cursor_position: tuple[datetime, UUID] | None = None,
+) -> Select[Any]:
+    """可視な試合一覧を索引順の keyset で最大 limit 件読む。"""
+    statement = (
+        select(*_ARCHIVE_COLUMNS)
+        .where(_GAMES.c.tenant_id == bindparam("tenant_id"))
+        .where(_GAMES.c.status == bindparam("status"))
+        .where(_GAMES.c.trashed_at.is_(None))
+        .where(_GAMES.c.hidden_at.is_(None))
+    )
+    if cursor_position is not None:
+        statement = statement.where(
+            or_(
+                _GAMES.c.scheduled_at
+                < bindparam("cursor_scheduled_at", type_=DateTime(timezone=True)),
+                and_(
+                    _GAMES.c.scheduled_at
+                    == bindparam("cursor_scheduled_at", type_=DateTime(timezone=True)),
+                    _GAMES.c.id < bindparam("cursor_id", type_=Uuid(as_uuid=True)),
+                ),
+            )
+        )
+    return statement.order_by(_GAMES.c.scheduled_at.desc(), _GAMES.c.id.desc()).limit(
+        bindparam("limit", type_=Integer)
+    )
+
+
 def _preparing_game_detail_statement() -> Select[Any]:
     """同じ可視性条件で ID を指定した1試合だけを読む。"""
     return (
@@ -135,6 +232,33 @@ def _prepare_preparing_game_list(operation: TenantOperationToken) -> PreparedOpe
     return _preparing_game_list_statement(position), parameters
 
 
+_ARCHIVE_TOKEN_STATUS: dict[type[TenantOperationToken], str] = {
+    GameArchivePreparingListToken: "preparing",
+    GameArchiveInProgressListToken: "in_progress",
+    GameArchiveFinishedListToken: "finished",
+}
+
+
+def _prepare_game_archive_list(operation: TenantOperationToken) -> PreparedOperation:
+    """一覧 token を1文と tenant 以外の束縛値へ変換する。"""
+    status = _ARCHIVE_TOKEN_STATUS.get(type(operation))
+    if status is None:
+        raise ValueError("試合一覧 token が必要")
+    token = cast(
+        GameArchivePreparingListToken
+        | GameArchiveInProgressListToken
+        | GameArchiveFinishedListToken,
+        operation,
+    )
+    position = (
+        decode_preparing_game_cursor(token.cursor) if token.cursor is not None else None
+    )
+    parameters: dict[str, object] = {"limit": token.limit + 1, "status": status}
+    if position is not None:
+        parameters["cursor_scheduled_at"], parameters["cursor_id"] = position
+    return _game_archive_list_statement(position), parameters
+
+
 def _prepare_preparing_game_detail(
     operation: TenantOperationToken,
 ) -> PreparedOperation:
@@ -149,7 +273,21 @@ def _prepare_preparing_game_detail(
     }
 
 
-# Step 3 では候補に留める。製品 registry と実行器には登録しない。
+# 3状態を別tokenに分け、各登録は宣言した1状態だけを読む。
+GAME_ARCHIVE_READ_OPERATIONS: tuple[OperationRegistration, ...] = tuple(
+    OperationRegistration(
+        token_type,
+        "CAP:games:read",
+        _game_archive_list_statement(),
+        _GAMES.c.tenant_id,
+        _prepare_game_archive_list,
+        required_bindings=(RequiredBinding(_GAMES.c.status, "status", status),),
+        required_limit_parameter="limit",
+        required_limit_max=PREPARING_GAME_PAGE_SIZE_MAX + 1,
+    )
+    for token_type, status in _ARCHIVE_TOKEN_STATUS.items()
+)
+
 PREPARING_GAME_READ_OPERATIONS: tuple[OperationRegistration, ...] = (
     OperationRegistration(
         PreparingGameListToken,

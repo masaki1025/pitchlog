@@ -59,7 +59,7 @@ _CATALOG_PATH = (
 )
 
 
-# 正式190基線の65token。現registryから期待を生成せず、終端1件を別途照合する。
+# 正式190基線の68token。現registryから期待を生成せず、終端1件を別途照合する。
 _EXPECTED_PRE_TERMINAL_TOKEN_TYPES = frozenset(
     {
         "pitchlog.repositories.roster.PlayerReadToken",
@@ -109,6 +109,9 @@ _EXPECTED_PRE_TERMINAL_TOKEN_TYPES = frozenset(
         "pitchlog.repositories.tenant_profile.TenantProfileReadToken",
         "pitchlog.repositories.games.PreparingGameListToken",
         "pitchlog.repositories.games.PreparingGameDetailToken",
+        "pitchlog.repositories.games.GameArchivePreparingListToken",
+        "pitchlog.repositories.games.GameArchiveInProgressListToken",
+        "pitchlog.repositories.games.GameArchiveFinishedListToken",
         "pitchlog.repositories.started_snapshot_operations.StartedLineupsReadToken",
         "pitchlog.repositories.started_snapshot_operations.StartedEventSlotsExistenceToken",
         "pitchlog.repositories.started_snapshot_operations.StartedOperationEventsExistenceToken",
@@ -1161,7 +1164,7 @@ def test_unreferenced_dml_cte_is_rejected(
 
 
 def test_roster_product_registries_match_catalog(catalog: dict[str, Any]) -> None:
-    """65 token の各文と 36 capability の対応を個別に検査する。"""
+    """68 token の各文と 36 capability の対応を個別に検査する。"""
     expected = {
         "CAP:players:read",
         "CAP:players:insert",
@@ -1214,14 +1217,14 @@ def test_roster_product_registries_match_catalog(catalog: dict[str, Any]) -> Non
     assert terminal.capability_id == "CAP:play_rows:insert"
     assert (
         len(set(repository_base._OPERATION_REGISTRY) - {PlayPrefixPlayRowInsertToken})
-        == 65
+        == 68
     )
     assert {
         f"{token.__module__}.{token.__qualname__}"
         for token in repository_base._OPERATION_REGISTRY
         if token is not PlayPrefixPlayRowInsertToken
     } == _EXPECTED_PRE_TERMINAL_TOKEN_TYPES
-    assert len(repository_base._OPERATION_REGISTRY) == 66
+    assert len(repository_base._OPERATION_REGISTRY) == 69
     assert (
         repository_base._OPERATION_REGISTRY[SelfTeamRecordReadToken].capability_id
         == "CAP:team_records:read"

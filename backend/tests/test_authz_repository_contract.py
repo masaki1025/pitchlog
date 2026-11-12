@@ -674,6 +674,9 @@ def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
         "pitchlog.repositories.tenant_profile.TenantProfileReadToken",
         "pitchlog.repositories.games.PreparingGameListToken",
         "pitchlog.repositories.games.PreparingGameDetailToken",
+        "pitchlog.repositories.games.GameArchivePreparingListToken",
+        "pitchlog.repositories.games.GameArchiveInProgressListToken",
+        "pitchlog.repositories.games.GameArchiveFinishedListToken",
         "pitchlog.repositories.started_snapshot_operations.StartedLineupsReadToken",
         "pitchlog.repositories.started_snapshot_operations.StartedEventSlotsExistenceToken",
         "pitchlog.repositories.started_snapshot_operations.StartedOperationEventsExistenceToken",
@@ -703,14 +706,14 @@ def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
     assert len(expected_capabilities) == 39
     assert repository_contract.PRODUCT_CAPABILITY_IDS == expected_capabilities
     assert repository_contract.PRODUCT_OPERATION_TOKEN_TYPES == expected_token_types
-    assert len(expected_token_types) == 72
+    assert len(expected_token_types) == 75
     assert (
         repository_contract.CROSS_TENANT_FUNCTION_ENTRY
         == repository_contract.CONTEXT_BINDING_ENTRY
     )
     assert type(repository_base._OPERATION_REGISTRY) is MappingProxyType
-    # 語彙1+成績5は固定関数/private専用。旧66DML登録の型/能力/順序を保持する。
-    assert len(expected_token_types[:-6]) == 66
+    # 語彙1+成績5は固定関数/private専用。旧69DML登録の型/能力/順序を保持する。
+    assert len(expected_token_types[:-6]) == 69
     assert expected_token_types[-6] == (
         "pitchlog.repositories.batted_ball_options.BattedBallOptionsToken"
     )
@@ -735,6 +738,9 @@ def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
                 *expected_capabilities[8:11],
                 *(capability for _, capability in expected_sync_operations),
                 "CAP:tenants:read",
+                "CAP:games:read",
+                "CAP:games:read",
+                "CAP:games:read",
                 "CAP:games:read",
                 "CAP:games:read",
                 "CAP:game_lineups:read",

@@ -1,11 +1,11 @@
 """リポジトリ基底の公開面と不変戻り値規約を提供する生成モジュール。"""
 
 SCHEMA_VERSION = 1
-CONTRACT_REVISION = 38
+CONTRACT_REVISION = 39
 ASSET_KIND = "tenant_repository_contract"
 CANONICALIZATION = "json-sort-keys-utf8-v1"
 SOURCE_ASSET = "contracts/tenant_boundary/repository-contract.json"
-SOURCE_DIGEST = "41ff0691f2d86030263ea43e5be3badf5e33da3db67557920c6b4260209ea067"
+SOURCE_DIGEST = "7b0a84ea39c70c581728c118384262f25d91a4ce5aec2e126453e37ae7e8dc38"
 
 REPOSITORY_TYPE = "pitchlog.repositories.base.TenantRepositoryBase"
 CONTEXT_BINDING_ENTRY = "pitchlog.repositories.base.TenantRepositoryBase.execute"
@@ -168,6 +168,9 @@ PRODUCT_OPERATION_TOKEN_TYPES = (
     "pitchlog.repositories.tenant_profile.TenantProfileReadToken",
     "pitchlog.repositories.games.PreparingGameListToken",
     "pitchlog.repositories.games.PreparingGameDetailToken",
+    "pitchlog.repositories.games.GameArchivePreparingListToken",
+    "pitchlog.repositories.games.GameArchiveInProgressListToken",
+    "pitchlog.repositories.games.GameArchiveFinishedListToken",
     "pitchlog.repositories.started_snapshot_operations.StartedLineupsReadToken",
     "pitchlog.repositories.started_snapshot_operations.StartedEventSlotsExistenceToken",
     "pitchlog.repositories.started_snapshot_operations.StartedOperationEventsExistenceToken",

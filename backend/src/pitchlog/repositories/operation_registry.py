@@ -17,7 +17,10 @@ from pitchlog.repositories.function_operations import (
     FunctionOperationRegistration,
     build_function_registry,
 )
-from pitchlog.repositories.games import PREPARING_GAME_READ_OPERATIONS
+from pitchlog.repositories.games import (
+    GAME_ARCHIVE_READ_OPERATIONS,
+    PREPARING_GAME_READ_OPERATIONS,
+)
 from pitchlog.repositories.invalidation_intents import INVALIDATION_INTENT_OPERATIONS
 from pitchlog.repositories.lifecycle_function_operations import (
     LIFECYCLE_FUNCTION_OPERATIONS,
@@ -98,6 +101,7 @@ from pitchlog.repositories.writer_binding import (
 
 PRODUCT_OPERATIONS: tuple[OperationRegistration, ...] = (
     *PREPARING_GAME_READ_OPERATIONS,
+    *GAME_ARCHIVE_READ_OPERATIONS,
     *ROSTER_OPERATIONS,
     *INVALIDATION_INTENT_OPERATIONS,
     *LINEUP_MEMORY_OPERATIONS,
