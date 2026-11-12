@@ -211,7 +211,7 @@ it('その場登録の回答を正式な選手作成入力へ写し、不正は�
 })
 
 it('登録失敗を入力拒否と結果不明へ分ける', () => {
-  const rejected = registrationFailure(new ApiError(422, 'invalid', []))
+  const rejected = registrationFailure(new ApiError(422, 'invalid', [], undefined, undefined))
   expect(rejected.reload).toBe(false)
   expect(rejected.message).toContain('入力内容')
   const unknown = registrationFailure(new Error('network'))
