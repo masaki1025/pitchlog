@@ -11,7 +11,7 @@ import { useAuthStore } from '../stores/authStore'
 
 type LoadState = 'idle' | 'loading' | 'ready' | 'failed'
 const auth = useAuthStore()
-const state = ref<LoadState>('idle')
+const state = ref<LoadState>('loading')
 const items = ref<GameArchiveGame[]>([])
 const nextCursor = ref<string | null>(null)
 const pageCursors = ref<(string | null)[]>([null])
