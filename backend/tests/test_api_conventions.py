@@ -22,6 +22,7 @@ from httpx import ASGITransport, AsyncClient
 
 from pitchlog.api.app import ROUTERS, create_app
 from pitchlog.api.schemas.base import ErrorDetail, ErrorEnvelope, ErrorField
+from pitchlog.api.tenant_access import _MATCH_OPERATIONS, require_tenant_access
 
 _REPOSITORY_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
 _API_SOURCE_ROOT: Final[Path] = (
@@ -389,6 +390,33 @@ def test_error_envelope_models_have_no_code_field() -> None:
     error_models = (ErrorEnvelope, ErrorDetail, ErrorField)
 
     assert all("code" not in error_model.model_fields for error_model in error_models)
+
+
+def _tenant_bound(route: APIRoute) -> bool:
+    """handlerの依存木に tenant 文脈要求がある route だけを返す。"""
+    pending = list(route.dependant.dependencies)
+    while pending:
+        dependency = pending.pop()
+        if dependency.call is require_tenant_access:
+            return True
+        pending.extend(dependency.dependencies)
+    return False
+
+
+def test_tenant_matched_routes_cover_every_tenant_bound_operation() -> None:
+    """tenant文脈を使う全routeが照合済みheaderの発行対象に入る。"""
+    routes = [
+        route
+        for route in _router_routes()
+        if _tenant_bound(route) and not route.path.startswith("/auth/")
+    ]
+    assert routes
+    missing = sorted(
+        route.operation_id
+        for route in routes
+        if route.operation_id not in _MATCH_OPERATIONS
+    )
+    assert missing == []
 
 
 def test_api_operation_ids_do_not_overlap_authz_registry() -> None:

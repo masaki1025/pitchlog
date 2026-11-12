@@ -49,6 +49,15 @@ _MATCH_OPERATIONS = frozenset(
         "roster_player_create",
         "roster_player_read",
         "roster_player_update",
+        "roster_player_status_preview",
+        "roster_player_status_apply",
+        "roster_team_delete",
+        "lineup_memory_read",
+        "game_archive_list",
+        "game_basic_stats",
+        "game_basic_stats_csv",
+        "season_basic_stats",
+        "season_basic_stats_csv",
     }
 )
 

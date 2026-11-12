@@ -1,5 +1,12 @@
 # 進捗: 旧 Baseball_Scoring 画面への操作感一致
 
+## 2026-11-12 21:30 JST — 開始済み一覧の実ブラウザ確認とtenant照合headerの欠落を修正
+
+- 実ブラウザでログイン→`/games/archive` を開き、2件のカード・状態バッジ・日時・試合ID・開始/成績/CSV導線を確認した。比較画像は `images/game-archive.png`。
+- 最初の実画面確認で、`GET /games/archive` の200応答に `X-Pitchlog-Tenant-Match` / `X-Pitchlog-Tenant-Challenge` が付かず、フロントのtenant照合がCookie不確実としてセッションを破棄し、ログイン画面へ戻る**実欠陥**を検出した。`tenant_access._MATCH_OPERATIONS` に `game_archive_list` ほか成績・名簿・lineup memoryのtenant-bound操作を追加した。
+- 再発防止として、`require_tenant_access` を使う全route（`/auth/*`を除く）が `_MATCH_OPERATIONS` に含まれることを `test_api_conventions.py` で検査する。実ブラウザ再確認ではヘッダー付与と一覧表示を確認した。
+- これは「部品がある」だけでは見つからない、画面→正式API→実DBの接続確認で見つかった欠陥である。
+
 ## 2026-11-12 21:10 JST — 候補の深いリンク・安全確認・E2E追従
 
 - 認証前の戻り先に `/games/archive`・`/stats/season`・`/games/:id/{stats,export,lineup}` を追加した。従来はすべて `/` へ閉じられ、開始済み一覧や成績へ直接開いたURLがログイン後に失われていた。

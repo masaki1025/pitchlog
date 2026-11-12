@@ -29,6 +29,12 @@
 | 成績27項目 | 実画面実証済み | 新`test_stats_screen_e2e` **1 passed / 139.35秒**。公式モードで打撃18列＋投手13列−選手/チーム4列＝**27項目**、成績CSV 5262 bytesを実ダウンロード |
 | 毎球CSV・成績CSV | 実画面実証済み | `test_play_export_screen_e2e`、P3 CSV、ゲーム/シーズン成績CSV |
 
+### 2026-11-12 21:30 開始済み一覧の実ブラウザ確認とtenant照合header修正
+
+- 実ブラウザで `/games/archive` の2カード・状態・日時・試合ID・導線を確認。画像 `docs/features/mvp-old-ui-parity/images/game-archive.png`。
+- `GET /games/archive` がtenant照合headerを返さず、フロントがセッションを破棄してログインへ戻る実欠陥を検出。`_MATCH_OPERATIONS` へ `game_archive_list`・成績・名簿・lineup memoryを追加し、tenant-bound全routeの網羅試験を追加した。
+- 再確認でヘッダー付与と一覧表示を確認した。
+
 ### 2026-11-12 21:10 候補の深いリンク・安全確認・E2E追従
 
 - 認証前の戻り先へ `/games/archive`・`/stats/season`・`/games/:id/{stats,export,lineup}` を追加。開始済み一覧・成績への直接URLがログイン後に失われない。
