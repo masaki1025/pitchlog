@@ -1295,7 +1295,7 @@ onScopeDispose(() => {
     <button
       v-if="!confirmed"
       type="button"
-      class="flex shrink-0 items-center justify-center gap-2 border-b border-amber-300 bg-amber-50 px-3 py-1.5 text-center text-xs font-extrabold text-amber-900 hover:bg-amber-100 lg:hidden dark:border-amber-800 dark:bg-amber-950/60 dark:text-amber-100"
+      class="flex shrink-0 items-center justify-center gap-2 border-b border-amber-300 bg-amber-50 px-3 py-1.5 text-center text-xs font-extrabold text-amber-900 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/60 dark:text-amber-100"
       @click="openSafety"
     >
       記録端末の安全確認が必要です — タップして確認

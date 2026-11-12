@@ -2,10 +2,19 @@ import { canonicalUuid } from '../api/authIntent'
 
 /** 認証前に保持できる登録済みの内部pathnameと有限な記録入口だけを返す。 */
 export function resolveGameEntryReturnPath(value: unknown): string {
-  if (value === '/' || value === '/team' || value === '/games') return value
+  if (
+    value === '/' ||
+    value === '/team' ||
+    value === '/games' ||
+    value === '/games/archive' ||
+    value === '/stats/season'
+  )
+    return value
   if (typeof value !== 'string') return '/'
   const viewer = /^\/games\/([^/]+)\/view$/.exec(value)
   if (viewer && canonicalUuid.test(viewer[1] ?? '')) return value
+  const gameSubpage = /^\/games\/([^/]+)\/(stats|export|lineup)$/.exec(value)
+  if (gameSubpage && canonicalUuid.test(gameSubpage[1] ?? '')) return value
   const match =
     /^\/games\/([^/]+)\/record(?:\?recording=(?:ordinary-prefix-v1|play-prefix-v2|play-prefix-v3))?$/.exec(
       value,

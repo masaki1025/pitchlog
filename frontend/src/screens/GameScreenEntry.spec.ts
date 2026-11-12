@@ -175,6 +175,12 @@ describe('登録済みrouteと認証境界', () => {
     [`/games/${gameId}/record#part`, '/'],
     ['/games/not-a-uuid/record', '/'],
     ['/team', '/team'],
+    ['/games/archive', '/games/archive'],
+    ['/stats/season', '/stats/season'],
+    [`/games/${gameId}/stats`, `/games/${gameId}/stats`],
+    [`/games/${gameId}/export`, `/games/${gameId}/export`],
+    [`/games/${gameId}/lineup`, `/games/${gameId}/lineup`],
+    ['/games/not-a-uuid/stats', '/'],
   ])('認証前の%sは安全な戻り先%sだけを保持する', async (path, expected) => {
     useAuthStore(pinia).signOut()
     const router = createAppRouter(createMemoryHistory())
