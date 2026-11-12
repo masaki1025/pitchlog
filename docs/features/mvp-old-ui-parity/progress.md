@@ -74,6 +74,9 @@
 - `images/comparison-substitution.png`（交代入口）
 - `images/record-ipad.png`（iPad 幅）
 - `images/record-phone.png`（iPhone 幅）
+- `images/record-lineup.png`（全画面の選手交代）
+- `images/record-half-change.png`（1回裏へ攻守交代）
+- `images/game-list.png`（試合一覧カード）
 - 元画像は `/tmp/opencode/` 配下にも残している（旧: `old-game-*.png`、PitchLog: `new-record-*.png`）。
 
 ### 残る差（隠さない）
