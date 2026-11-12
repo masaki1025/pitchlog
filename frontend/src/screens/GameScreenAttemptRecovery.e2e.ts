@@ -256,9 +256,18 @@ test('実browserを閉じて同profileを再起動し、元要求を復旧して
         await login(page)
         await page.goto(recordingUrl)
       }
+      // 再起動後は復元入口を実画面で開き、記録画面へ戻ってから確認する。
+      const restore = page.getByRole('button', { name: 'サーバーから復元' })
+      if (await restore.isVisible().catch(() => false)) await restore.click()
+      await expect(page.getByTestId('ordinary-pitch-result')).toBeVisible({
+        timeout: 60_000,
+      })
       await confirmSafety(page)
-      // 結果不明は自動成功にせず、可視の再送導線から同じ要求を照会・終結する。
+      // 確認後の自動再送が走る場合は完了を待ち、失敗時だけ可視の再送導線を使う。
       const retry = page.getByTestId('first-ball-retry')
+      await retry
+        .waitFor({ state: 'visible', timeout: 60_000 })
+        .catch(() => undefined)
       if (await retry.isVisible().catch(() => false)) {
         await retry.click()
       } else {
