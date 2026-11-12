@@ -14,6 +14,16 @@ test('実画面で9回・55プレイを保存し終了確定版をreloadする',
   page,
 }) => {
   page.setDefaultTimeout(30_000)
+  page.on('response', async (response) => {
+    if (new URL(response.url()).pathname === '/api/vocabularies/batted-balls')
+      console.log(
+        'PITCHLOG_BATTED_VOCAB=' +
+          JSON.stringify({
+            status: response.status(),
+            body: (await response.text()).slice(0, 200),
+          }),
+      )
+  })
   const selfTeam = process.env.PITCHLOG_E2E_SELF_TEAM
   if (!selfTeam) throw new Error('実fixtureの自チームIDが不足')
   const { game, head: initial } = await createAndStartRealGame(

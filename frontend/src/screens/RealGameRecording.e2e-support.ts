@@ -248,6 +248,8 @@ export async function recordRealPitch(
     ] as const) {
       await page.getByTestId(`batted-mode-${key}`).selectOption('observed')
       const input = page.getByTestId(`batted-value-${key}`)
+      // 打球語彙の実GETが終わるまで観測値はdisabled。固定値で補完しない。
+      await expect(input).toBeEnabled({ timeout: 30_000 })
       if (
         key === 'typeKey' ||
         key === 'strengthKey' ||
