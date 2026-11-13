@@ -11,6 +11,7 @@ from typing import cast
 from uuid import UUID
 
 import pytest
+from test_lineup_play_prefix_continuation import current_case
 
 from pitchlog.domainrt.host import NodeDomainHost
 from pitchlog.domainrt.lineup_play_prefix_continuation import (
@@ -65,7 +66,6 @@ from pitchlog.sync.terminal_pitch_payload import (
     LineupPitchPlayPayload,
 )
 from pitchlog.sync.terminal_pitch_projection import runner_physical_rows
-from test_lineup_play_prefix_continuation import current_case
 
 _ROOT = Path(__file__).resolve().parents[3]
 _CASES = {
@@ -534,7 +534,10 @@ def test_v3_physical_candidate_uses_existing_mappers_and_new_row_ids(
     class Scope:
         _bound_tenant_id = tenant
 
-    def read_pages(_scope, _game, _target, consume):
+    def read_pages(_scope, _game, _target, consume, *, _host, _progress):
+        assert isinstance(_host, NodeDomainHost)
+        assert callable(_progress)
+        _progress()
         checkpoint = SimpleNamespace(
             prefix_ref=original[-1].calculation.response.value.next_prefix_ref,
             content_digest="d" * 64,

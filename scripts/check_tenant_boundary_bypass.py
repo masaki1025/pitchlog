@@ -3802,23 +3802,65 @@ _FIXED_ORDINARY_BUILDER_BODY = _expected_function_body(
 
 
 _FIXED_PLAY_PREFIX_BUILDER_BODY = _expected_function_body(
-    "def expected():\n    safe_arguments = (_canonical_bind('tenant_id', UUID)"
-    ", *(bindparam(name, type_=BigInteger()) if schema == 'sync_right_api' an"
-    "d (function_name in {'check_current_right', 'check_ordinary_right'} and "
-    "name in ('internal_generation', 'recovery_generation') or ((f'{schema}.{"
-    "function_name}' in _SYNC_ORDINARY_PREFIX_FUNCTION_TYPES or f'{schema}.{f"
-    "unction_name}' in _SYNC_PLAY_PREFIX_FUNCTION_TYPES) and name in ('genera"
-    "tion', 'checkpoint_revision', 'storage_history_epoch', 'wire_checkpoint_"
-    "revision', 'wire_history_version', 'history_version', 'upper_watermark',"
-    " 'after_d1', 'after_d2'))) and (field_type is int) else _canonical_bind("
-    'name, field_type) for name, field_type in input_fields))\n    safe_functi'
-    'on = Function(function_name, *safe_arguments, packagenames=(schema,))\n  '
-    "  if schema == 'sync_fence_api' and function_name == 'assert_writer_bind"
-    "ing' and (not table_valued) and (result_names == ('asserted',)):\n       "
-    ' safe_function.type = _WriterAssertVoidResult()\n    if not table_valued:'
-    '\n        return select(safe_function.label(result_names[0]))\n    safe_ta'
-    'ble = safe_function.table_valued(*result_names)\n    return select(*(safe'
-    '_table.c[name] for name in result_names))\n'
+    """def expected():
+    safe_arguments = (
+        _canonical_bind("tenant_id", UUID),
+        *(
+            bindparam(name, type_=BigInteger())
+            if (
+                schema == "sync_right_api"
+                and (
+                    (
+                        function_name
+                        in {
+                            "check_current_right",
+                            "check_ordinary_right",
+                            "check_p3_right",
+                        }
+                        and name in ("internal_generation", "recovery_generation")
+                    )
+                    or (
+                        (
+                            f"{schema}.{function_name}"
+                            in _SYNC_ORDINARY_PREFIX_FUNCTION_TYPES
+                            or f"{schema}.{function_name}"
+                            in _SYNC_PLAY_PREFIX_FUNCTION_TYPES
+                            or f"{schema}.{function_name}" in _VIEWER_FUNCTION_TYPES
+                            or function_name == "read_p3_current"
+                        )
+                        and name
+                        in (
+                            "generation",
+                            "checkpoint_revision",
+                            "storage_history_epoch",
+                            "wire_checkpoint_revision",
+                            "wire_history_version",
+                            "history_version",
+                            "upper_watermark",
+                            "after_d1",
+                            "after_d2",
+                        )
+                    )
+                )
+                and field_type is int
+            )
+            else _canonical_bind(name, field_type)
+            for name, field_type in input_fields
+        ),
+    )
+    safe_function = Function(function_name, *safe_arguments, packagenames=(schema,))
+    if (
+        schema == "sync_fence_api"
+        and function_name == "assert_writer_binding"
+        and not table_valued
+        and result_names == ("asserted",)
+    ):
+        safe_function.type = _WriterAssertVoidResult()
+    if not table_valued:
+        return select(safe_function.label(result_names[0]))
+    safe_table = safe_function.table_valued(*result_names)
+    return select(*(safe_table.c[name] for name in result_names))
+"""
 )
 
 
@@ -5738,6 +5780,8 @@ class _FlowProvenance:
         if isinstance(node, ast.Delete):
             for target in node.targets:
                 if isinstance(target, (ast.Attribute, ast.Subscript)):
+                    # 削除対象の添字/属性式も評価し、Call被覆と由来を欠落させない。
+                    self._expression(target, environment)
                     self._invalidate_storage(
                         target.value,
                         _UNKNOWN_FLOW_VALUE,

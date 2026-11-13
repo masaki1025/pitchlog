@@ -1,4 +1,4 @@
-"""妨害後継artifactの有限53応答と6組だけのv3互換を確認する。"""
+"""妨害後継artifactからv7へ連なる有限53応答と7組だけのv3互換を確認する。"""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from pitchlog.repositories.ordinary_prefix import OrdinaryPrefixError
 
 ROOT = Path(__file__).resolve().parents[2]
 BASE = ROOT / "contracts/state-transition"
-OLD = "71f2726a288dfcfaff4c2fcdf293651dda0fb610b9ead325b352bd4f23a07aff"
+OLD = "b565641886c758b81787baff95bdacceb3dea648781515cac39f868583c156ad"
 CURRENT = "bb6768eae395bda43e13a1b97e8b6da0f2ab2b66a78a460590c0a8fd1151daa1"
 
 
@@ -25,11 +25,11 @@ def _raw(value):
 
 
 def _inputs():
-    """新2原本と変更しない直前v5原本を読む。"""
+    """新2原本と変更しない直前v6原本を読む。"""
     return (
-        json.loads((BASE / "nonplay_v3_compatibility_witness_v6.json").read_bytes()),
-        json.loads((BASE / "play_prefix_v3_source_compatibility_v6.json").read_bytes()),
-        (BASE / "nonplay_v3_compatibility_witness_v5.json").read_bytes(),
+        json.loads((BASE / "nonplay_v3_compatibility_witness_v7.json").read_bytes()),
+        json.loads((BASE / "play_prefix_v3_source_compatibility_v7.json").read_bytes()),
+        (BASE / "nonplay_v3_compatibility_witness_v6.json").read_bytes(),
     )
 
 
@@ -49,7 +49,7 @@ def _reseal(data, registry):
 def test_actual_53_full_responses_match_inherited_expected_values():
     """新hostの実全応答と旧期待由来の値を比較し、数学期待を採取しない。"""
     data, registry, previous = _inputs()
-    reader._validated_v3_witness_v6(_raw(data), _raw(registry), previous, CURRENT)
+    reader._validated_v3_witness_v7(_raw(data), _raw(registry), previous, CURRENT)
     with open_domain_host() as host:
         assert host.artifact_sha256 == CURRENT
         for sample in data["samples"]:
@@ -82,7 +82,7 @@ def test_actual_53_full_responses_match_inherited_expected_values():
         "normalization",
     ],
 )
-def test_resealed_v6_rejects_math_and_scope_changes(fault):
+def test_resealed_v7_rejects_math_and_scope_changes(fault):
     """hash再封印だけで旧/新数学、型、許可範囲の変更を資格化しない。"""
     data, registry, previous = _inputs()
     sample = data["samples"][0]
@@ -114,13 +114,13 @@ def test_resealed_v6_rejects_math_and_scope_changes(fault):
         data["normalization"]["responsePointers"].append("/value/t1/statFlags")
     _reseal(data, registry)
     with pytest.raises(ValueError):
-        reader._validated_v3_witness_v6(_raw(data), _raw(registry), previous, CURRENT)
+        reader._validated_v3_witness_v7(_raw(data), _raw(registry), previous, CURRENT)
 
 
-def test_real_gate_accepts_only_six_fixed_pairs():
-    """新実入口は旧5 priorと新自己だけを認め、未知/旧executionを閉じる。"""
+def test_real_gate_accepts_only_seven_fixed_pairs():
+    """新実入口は旧6 priorと新自己だけを認め、未知/旧executionを閉じる。"""
     _, registry, _ = _inputs()
-    assert len(registry["cases"]) == 6
+    assert len(registry["cases"]) == 7
     assert registry["cases"][-2]["priorArtifactSha256"] == OLD
     assert registry["cases"][-1]["priorArtifactSha256"] == CURRENT
     for row in registry["cases"]:
@@ -146,10 +146,14 @@ def test_real_gate_accepts_only_six_fixed_pairs():
         "nonplay_v3_compatibility_witness_v3.json",
         "nonplay_v3_compatibility_witness_v4.json",
         "nonplay_v3_compatibility_witness_v5.json",
+        "nonplay_v3_compatibility_witness_v6.json",
+        "nonplay_v3_compatibility_witness_v7.json",
         "play_prefix_v3_source_compatibility_v2.json",
         "play_prefix_v3_source_compatibility_v3.json",
         "play_prefix_v3_source_compatibility_v4.json",
         "play_prefix_v3_source_compatibility_v5.json",
+        "play_prefix_v3_source_compatibility_v6.json",
+        "play_prefix_v3_source_compatibility_v7.json",
     ],
 )
 def test_historical_chain_byte_change_rejected(tmp_path, name):

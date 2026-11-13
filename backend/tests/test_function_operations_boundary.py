@@ -132,6 +132,7 @@ def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> No
     )
     from pitchlog.repositories.nonplay_function_operations import (
         _ConsumeNonplaySubstitutionCall,
+        _ConsumeNonplayTiebreakStartCall,
         _ConsumeNonplayUndoCall,
         _LockNonplayCheckpointCall,
         _PrepareNonplayUndoCall,
@@ -168,6 +169,7 @@ def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> No
         _PersistP3ProjectionToken,
         _ReadP3CurrentToken,
     )
+    from pitchlog.repositories.play_export_p3_read import ReadP3ExportPage
     from pitchlog.repositories.play_export_primitives import (
         OpenPrimitiveSnapshotToken,
         ReadPrimitivePageToken,
@@ -208,9 +210,7 @@ def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> No
         PreparePlayPrefixProjectionToken,
     )
 
-    assert tuple(
-        entry.operation_id for entry in operation_registry.PRODUCT_FUNCTION_OPERATIONS
-    ) == (
+    accepted = (
         "RECORDING_VOCABULARIES:read_batted_ball_options",
         "RG1:precheck",
         "RG1:commit_check",
@@ -250,6 +250,7 @@ def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> No
         "STATS_PRIMITIVES:read_totals",
         "PLAY_EXPORT_WRITER:save_snapshot",
         "PLAY_EXPORT_SOURCES:read_page",
+        "PLAY_EXPORT_P3:read_snapshots",
         "STATS_BASIC:read",
         "SYNC_NONPLAY:bind_nonplay_device",
         "SYNC_NONPLAY:check_nonplay_right",
@@ -271,6 +272,16 @@ def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> No
         "SYNC_PLAY_PREFIX:read_viewer_play_prefix_history_page",
         "SYNC_PLAY_PREFIX:read_viewer_effective_version",
     )
+    from pitchlog.repositories import repository_contract
+
+    # 受理済み60件は正式repository-contractと一致し、タイブレーク開始の
+    # 候補1件だけを明示的に別枠で保持する（正式受理は7.7の別ゲート）。
+    assert accepted == repository_contract.PRODUCT_FUNCTION_OPERATION_IDS
+    candidate = ("SYNC_NONPLAY:consume_nonplay_tiebreak_start",)
+    at = accepted.index("SYNC_NONPLAY:consume_nonplay_substitution") + 1
+    assert tuple(
+        entry.operation_id for entry in operation_registry.PRODUCT_FUNCTION_OPERATIONS
+    ) == (*accepted[:at], *candidate, *accepted[at:])
     assert set(operation_registry.FUNCTION_OPERATION_REGISTRY) == {
         BattedBallOptionsToken,
         RG1PrecheckToken,
@@ -312,6 +323,7 @@ def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> No
         ReadPrimitiveTotalsToken,
         _SaveExportSnapshotCall,
         ReadExportSourcePageToken,
+        ReadP3ExportPage,
         BindNonplayDeviceToken,
         CheckNonplayRightToken,
         _LockNonplayCheckpointCall,
@@ -319,6 +331,7 @@ def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> No
         _PrepareNonplayUndoCall,
         _ConsumeNonplayUndoCall,
         _ConsumeNonplaySubstitutionCall,
+        _ConsumeNonplayTiebreakStartCall,
         NonplayActiveHistoryReadToken,
         ReadBasicStatsToken,
         BindLifecycleDeviceToken,

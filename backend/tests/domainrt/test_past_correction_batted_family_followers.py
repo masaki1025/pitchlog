@@ -11,6 +11,7 @@ import pytest
 from domainrt.test_past_correction_batted_followers import _hit
 from domainrt.test_past_correction_lineup import _host, _two_saved
 from test_batted_hit_prefix_payload import observations
+from test_lineup_play_prefix_continuation import ACTUAL
 
 from pitchlog.domainrt.lineup_play_prefix_continuation import (
     BattedHitT1Input,
@@ -263,11 +264,9 @@ def test_eight_new_batted_followers_keep_actual_payload_physical_and_t5(
     error,
     scoring,
 ):
-    """旧原本を71fで再生し、訂正後も同観測・41列・唯一T5へ帰着する。"""
+    """旧原本を現行artifactで再生し、訂正後も同観測・41列・唯一T5へ帰着する。"""
     with _host() as host:
-        assert host.artifact_sha256 == (
-            "71f2726a288dfcfaff4c2fcdf293651dda0fb610b9ead325b352bd4f23a07aff"
-        )
+        assert host.artifact_sha256 == ACTUAL
         rows = _scenario(host, result, prior, destination, error, scoring)
         corrected = _evaluate(
             rows,

@@ -2589,6 +2589,7 @@ def positive_fixture_qualification_contexts(
     }
     current_only = {
         "tests/fixtures/tenant_boundary/positive/pitchlog/db/alembic_index_comparison.py",
+        "tests/fixtures/tenant_boundary/positive/pitchlog/repositories/games_archive.py",
     }
     assert not (old_python & current_only)
     assert actual_python == old_python | current_only, "旧正例保持と明示した現行追加だけ"
