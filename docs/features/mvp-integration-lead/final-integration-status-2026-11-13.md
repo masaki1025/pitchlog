@@ -90,3 +90,18 @@
 - 次の最小再現: 2球程度のnonplay admissionを作り、stampの
   internal/recoveryをCP行と比較する短いDB試験を追加する。54アウトE2Eの
   反復は修正後まで行わない。
+
+
+## 2026-11-14 追試5（stampの次段）
+
+CP行と世代は次で確定した。
+
+- CP: `internal_generation=1`, `recovery_generation=1`, `state=current`。
+- `recording_generations`: `(1,1)`。
+- `nonplay_write_admissions`: 失敗TXのrollbackで0行。
+
+次に必要なのは、`bind_nonplay_device`/`check_nonplay_right` が使う
+writer-binding phase snapshot の `internal_generation`/`recovery_generation` を
+同じ短いDB試験で取得し、CP行の1/1と比較すること。stamp発行元（phase snapshot）と
+CP作成元（start/通常球）のどちらが誤っているかを確定し、誤っている側だけを直す。
+世代条件の削除・古いCPへのフォールバック・CPからの無条件コピーはしない。
