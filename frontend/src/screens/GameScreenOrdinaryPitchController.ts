@@ -36,6 +36,7 @@ import {
 import { formatTerminalPitchWire } from '../api/terminalPitchWire'
 import {
   postTiebreakStart,
+  tiebreakStartBody,
   tiebreakStartEvent,
   TIEBREAK_START_FORMAT,
   TIEBREAK_START_KIND,
@@ -178,6 +179,15 @@ export class GameScreenOrdinaryPitchController {
   /** local表示の入口用。実際の受理資格は毎回withinAcceptance内で判定する。 */
   get canAppendLocal(): boolean {
     return this.#localBoundary !== null && this.#canAppend && !this.#disposed
+  }
+  /** 通常球は停止中でも、タイブレーク開始だけを保存できる資格。 */
+  get canStartTiebreak(): boolean {
+    if (this.#disposed || !this.#current() || this.#resources === null)
+      return false
+    return (
+      isLineupRecordingContext(this.#context) &&
+      this.#context.t2?.tiebreakStartRequired === true
+    )
   }
   #current(): boolean {
     const now = this.#readIdentity()
@@ -736,12 +746,16 @@ export class GameScreenOrdinaryPitchController {
     this.#assert()
     const r = this.#resources!
     if (request.slots.length !== 1) throw new Error('単一要求ではありません')
-    const slot = request.slots[0]!,
-      body = buildSyncEventRequestBody(request)
+    const slot = request.slots[0]!
+    let body = buildSyncEventRequestBody(request)
     if (!('events' in body) || typeof slot.d5 !== 'string')
       throw new Error('要求識別を確認できません')
     let attemptId: string
     const payload = slot.event.fields.V7 as { formatVersion?: unknown } | null
+    if (payload?.formatVersion === 'tiebreak-start-event-v1') {
+      // 専用wireの保存種別literalへ写した本文をattemptへ固定する。
+      body = tiebreakStartBody(request)
+    }
     if (payload?.formatVersion === 'first-ball-play-v1') {
       // 結果不明の旧初球も既attemptを読むだけ。同slotを新D5/attemptへ置換しない。
       const legacy = await FirstBallAttemptPersistence.open()
@@ -763,7 +777,8 @@ export class GameScreenOrdinaryPitchController {
       if (
         payload?.formatVersion !== 'ordinary-pitch-play-v1' &&
         payload?.formatVersion !== 'play-prefix-play-v2' &&
-        payload?.formatVersion !== 'play-prefix-play-v3'
+        payload?.formatVersion !== 'play-prefix-play-v3' &&
+        payload?.formatVersion !== 'tiebreak-start-event-v1'
       )
         throw new Error('要求形式を確認できません')
       const key = {
@@ -976,14 +991,14 @@ export class GameScreenOrdinaryPitchController {
     }>,
   ): Promise<OrdinaryOperationResult> {
     if (this.#localBoundary) return 'blocked'
+    if (this.#busy || !this.canStartTiebreak) return 'blocked'
     if (!isLineupRecordingContext(this.#context)) return 'blocked'
-    if (this.#busy || !this.#canAppend) return 'blocked'
     this.#inspectionResult = null
     this.#busy = true
     try {
       await this.#open()
       this.#assert()
-      if (!this.#canAppend) return 'blocked'
+      if (!this.canStartTiebreak) return 'blocked'
       const r = this.#resources!,
         d5 = crypto.randomUUID(),
         eventId = crypto.randomUUID()
@@ -1038,7 +1053,7 @@ export class GameScreenOrdinaryPitchController {
           beforeAppend: async () => {
             this.#assert()
             if (
-              !this.#canAppend ||
+              !this.canStartTiebreak ||
               (await r.queue.readNextD1(this.#scope())) !== expected ||
               !sameOrdinaryWire(prefixRef.checkpoint, checkpoint)
             )
@@ -1491,7 +1506,11 @@ export class GameScreenOrdinaryPitchController {
               ...request,
               syncCredentials: credentials,
             },
-            { skipRecovery: recovery !== null, signal: abort.signal },
+            {
+              skipRecovery: recovery !== null,
+              ...(recovery === null ? {} : { expectedAttemptId: recovery }),
+              signal: abort.signal,
+            },
           )
           if (this.#sendAbort === abort) this.#sendAbort = null
           if (!sent.sent) return 'pending'

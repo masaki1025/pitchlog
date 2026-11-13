@@ -19,7 +19,7 @@ CASES = json.loads(
     (ROOT / "backend/tests/fixtures/batted_operations_schema_cases_v1.json").read_text()
 )
 OLD_ARTIFACT = "71f2726a288dfcfaff4c2fcdf293651dda0fb610b9ead325b352bd4f23a07aff"
-CURRENT_ARTIFACT = "bb6768eae395bda43e13a1b97e8b6da0f2ab2b66a78a460590c0a8fd1151daa1"
+CURRENT_ARTIFACT = "961844ed9d013afc4d72945e73d07bc7e1b3fb7680edad20a5a8568c599dad70"
 HISTORICAL_COMMIT = "d074b72ba01cc4d05af29e7b534189c496c5c49c"
 
 

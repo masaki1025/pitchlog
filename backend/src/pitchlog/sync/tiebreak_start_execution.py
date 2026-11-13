@@ -183,6 +183,14 @@ def bind_tiebreak_start_execution(handle, writer, event, source):
                 )
             rule = _rule(restored)
             active = _active_player_ids(restored)
+            frames = content.get("tiebreakFrames", [])
+            last_placement = None
+            if frames:
+                last_fields = frames[-1]["afterContext"]["current"]["stateFields"]
+                last_placement = {
+                    "inning": str(last_fields["state.inning"]),
+                    "half": str(last_fields["state.half"]),
+                }
             request = {
                 "version": "tiebreak-start-v1",
                 "restoreContext": restored,
@@ -193,6 +201,8 @@ def bind_tiebreak_start_execution(handle, writer, event, source):
                 },
                 "activePlayerIds": active,
             }
+            if last_placement is not None:
+                request["lastPlacementHalf"] = last_placement
             evaluated = _load(
                 host.call("transitionTiebreakStartV1", _canonical_json(request))
             )

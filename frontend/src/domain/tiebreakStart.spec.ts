@@ -161,6 +161,21 @@ describe('タイブレーク開始の製品遷移', () => {
     ).toEqual({ ok: false, error: 'invalid-runner' })
   })
 
+  it('同半回の二重配置を拒否し、次の半回の再配置を許す', () => {
+    expect(
+      transitionTiebreakStart(context(10n), rule, selection(), active, {
+        inning: 10n,
+        half: 'top',
+      }),
+    ).toEqual({ ok: false, error: 'duplicate-placement' })
+    expect(
+      transitionTiebreakStart(context(11n), rule, selection(), active, {
+        inning: 10n,
+        half: 'top',
+      }),
+    ).toMatchObject({ ok: true })
+  })
+
   it('既存の正式operationRows用の状態効果は不変', () => {
     const before = context().current.stateFields
     const outcome = deriveTiebreakStart(
@@ -238,6 +253,9 @@ it('artifact入口はJSONの実選手IDと半回開始投手を同じ核で確�
     value: {
       current: { stateFields: Record<string, unknown> }
       runners: Array<{ responsiblePitcherId: string }>
+      rules?: unknown
+      rulesDigest?: string
+      lastPlayEvaluation?: unknown
     }
   }
   expect(result.ok).toBe(true)

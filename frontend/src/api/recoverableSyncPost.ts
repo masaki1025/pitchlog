@@ -6,6 +6,8 @@ import { recoverSyncAttempt } from './syncAttemptRecovery'
 export type RecoverableSyncOptions = Readonly<{
   /** 呼出元が権威照会と後着遮断を済ませた場合だけ、同じ本文の送信へ進む。 */
   skipRecovery?: boolean
+  /** 照会で確認したattempt。barrierの現在値と不一致なら送らない。 */
+  expectedAttemptId?: string
   signal?: AbortSignal
 }>
 
@@ -57,6 +59,11 @@ async function postOriginal<TBody>(
       if (!prepared.created) {
         if (options.skipRecovery) {
           // 直前に同じ本文を照会し、後着遮断と次attemptの固定を済ませている。
+          if (
+            options.expectedAttemptId !== undefined &&
+            prepared.barrier.currentAttemptId !== options.expectedAttemptId
+          )
+            throw new Error('照会済み試行と送信試行が一致しません')
           current = { ...current, attempt: prepared.barrier.currentAttemptId }
         } else {
           const resolution = await recoverSyncAttempt(gameId, original, {

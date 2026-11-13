@@ -24,7 +24,7 @@ from pitchlog.sync.terminal_pitch_payload import LineupPitchPlayPayload
 from pitchlog.sync.terminal_pitch_tokens import PlayPrefixPlayRowInsertToken
 
 ROOT = Path(__file__).resolve().parents[2]
-ARTIFACT = "bb6768eae395bda43e13a1b97e8b6da0f2ab2b66a78a460590c0a8fd1151daa1"
+ARTIFACT = "961844ed9d013afc4d72945e73d07bc7e1b3fb7680edad20a5a8568c599dad70"
 PITCH = {
     "pitchTypeKey": "fixture.fastball",
     "course": {"unit": "1/263", "x": "132", "y": "131"},

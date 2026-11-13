@@ -16,7 +16,7 @@ from pitchlog.repositories.ordinary_prefix import OrdinaryPrefixError
 ROOT = Path(__file__).resolve().parents[2]
 BASE = ROOT / "contracts/state-transition"
 CURRENT = "71f2726a288dfcfaff4c2fcdf293651dda0fb610b9ead325b352bd4f23a07aff"
-NEW = "bb6768eae395bda43e13a1b97e8b6da0f2ab2b66a78a460590c0a8fd1151daa1"
+NEW = "961844ed9d013afc4d72945e73d07bc7e1b3fb7680edad20a5a8568c599dad70"
 
 
 @pytest.fixture(scope="module")

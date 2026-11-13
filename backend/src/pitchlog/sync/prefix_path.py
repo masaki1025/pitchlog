@@ -785,6 +785,9 @@ def _apply_locked_in_scope(
                 "w2_violation" if event.v9 is not ABSENT else "other",
             )
         from pitchlog.sync.substitution_ports import SubstitutionContentValidationPort
+        from pitchlog.sync.tiebreak_start_ports import (
+            TiebreakStartContentValidationPort,
+        )
         from pitchlog.sync.undo_ports import UndoContentValidationPort
 
         # ⑦の V 値と内容は、⑤の記録権・⑥の連番を通った後で判定する。
@@ -883,9 +886,6 @@ def _apply_locked_in_scope(
             first_ball_stack.enter_context(
                 bind_substitution_execution(scope, writer, event, source)
             )
-        from pitchlog.sync.tiebreak_start_ports import (
-            TiebreakStartContentValidationPort,
-        )
 
         if type(validator) is TiebreakStartContentValidationPort:
             from pitchlog.sync.tiebreak_start_execution import (
@@ -1006,6 +1006,7 @@ def _apply_locked_in_scope(
             UndoContentValidationPort,
             LifecycleContentValidationPort,
             SubstitutionContentValidationPort,
+            TiebreakStartContentValidationPort,
         }:
             from pitchlog.sync.native_ledger_insert import (
                 _recheck_and_insert_native_result,
@@ -1077,6 +1078,15 @@ def _apply_locked_in_scope(
 
             with bind_substitution_projection(scope, writer, event, projected_event):
                 projection.apply(projected_event, writer)
+        elif type(validator) is TiebreakStartContentValidationPort:
+            from pitchlog.sync.tiebreak_start_execution import (
+                bind_tiebreak_start_projection,
+            )
+
+            with bind_tiebreak_start_projection(
+                scope, writer, event, projected_event
+            ):
+                projection.apply(projected_event, writer)
         else:
             projection.apply(projected_event, writer)
         if type(validator) is LifecycleContentValidationPort:
@@ -1093,6 +1103,12 @@ def _apply_locked_in_scope(
             from pitchlog.sync.substitution_bridge import require_substitution_projected
 
             require_substitution_projected(scope, event)
+        if type(validator) is TiebreakStartContentValidationPort:
+            from pitchlog.sync.tiebreak_start_bridge import (
+                require_tiebreak_start_projected,
+            )
+
+            require_tiebreak_start_projected(scope, event)
         if type(validator) in {
             OrdinaryPitchContentValidationPort,
             PlayPrefixContentValidationPort,
