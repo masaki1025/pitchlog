@@ -184,6 +184,10 @@ def test_legacy_registry_raw_change_is_rejected_before_qualification(tmp_path):
         "play_prefix_v3_source_compatibility_v5.json",
         "nonplay_v3_compatibility_witness_v6.json",
         "play_prefix_v3_source_compatibility_v6.json",
+        "nonplay_v3_compatibility_witness_v7.json",
+        "play_prefix_v3_source_compatibility_v7.json",
+        "nonplay_v3_compatibility_witness_v8.json",
+        "play_prefix_v3_source_compatibility_v8.json",
     ):
         destination = tmp_path / "contracts/state-transition" / name
         destination.parent.mkdir(parents=True, exist_ok=True)

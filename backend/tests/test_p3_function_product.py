@@ -182,7 +182,7 @@ def test_normal_current_uses_all_private_tables_and_p3_provider():
     from pitchlog.db.game_state.stats import StatsPrimitiveSource
     from pitchlog.db.past_correction.models import P3_STORAGE_MODELS
 
-    assert CURRENT_REVISION == "0050_play_export_p3_snapshots"
+    assert CURRENT_REVISION == "0051_tiebreak_start_receipt"
     names = {table.name for table in _tables()}
     assert len(names) == 22
     assert {model.__table__.name for model in P3_STORAGE_MODELS} <= names

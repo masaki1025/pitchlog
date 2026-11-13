@@ -1,4 +1,4 @@
-"""旧0039段階を保ち、current0050の実構造と全認可を接合する。"""
+"""旧0039段階を保ち、current0051の実構造と全認可を接合する。"""
 
 from __future__ import annotations
 
@@ -40,8 +40,9 @@ from pitchlog.db.writer_binding.lifecycle_models import (
 )
 from pitchlog.db.writer_binding.nonplay_models import NonplayWriteAdmission
 from pitchlog.db.writer_binding.substitution_models import SubstitutionWriteReceipt
+from pitchlog.db.writer_binding.tiebreak_models import TiebreakStartWriteReceipt
 
-CURRENT_REVISION = "0050_play_export_p3_snapshots"
+CURRENT_REVISION = "0051_tiebreak_start_receipt"
 _INDEX_REVISION = "0040_batted_vocabulary_index"
 _STATS_MODELS = (StatsFactVersion, StatsPrimitiveSource, StatsPrimitiveFact)
 
@@ -251,6 +252,7 @@ def _tables() -> tuple[Table, ...]:
         LifecycleWriteAdmission,
         GameLifecycleHead,
         SubstitutionWriteReceipt,
+        TiebreakStartWriteReceipt,
         SyncAttemptRetirement,
         *P3_STORAGE_MODELS,
         PitcherEntrySource,
@@ -452,6 +454,7 @@ def _check_current_structure(connection: Any) -> None:
                     LifecycleWriteAdmission,
                     GameLifecycleHead,
                     SubstitutionWriteReceipt,
+                    TiebreakStartWriteReceipt,
                     SyncAttemptRetirement,
                     PitcherEntrySource,
                     PlayExportP3Snapshot,

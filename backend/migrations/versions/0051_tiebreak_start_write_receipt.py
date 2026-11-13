@@ -2,7 +2,7 @@
 
 from alembic import op
 
-revision = "0051_tiebreak_start_write_receipt"
+revision = "0051_tiebreak_start_receipt"
 down_revision = "0050_play_export_p3_snapshots"
 branch_labels = None
 depends_on = None
@@ -18,13 +18,15 @@ def upgrade() -> None:
  after_revision bigint NOT NULL,after_digest text NOT NULL,
  PRIMARY KEY (tenant_id,attempt_id,phase_id),
  UNIQUE (tenant_id,source_event_id),
- FOREIGN KEY (tenant_id,attempt_id,phase_id) REFERENCES
+ CONSTRAINT tiebreak_receipt_admission_fkey FOREIGN KEY
+ (tenant_id,attempt_id,phase_id) REFERENCES
  sync_fence.nonplay_write_admissions(tenant_id,attempt_id,phase_id),
- FOREIGN KEY (tenant_id,game_id) REFERENCES public.games(tenant_id,id),
- FOREIGN KEY (tenant_id,source_event_id) REFERENCES
- public.operation_events(tenant_id,id) DEFERRABLE INITIALLY DEFERRED,
- FOREIGN KEY (tenant_id,checkpoint_id) REFERENCES
- sync_fence.ordinary_pitch_checkpoints(tenant_id,id),
+ CONSTRAINT tiebreak_receipt_game_fkey FOREIGN KEY (tenant_id,game_id)
+ REFERENCES public.games(tenant_id,id),
+ CONSTRAINT tiebreak_receipt_event_fkey FOREIGN KEY (tenant_id,source_event_id)
+ REFERENCES public.operation_events(tenant_id,id) DEFERRABLE INITIALLY DEFERRED,
+ CONSTRAINT tiebreak_receipt_checkpoint_fkey FOREIGN KEY (tenant_id,checkpoint_id)
+ REFERENCES sync_fence.ordinary_pitch_checkpoints(tenant_id,id),
  CONSTRAINT ck_tiebreak_start_receipt_sequence CHECK
  (source_d1>0 AND before_revision>0 AND after_revision=before_revision+1),
  CONSTRAINT ck_tiebreak_start_receipt_digest CHECK
