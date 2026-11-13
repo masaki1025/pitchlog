@@ -51,7 +51,7 @@ const expectedFirst = first.expected as {
   value: { t1: unknown; t2: unknown }
 }
 
-it('単一artifactが現行20口の完全集合と旧数学口を同じartifactで保持する', () => {
+it('単一artifactが現行21口の完全集合と旧数学口を同じartifactで保持する', () => {
   expect(Object.keys(built)).toEqual([
     'ping',
     'applyGameLifecycle',
@@ -73,6 +73,7 @@ it('単一artifactが現行20口の完全集合と旧数学口を同じartifact�
     'deriveInitialSubstitutionStateV1',
     'transitionSubstitutionV1',
     'advanceSubstitutionAfterPitchV1',
+    'transitionTiebreakStartV1',
   ])
   expect(Object.isFrozen(built)).toBe(true)
   expect(JSON.parse(built.ping('{"value":"9007199254740993"}'))).toEqual({

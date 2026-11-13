@@ -29,14 +29,7 @@ def _transition(value: object, before: dict[str, Any]) -> dict[str, Any]:
         raise TiebreakStartProjectionError(
             "タイブレーク開始artifactの成功形が不一致です"
         )
-    row = cast("dict[str, Any]", value)
-    if set(row) != {"ok", "afterContext"} or row["ok"] is not True:
-        raise TiebreakStartProjectionError(
-            "タイブレーク開始artifactの成功形が不一致です"
-        )
-    after = row["afterContext"]
-    if type(after) is not dict:
-        raise TiebreakStartProjectionError("タイブレーク開始の復元文脈が不一致です")
+    after = cast("dict[str, Any]", value)
     _validate_value(after, "RestoreContext")
     fixed = set(before) - {
         "current",
@@ -75,6 +68,20 @@ def build_tiebreak_start_source(
         payload = read_tiebreak_start_event(event).to_wire()
         cp = before["checkpoint"]
         content = cp["content"]
+        restored = content["restored"]
+        fields = restored["current"]["stateFields"]
+        rules = restored["rules"]["tiebreak"]
+        if (
+            payload["leadoffBatter"] != fields["state.battingOrder"]
+            or payload["inning"] != fields["state.inning"]
+            or payload["runnerPlacement"] != "first-second"
+            or rules.get("runnerPlacement")
+            not in ("first-second", "no_out_first_second")
+            or rules.get("leadoffRule") != "continue_lineup"
+        ):
+            raise TiebreakStartProjectionError(
+                "タイブレーク開始の先頭打者・回・配置が保存状態と不一致です"
+            )
         if (
             not _same(payload["expectedCheckpoint"], cp["ref"])
             or event.game_id != content["scope"]["gameId"]
@@ -88,7 +95,7 @@ def build_tiebreak_start_source(
             raise TiebreakStartProjectionError(
                 "タイブレーク開始のCP/世代/指紋が不一致です"
             )
-        event_id = str(UUID(payload["eventId"]))
+        event_id = str(UUID(cast(str, payload["eventId"])))
         reference = {
             "eventId": event_id,
             "gameId": event.game_id,

@@ -82,11 +82,11 @@ _OLD_PINS = {
         "FUNCTION:sync_right_api:read_nonplay_active_history(uuid, uuid,"
         " bigint, uuid, bigint, bigint, bigint, bigint, bigint, bigint, "
         "uuid, integer)"
-    ): ("6d36d5eace2763e395e4495ca90c586bf2c175616c1ca1776e3b0c9396e03295"),
+    ): ("238a154cbf1a9278e6b7e95f7a6ce968f6f8d6f831f553982e13019ee34a989b"),
     (
         "FUNCTION:sync_right_api:read_nonplay_history_page(uuid, uuid, u"
         "uid, bytea, uuid, uuid, text)"
-    ): ("661b430ac72c2dcd91e70307f6dafb6735943a96534b306472f7654829a5c6a0"),
+    ): ("39b8073a9e66dc4e04f60eebf2bad41c1406818731ab20d763aa73e232196054"),
 }
 _OLD_ROW_PINS = {
     ("FUNCTION:stats_api:open_primitive_snapshot(uuid, uuid, text)"): (
@@ -318,6 +318,7 @@ def candidate_declarations(
                     or _canonical_hash(rows[identifier]) != _OLD_ROW_PINS[identifier]
                 ):
                     raise ValueError("P3接合前の関数全byteが不一致")
+
                 old = _parts(old_body.split("\n\n", 1)[1])
                 if len(old) != 1:
                     raise ValueError("P3接合前の関数sourceが部分/余剰")

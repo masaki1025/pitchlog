@@ -112,6 +112,10 @@ from pitchlog.sync.substitution_ports import (
 )
 from pitchlog.sync.substitution_projection import SubstitutionProjectionError
 from pitchlog.sync.substitution_roster import SubstitutionRosterUnavailable
+from pitchlog.sync.tiebreak_start_ports import (
+    TiebreakStartContentValidationPort,
+    TiebreakStartProjectionPort,
+)
 from pitchlog.sync.undo_execution import UndoExecutionError
 from pitchlog.sync.undo_ports import UndoContentValidationPort, UndoProjectionPort
 from pitchlog.sync.wire_source import WireSourceError, freeze_wire_source
@@ -563,10 +567,16 @@ def sync_events(
                 and isinstance(event.v7, Mapping)
                 and event.v7.get("formatVersion") == "substitution-event-v1"
             )
+            tiebreak = (
+                event.v5 == "tiebreak_start"
+                and isinstance(event.v7, Mapping)
+                and event.v7.get("formatVersion") == "tiebreak-start-event-v1"
+            )
             if (
                 not undo
                 and not lifecycle
                 and not substitution
+                and not tiebreak
                 and isinstance(event.v7, Mapping)
                 and event.v7.get("formatVersion")
                 not in {
@@ -592,6 +602,8 @@ def sync_events(
                     if lifecycle
                     else UndoProjectionPort()
                     if undo
+                    else TiebreakStartProjectionPort()
+                    if tiebreak
                     else SubstitutionProjectionPort()
                     if substitution
                     else LineupPrefixProjectionPort()
@@ -607,6 +619,8 @@ def sync_events(
                     if lifecycle
                     else UndoContentValidationPort()
                     if undo
+                    else TiebreakStartContentValidationPort()
+                    if tiebreak
                     else SubstitutionContentValidationPort()
                     if substitution
                     else LineupPrefixContentValidationPort()

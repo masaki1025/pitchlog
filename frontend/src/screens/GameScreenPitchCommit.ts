@@ -74,6 +74,10 @@ export type PitchCommitDependencies = Readonly<{
    * U-F8 で形を決め打ちせず呼出元から受け取る。ACK が無ければ undefined を返す。
    */
   readAck: (response: unknown) => AckResponse | undefined
+  /**
+   * 専用wireの本文変換が必要な種別だけ差し替える。既定は汎用E1送信。
+   */
+  send?: (request: SyncEventSendRequest) => Promise<SyncEventSendResult>
 }>
 
 export const PITCH_COMMIT_SCOPE_MISMATCH = 'scope-mismatch' as const
@@ -168,10 +172,13 @@ export async function commitPitchEvent(
           }
         }
       }
-      const send = await postSyncEvents({
+      const completeRequest = {
         ...request,
         ...(syncCredentials === undefined ? {} : { syncCredentials }),
-      })
+      }
+      const send = dependencies.send
+        ? await dependencies.send(completeRequest)
+        : await postSyncEvents(completeRequest)
       if (!send.sent) {
         // ACK が返らないのでスロットは未送信のまま(sync-protocol.md:764)。
         return {

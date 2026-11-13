@@ -99,12 +99,21 @@ def candidate_declarations():
             f"REVOKE ALL ON TABLE sync_fence.{_TABLE} FROM PUBLIC,pitchlog_app;\n"
         )
     }
+    from pitchlog.authz.p3_nonplay_bridge_sql import (
+        candidate_function_bodies_p3_nonplay_bridge,
+    )
     from pitchlog.authz.substitution_sql import candidate_substitution_function_body
     from pitchlog.authz.tiebreak_sql import candidate_tiebreak_start_function_body
 
+    # P3受理後も同じ本文を再適用できるよう、readerは現行P3 bridge版を使う。
     sql_bodies = candidate_function_bodies() | {
         "consume_nonplay_substitution": candidate_substitution_function_body(),
         "consume_nonplay_tiebreak_start": candidate_tiebreak_start_function_body(),
+        **{
+            "read_nonplay_history_page": candidate_function_bodies_p3_nonplay_bridge()[
+                "read_nonplay_history_page"
+            ]
+        },
     }
     if set(sql_bodies) != set(_FUNCTIONS):
         raise ValueError("非playの固定関数集合が不一致です")
@@ -245,9 +254,12 @@ def candidate_declarations():
         }
     )
     bodies["table|" + tiebreak_receipt_table] = (
-        f"ALTER TABLE sync_fence.{tiebreak_receipt_table} ENABLE ROW LEVEL SECURITY;\n"
-        f"ALTER TABLE sync_fence.{tiebreak_receipt_table} FORCE ROW LEVEL SECURITY;\n"
-        f"REVOKE ALL ON TABLE sync_fence.{tiebreak_receipt_table} FROM PUBLIC,pitchlog_app;\n"
+        f"ALTER TABLE sync_fence.{tiebreak_receipt_table} "
+        "ENABLE ROW LEVEL SECURITY;\n"
+        f"ALTER TABLE sync_fence.{tiebreak_receipt_table} "
+        "FORCE ROW LEVEL SECURITY;\n"
+        f"REVOKE ALL ON TABLE sync_fence.{tiebreak_receipt_table} "
+        "FROM PUBLIC,pitchlog_app;\n"
     )
     tiebreak_receipt_acl = f"ACL:sync_fence:{tiebreak_receipt_table}:{_OWNER}"
     declarations["acl_expectations"].append(
@@ -263,7 +275,8 @@ def candidate_declarations():
         }
     )
     bodies["acl_expectation|" + tiebreak_receipt_acl] = (
-        f"GRANT SELECT,INSERT ON TABLE sync_fence.{tiebreak_receipt_table} TO {_OWNER};\n"
+        f"GRANT SELECT,INSERT ON TABLE sync_fence.{tiebreak_receipt_table} "
+        f"TO {_OWNER};\n"
     )
     for command in ("SELECT", "INSERT"):
         _add_policy(

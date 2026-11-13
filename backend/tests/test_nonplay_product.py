@@ -9,6 +9,10 @@ from pitchlog.authz import first_ball_product as installer
 from pitchlog.authz import nonplay_product as publisher
 from pitchlog.authz.first_ball_product import _function_argument_names
 from pitchlog.authz.nonplay_prefix_sql import candidate_function_bodies
+from pitchlog.authz.p3_nonplay_bridge_sql import (
+    candidate_function_bodies_p3_nonplay_bridge,
+)
+from pitchlog.authz.pitcher_appearance_product import overlay_saved_function
 from pitchlog.authz.substitution_sql import candidate_substitution_function_body
 from pitchlog.authz.tiebreak_sql import candidate_tiebreak_start_function_body
 from pitchlog.db.writer_binding.nonplay_models import NonplayWriteAdmission
@@ -20,6 +24,9 @@ def test_exact_six_bodies_and_catalog_signatures():
     original = candidate_function_bodies() | {
         "consume_nonplay_substitution": candidate_substitution_function_body(),
         "consume_nonplay_tiebreak_start": candidate_tiebreak_start_function_body(),
+        "read_nonplay_history_page": candidate_function_bodies_p3_nonplay_bridge()[
+            "read_nonplay_history_page"
+        ],
     }
     assert len(declarations["functions"]) == 8
     assert {r["function_name"] for r in declarations["functions"]} == set(original)
@@ -207,9 +214,12 @@ def test_real_installer_contains_all_nonplay_declarations_and_exact_acl_union():
                 "public.play_rows TO pitchlog_sync_right_fn_owner;\n"
             )
         else:
-            assert installer.BODIES[key] == (
+            expected_body = (
                 f"-- ELEMENT-TYPE: {kind}\n-- ELEMENT-ID: {identifier}\n\n" + sql
             )
+            if kind == "function":
+                expected_body = overlay_saved_function(identifier, expected_body)
+            assert installer.BODIES[key] == expected_body
 
 
 def test_nonplay_installer_repeated_composition_preserves_every_value(monkeypatch):

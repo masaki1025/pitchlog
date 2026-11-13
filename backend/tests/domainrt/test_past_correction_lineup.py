@@ -65,6 +65,7 @@ from pitchlog.sync.terminal_pitch_payload import (
     LineupPitchPlayPayload,
 )
 from pitchlog.sync.terminal_pitch_projection import runner_physical_rows
+from test_lineup_play_prefix_continuation import current_case
 
 _ROOT = Path(__file__).resolve().parents[3]
 _CASES = {
@@ -91,11 +92,11 @@ def _host() -> NodeDomainHost:
 
 
 def _two_saved(host: NodeDomainHost) -> tuple[SavedLineupPitch, SavedLineupPitch]:
-    first = _CASES["V3-STARTED-CHAIN-01"]
+    first = current_case(_CASES["V3-STARTED-CHAIN-01"])
     q1 = decode_lineup_prefix_request(json.dumps(first["request"]))
     r1 = decode_lineup_prefix_response(json.dumps(first["expected"]))
     assert type(r1) is LineupPrefixSuccess
-    second = _CASES["V3-STARTED-CHAIN-02"]
+    second = current_case(_CASES["V3-STARTED-CHAIN-02"])
     old_q2 = decode_lineup_prefix_request(json.dumps(second["request"]))
     q2 = _next_corrected_request(
         old_q2,

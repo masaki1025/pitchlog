@@ -1911,6 +1911,21 @@ def _activate_stamp_profile() -> None:
 _activate_stamp_profile()
 
 
+def _equivalent_installed_bodies(key: str, expected_body: str) -> set[str]:
+    """D03後段で公式overlay済みの同一本文も再適用時に許容する。"""
+    accepted = {expected_body}
+    if key.startswith("function|"):
+        from pitchlog.authz.pitcher_appearance_product import overlay_saved_function
+
+        try:
+            accepted.add(
+                overlay_saved_function(key.removeprefix("function|"), expected_body)
+            )
+        except ValueError:
+            pass
+    return accepted
+
+
 def _activate_ordinary_profile(
     *, play_prefix=False, recording_vocab=False, nonplay=False, lifecycle=False
 ) -> None:
@@ -1953,7 +1968,9 @@ def _activate_ordinary_profile(
                     f"-- ELEMENT-TYPE: {kinds[section]}\n"
                     f"-- ELEMENT-ID: {row[IDS[section]]}\n\n" + bodies[key]
                 )
-                if key in BODIES and BODIES[key] != expected_body:
+                if key in BODIES and BODIES[key] not in _equivalent_installed_bodies(
+                    key, expected_body
+                ):
                     raise ValueError("非play接合の既本文と不一致")
     for section, rows in declarations.items():
         identifier = IDS[section]
@@ -1985,7 +2002,14 @@ def _activate_ordinary_profile(
                 raise ValueError("通常投球宣言の既IDが不一致")
     for key, sql in bodies.items():
         kind, identifier = key.split("|", 1)
-        BODIES[key] = f"-- ELEMENT-TYPE: {kind}\n-- ELEMENT-ID: {identifier}\n\n" + sql
+        expected_body = (
+            f"-- ELEMENT-TYPE: {kind}\n-- ELEMENT-ID: {identifier}\n\n" + sql
+        )
+        if key in BODIES and BODIES[key] in _equivalent_installed_bodies(
+            key, expected_body
+        ):
+            continue
+        BODIES[key] = expected_body
 
 
 _activate_ordinary_profile()

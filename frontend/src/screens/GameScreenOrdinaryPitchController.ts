@@ -34,6 +34,13 @@ import {
   type OrdinaryPitchPayload,
 } from '../api/ordinaryPitchWire'
 import { formatTerminalPitchWire } from '../api/terminalPitchWire'
+import {
+  postTiebreakStart,
+  tiebreakStartEvent,
+  TIEBREAK_START_FORMAT,
+  TIEBREAK_START_KIND,
+  type TiebreakStartPayload,
+} from '../api/tiebreakStartWire'
 import type { PlayPrefixV7 } from '../api/terminalPitchWire'
 import { nextOrdinaryD2 } from '../api/ordinaryAppendPolicy'
 import artifactIdentity from '../../public/domain/pitchlog-domain.json'
@@ -943,6 +950,130 @@ export class GameScreenOrdinaryPitchController {
         canAppend: this.#canAppend,
         head: this.#head,
       })
+      return this.#context.source === 'local-provisional'
+        ? 'pending'
+        : 'blocked'
+    } finally {
+      this.#busy = false
+      this.#closeIfDisposed()
+    }
+  }
+  /**
+   * タイブレーク開始を、配置走者・先頭打者・回の確認済み値で保存する。
+   *
+   * Args:
+   *   selection: 記録者が確認した実選手IDと、現在の先頭打者・回。
+   *
+   * Returns:
+   *   既存同期境界と同じ保存結果。保存後は再取得まで追加入力を止める。
+   */
+  async submitTiebreakStart(
+    selection: Readonly<{
+      firstRunnerId: string
+      secondRunnerId: string
+      leadoffBatter: number
+      inning: number
+    }>,
+  ): Promise<OrdinaryOperationResult> {
+    if (this.#localBoundary) return 'blocked'
+    if (!isLineupRecordingContext(this.#context)) return 'blocked'
+    if (this.#busy || !this.#canAppend) return 'blocked'
+    this.#inspectionResult = null
+    this.#busy = true
+    try {
+      await this.#open()
+      this.#assert()
+      if (!this.#canAppend) return 'blocked'
+      const r = this.#resources!,
+        d5 = crypto.randomUUID(),
+        eventId = crypto.randomUUID()
+      const prefixRef = this.#context.prefixRef
+      const checkpoint = prefixRef.checkpoint
+      if (
+        !Number.isSafeInteger(selection.leadoffBatter) ||
+        !Number.isSafeInteger(selection.inning)
+      )
+        return 'blocked'
+      const payload: TiebreakStartPayload = {
+        formatVersion: TIEBREAK_START_FORMAT,
+        expectedCheckpoint: {
+          id: checkpoint.id,
+          revision: checkpoint.revision,
+          digest: checkpoint.digest,
+        },
+        eventId,
+        runnerPlacement: 'first-second',
+        leadoffBatter: String(selection.leadoffBatter),
+        inning: String(selection.inning),
+        firstRunnerId: selection.firstRunnerId,
+        secondRunnerId: selection.secondRunnerId,
+      }
+      const d2 = nextOrdinaryD2(
+        this.#context.nextPosition.d2,
+        this.#context.appendPolicy,
+      )
+      if (d2 === null) return 'blocked'
+      const d2Number = sequence(d2)
+      const expected = sequence(this.#context.nextPosition.d1)
+      let key: { d4: string; d1: number; d5: string } | null = null
+      const result = await commitPitchEvent(
+        {
+          gameIdentifier: this.#context.game.id,
+          scope: this.#scope(),
+          d5,
+          version: 1,
+          event: tiebreakStartEvent(
+            this.#context.game.id,
+            this.#context.game.current_d4,
+            d5,
+            d2Number,
+            payload,
+          ),
+          recordingRightProof: r.grant.recording_right_proof,
+          eventKinds: [TIEBREAK_START_KIND],
+        },
+        {
+          queue: r.queue,
+          singleWriterInjections: this.#writerInjections(),
+          beforeAppend: async () => {
+            this.#assert()
+            if (
+              !this.#canAppend ||
+              (await r.queue.readNextD1(this.#scope())) !== expected ||
+              !sameOrdinaryWire(prefixRef.checkpoint, checkpoint)
+            )
+              throw new Error('記録位置が変わりました')
+          },
+          prepareSend: async (request) => {
+            const slot = request.slots[0]!
+            key = { d4: this.#context.game.current_d4, d1: slot.d1, d5 }
+            const credentials = await this.#credentials(request, 'initial')
+            this.#head = (await this.#oldestUnsettledD1()) ?? slot.d1
+            if (slot.d1 !== this.#head)
+              throw new Error('先行要求の終結を確認してください')
+            return credentials
+          },
+          send: postTiebreakStart,
+          readAck: (value) =>
+            this.#current() && key !== null
+              ? readOrdinaryPitchAck(value, key)
+              : undefined,
+        },
+      )
+      this.#assert()
+      if (
+        result.outcome === 'attempted' &&
+        result.ackApplication?.outcome === 'applied'
+      ) {
+        if (key !== null) this.#head = expected + 1
+        // サーバー確定の復元文脈を再取得するまで、この画面から追加しない。
+        this.#canAppend = false
+        return 'saved'
+      }
+      return (await r.queue.readSlot(this.#scope(), expected))
+        ? 'pending'
+        : 'blocked'
+    } catch {
       return this.#context.source === 'local-provisional'
         ? 'pending'
         : 'blocked'

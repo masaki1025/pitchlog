@@ -23,7 +23,7 @@ _PINNED_ORIGIN_SHA256 = {
         "2346ea918bfa470ae69add54c31572667451814498383164ecb5870e59f30f5e"
     ),
     "read_nonplay_active_history": (
-        "c3ac7df727897194de6e8426aa72be495d35ffb6d501b18243d889bd9d6cca74"
+        "f6c3b8849a35340490838cce291fdff84703526dfdad50a9f4d5d914a59be297"
     ),
 }
 _RR_RO_GUARD = (

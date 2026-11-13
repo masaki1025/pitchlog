@@ -1666,15 +1666,15 @@ def _is_port_command(operation):
         ProjectSubstitutionToken,
         ValidateSubstitutionToken,
     )
-    from pitchlog.sync.tiebreak_start_ports import (
-        ProjectTiebreakStartToken,
-        ValidateTiebreakStartToken,
-    )
     from pitchlog.sync.terminal_pitch_tokens import (
         ProjectLineupPrefixToken,
         ProjectPlayPrefixToken,
         ValidateLineupPrefixToken,
         ValidatePlayPrefixToken,
+    )
+    from pitchlog.sync.tiebreak_start_ports import (
+        ProjectTiebreakStartToken,
+        ValidateTiebreakStartToken,
     )
     from pitchlog.sync.tokens import (
         PortBindCurrentDeviceToken,
@@ -1791,15 +1791,15 @@ def _execute_port_command(handle, operation):
         ProjectSubstitutionToken,
         ValidateSubstitutionToken,
     )
-    from pitchlog.sync.tiebreak_start_ports import (
-        ProjectTiebreakStartToken,
-        ValidateTiebreakStartToken,
-    )
     from pitchlog.sync.terminal_pitch_tokens import (
         ProjectLineupPrefixToken,
         ProjectPlayPrefixToken,
         ValidateLineupPrefixToken,
         ValidatePlayPrefixToken,
+    )
+    from pitchlog.sync.tiebreak_start_ports import (
+        ProjectTiebreakStartToken,
+        ValidateTiebreakStartToken,
     )
     from pitchlog.sync.tokens import (
         PortBindCurrentDeviceToken,
@@ -1954,7 +1954,9 @@ def _execute_port_command(handle, operation):
             raise TenantBindingError("タイブレーク開始Portの実元参照が不一致")
         if type(operation) is ValidateTiebreakStartToken:
             if phase is None or phase.kind != "content":
-                raise TenantBindingError("タイブレーク開始内容は実content phaseだけで使う")
+                raise TenantBindingError(
+                    "タイブレーク開始内容は実content phaseだけで使う"
+                )
             accepted, reason = tiebreak_start_content_result(
                 handle, operation.event, operation.writer
             )

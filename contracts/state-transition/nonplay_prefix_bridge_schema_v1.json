@@ -97,7 +97,8 @@
             "undo",
             "game_end_declaration",
             "game_reopen",
-            "substitution"
+            "substitution",
+            "tiebreak_start"
           ]
         }
       },
@@ -345,6 +346,12 @@
           "type": "array",
           "items": {
             "$ref": "#/$defs/SubstitutionFrame"
+          }
+        },
+        "tiebreakFrames": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TiebreakStartFrame"
           }
         }
       },
@@ -956,6 +963,37 @@
       "additionalProperties": false
     },
     "SubstitutionFrame": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/EventSource"
+        },
+        "beforeContext": {
+          "$ref": "#/$defs/RestoreContext"
+        },
+        "afterContext": {
+          "$ref": "#/$defs/RestoreContext"
+        },
+        "afterPlayId": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "source",
+        "beforeContext",
+        "afterContext",
+        "afterPlayId"
+      ],
+      "additionalProperties": false
+    },
+    "TiebreakStartFrame": {
       "type": "object",
       "properties": {
         "source": {

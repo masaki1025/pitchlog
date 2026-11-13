@@ -69,7 +69,7 @@ def candidate_tiebreak_start_function_body() -> str:
  OR after_cp->'content'->'nextPhysicalPlayNumber'
  IS DISTINCT FROM before_cp->'content'->'nextPhysicalPlayNumber'
  OR p->'afterSource'->'activeStack' IS DISTINCT FROM p->'beforeSource'->'activeStack'
- OR after_cp->'content'->'restored' IS DISTINCT FROM p->'transition'->'afterContext'
+ OR after_cp->'content'->'restored' IS DISTINCT FROM p->'transition'
  OR after_cp->'content'->'tiebreakFrames'->-1->'source'->>'eventId'
  IS DISTINCT FROM own_event.id::text
  OR after_cp->'content'->'tiebreakFrames'->-1->'source'->>'fingerprint'

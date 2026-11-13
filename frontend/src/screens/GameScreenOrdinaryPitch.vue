@@ -313,6 +313,48 @@ const nextBatters = computed(() => {
       ) ?? []
   )
 })
+const tiebreakFirst = ref('')
+const tiebreakSecond = ref('')
+const tiebreakRule = computed(() => displayed.value.rules.tiebreak)
+const tiebreakInning = computed(() => Number(inning.value))
+const tiebreakCandidates = computed(() => {
+  const c = displayed.value
+  const side = c.after.stateFields['state.half'] === 'top' ? 'away' : 'home'
+  const currentBatter = participants.value.batterId
+  return c.game.lineups[side].entries
+    .filter(
+      (entry) =>
+        entry.batting_order !== null && entry.player_id !== currentBatter,
+    )
+    .map((entry) => ({
+      id: entry.player_id,
+      label: `${display.playerName(entry.player_id, '選手')}（${entry.batting_order}番）`,
+    }))
+})
+const tiebreakReady = computed(() => {
+  const rule = tiebreakRule.value
+  if (
+    rule === null ||
+    (rule.runnerPlacement !== 'no_out_first_second' &&
+      rule.runnerPlacement !== 'first-second') ||
+    rule.leadoffRule !== 'continue_lineup' ||
+    Number(rule.startInning) > tiebreakInning.value ||
+    stateFields.value['state.tiebreakActive'] ||
+    stateFields.value['state.runners'] !== 'empty' ||
+    Number(stateFields.value['state.outs']) !== 0 ||
+    Number(stateFields.value['state.count.strikes']) !== 0 ||
+    Number(stateFields.value['state.count.balls']) !== 0
+  )
+    return false
+  const ids = new Set(tiebreakCandidates.value.map((item) => item.id))
+  return (
+    tiebreakFirst.value !== '' &&
+    tiebreakSecond.value !== '' &&
+    tiebreakFirst.value !== tiebreakSecond.value &&
+    ids.has(tiebreakFirst.value) &&
+    ids.has(tiebreakSecond.value)
+  )
+})
 const canAppend = ref(false)
 const retryEvidenceUnavailable = ref(false)
 const displayed = ref<RecordingContext>(structuredClone(toRaw(props.context)))
@@ -1046,6 +1088,39 @@ async function save(override?: PlayScreenObservation['resultId']) {
     if (controller === current) busy.value = false
   }
 }
+async function saveTiebreakStart() {
+  if (
+    !controller ||
+    props.suspended ||
+    busy.value ||
+    !canAppend.value ||
+    !confirmed.value ||
+    !tiebreakReady.value
+  )
+    return
+  const current = controller
+  busy.value = true
+  try {
+    const result = await current.submitTiebreakStart({
+      firstRunnerId: tiebreakFirst.value,
+      secondRunnerId: tiebreakSecond.value,
+      leadoffBatter: battingOrder.value,
+      inning: Number(inning.value),
+    })
+    if (controller !== current || props.suspended) return
+    status.value = result
+    displayed.value = current.context
+    canAppend.value = current.canAppend
+    retryEvidenceUnavailable.value = current.retryEvidenceUnavailable
+    if (result === 'saved') {
+      tiebreakFirst.value = ''
+      tiebreakSecond.value = ''
+      emit('reload')
+    }
+  } finally {
+    if (controller === current) busy.value = false
+  }
+}
 async function saveIntentionalWalk() {
   if (
     !controller ||
@@ -1294,6 +1369,72 @@ onScopeDispose(() => {
     >
       {{ lockMessage }}
     </p>
+    <section
+      v-if="locked === 'tiebreak'"
+      data-testid="tiebreak-start-panel"
+      aria-label="タイブレーク開始"
+      class="shrink-0 space-y-2 border-b border-violet-300 bg-violet-50 px-3 py-2 text-xs text-violet-950 dark:border-violet-800 dark:bg-violet-950/60 dark:text-violet-100"
+    >
+      <h3 class="font-extrabold">
+        タイブレーク開始 — {{ tiebreakInning }}回・一塁/二塁・0アウト
+      </h3>
+      <p data-testid="tiebreak-leadoff">
+        先頭打者（打順継続）: {{ battingOrder }}番 {{ batterName }}
+      </p>
+      <p v-if="tiebreakRule === null" data-testid="tiebreak-rule-missing">
+        この試合にはタイブレーク規則がありません。試合設定を確認してください。
+      </p>
+      <template v-else>
+        <div class="flex flex-wrap items-end gap-3">
+          <label class="font-bold">
+            一塁走者
+            <select
+              v-model="tiebreakFirst"
+              data-testid="tiebreak-first-runner"
+              class="mt-1 min-h-9 min-w-48 rounded border bg-white p-1 dark:bg-slate-900"
+            >
+              <option value="">未選択</option>
+              <option
+                v-for="item in tiebreakCandidates"
+                :key="item.id"
+                :value="item.id"
+              >
+                {{ item.label }}
+              </option>
+            </select>
+          </label>
+          <label class="font-bold">
+            二塁走者
+            <select
+              v-model="tiebreakSecond"
+              data-testid="tiebreak-second-runner"
+              class="mt-1 min-h-9 min-w-48 rounded border bg-white p-1 dark:bg-slate-900"
+            >
+              <option value="">未選択</option>
+              <option
+                v-for="item in tiebreakCandidates"
+                :key="item.id"
+                :value="item.id"
+              >
+                {{ item.label }}
+              </option>
+            </select>
+          </label>
+          <button
+            type="button"
+            data-testid="tiebreak-start-apply"
+            class="min-h-9 rounded border border-violet-400 bg-white px-3 py-1 font-extrabold text-violet-900 disabled:opacity-40 dark:border-violet-700 dark:bg-slate-900 dark:text-violet-100"
+            :disabled="!tiebreakReady || busy || !confirmed"
+            @click="saveTiebreakStart"
+          >
+            配置と回を記録
+          </button>
+        </div>
+        <p v-if="!tiebreakReady" data-testid="tiebreak-start-blocked">
+          規則に適合する二人の実選手を、重複しないように選択してください。
+        </p>
+      </template>
+    </section>
     <p
       v-if="isLocalMode"
       data-testid="ordinary-local-notice"

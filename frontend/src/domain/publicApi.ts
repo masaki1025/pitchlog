@@ -1742,20 +1742,24 @@ function transitionTiebreakStartV1(requestJson: string): string {
   )
   if (!result.ok) return errorResponse('INVALID_REQUEST')
   const after = result.afterContext
-  return JSON.stringify({
-    ok: true,
-    value: {
-      current: {
-        stateFields: stateJson(after.current.stateFields),
-        scoreboard: after.current.scoreboard,
-      },
-      participants: after.participants,
-      runners: after.runners,
-      lineup: after.lineup,
-      responsibility: after.responsibility,
-      substitutionState: after.substitutionState,
+  const output: Record<string, unknown> = {
+    current: {
+      stateFields: stateJson(after.current.stateFields),
+      scoreboard: after.current.scoreboard,
+      battingOrderBySide: fieldValue(current, 'battingOrderBySide'),
     },
-  })
+    rules: fieldValue(restore, 'rules'),
+    rulesDigest: fieldValue(restore, 'rulesDigest'),
+    layoutDigest: fieldValue(restore, 'layoutDigest'),
+    rosterDigest: fieldValue(restore, 'rosterDigest'),
+    lineup: after.lineup,
+    participants: after.participants,
+    runners: after.runners,
+    responsibility: after.responsibility,
+    lastPlayEvaluation: fieldValue(restore, 'lastPlayEvaluation'),
+  }
+  if (substitutionState !== null) output.substitutionState = substitutionState
+  return JSON.stringify({ ok: true, value: output })
 }
 
 /** JSON文字列だけの公開表。過去訂正の有限数学はP3受理資格ではない。 */

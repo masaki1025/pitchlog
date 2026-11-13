@@ -207,6 +207,21 @@ it('artifact入口はJSONの実選手IDと半回開始投手を同じ核で確�
       runners: source.runners,
       lineup: source.lineup,
       responsibility: source.responsibility,
+      rules: {
+        regulationInnings: '9',
+        coldConditions: [],
+        extensionLimit: '12',
+        tiebreak: {
+          startInning: '10',
+          runnerPlacement: 'no_out_first_second',
+          leadoffRule: 'continue_lineup',
+        },
+        dh: true,
+      },
+      rulesDigest: 'a'.repeat(64),
+      layoutDigest: 'b'.repeat(64),
+      rosterDigest: 'c'.repeat(64),
+      lastPlayEvaluation: null,
     },
     rule: {
       startInning: '10',
@@ -231,4 +246,9 @@ it('artifact入口はJSONの実選手IDと半回開始投手を同じ核で確�
   expect(result.value.current.stateFields['state.inning']).toBe('10')
   expect(result.value.runners[0]?.responsiblePitcherId).toBe(pitcher)
   expect(result.value.runners[1]?.responsiblePitcherId).toBe(pitcher)
+  expect(result.value.rules).toMatchObject({
+    tiebreak: { startInning: '10' },
+  })
+  expect(result.value.rulesDigest).toBe('a'.repeat(64))
+  expect(result.value.lastPlayEvaluation).toBeNull()
 })

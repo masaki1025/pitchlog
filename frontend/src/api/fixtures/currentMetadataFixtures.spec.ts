@@ -119,7 +119,19 @@ it('初球87例と打球19例は旧JSON文字列のpinだけを可逆置換す�
       after = read(active)
     expect(before.split(prior).length - 1).toBe(count)
     expect(after.split(current).length - 1).toBe(count)
-    expect(after.replaceAll(current, prior)).toBe(before)
+    const normalized = after.replaceAll(current, prior)
+    if (active.includes('currentBattedHitPrefixCases')) {
+      // pinの変更に伴い、wire-head自己digest二欄だけが追随する。
+      expect(
+        differences(JSON.parse(before), JSON.parse(normalized)).filter(
+          (path) =>
+            !/\/request\/nextCheckpoint\/digest$/.test(path) &&
+            !/\/expected\/value\/nextPrefixRef\/checkpoint\/digest$/.test(path),
+        ),
+      ).toEqual([])
+    } else {
+      expect(normalized).toBe(before)
+    }
   }
 })
 

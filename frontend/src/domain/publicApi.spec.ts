@@ -29,6 +29,7 @@ describe('ドメイン公開口の疎通操作', () => {
       'deriveInitialSubstitutionStateV1',
       'transitionSubstitutionV1',
       'advanceSubstitutionAfterPitchV1',
+      'transitionTiebreakStartV1',
     ])
   })
 
