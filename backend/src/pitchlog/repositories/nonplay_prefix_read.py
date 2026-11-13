@@ -279,16 +279,9 @@ def _read_active_page_bound(
     live()
     anchor = _page_anchor(cp)
     point = _read_page_cursor(cursor, anchor)
-    from pitchlog.repositories.started_snapshot_read_operations import (
-        StartedNonplayActiveHistoryReadToken,
-    )
-
-    token_type = (
-        StartedNonplayActiveHistoryReadToken
-        if transaction.started_snapshot_read_mode(handle)
-        else NonplayActiveHistoryReadToken
-    )
-    token = token_type(
+    # 非play CPはtiebreak/substitution/undoの受理印を直接照合するreaderだけが読む。
+    # GET専用のplay-only関数へ置換すると非play eventを欠番として拒否する。
+    token = NonplayActiveHistoryReadToken(
         game_id=UUID(cp.content.scope.game_id),
         generation=generation,
         checkpoint_id=UUID(cp.ref.id),
