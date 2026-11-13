@@ -8,7 +8,7 @@ import type {
 } from '../api/lineupPrefixWire'
 import {
   cachedBattedBallOptions,
-  clearBattedBallOptionsCache,
+  noteBattedBallAuthKey,
   readBattedBallOptions,
   rememberBattedBallOptions,
   type BattedBallOption,
@@ -192,6 +192,7 @@ function reset() {
   emit('change', null)
 }
 async function load(page: string | null) {
+  noteBattedBallAuthKey(vocabCacheKey.value)
   const own = ++sequence,
     tenant = auth.teamId,
     epoch = auth.authEpoch
@@ -241,8 +242,7 @@ watch(
   () => [auth.teamId, auth.authEpoch],
   () => {
     previousPages.value = []
-    // tenant/認証世代をまたいで語彙を再利用しない。
-    clearBattedBallOptionsCache()
+    // tenant/認証世代の変更はload内の認証キー照合で一度だけ破棄する。
     void load(null)
   },
   { immediate: true },

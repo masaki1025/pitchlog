@@ -935,12 +935,15 @@ class BindingControl:
         ):
             raise WriterBindingUnavailable("認証済みwriter contextが不一致")
         from pitchlog.repositories.rg1 import read_rg1_open
+        from pitchlog.sync.stage_timing import stage
 
         handle._writer_lifetime()
-        read_rg1_open(handle)
-        identity = WriterIdentity(
-            *handle.run_function(_ReadWriterIdentityToken()).rows[0]
-        )
+        with stage("rg1_precheck"):
+            read_rg1_open(handle)
+        with stage("writer_identity"):
+            identity = WriterIdentity(
+                *handle.run_function(_ReadWriterIdentityToken()).rows[0]
+            )
         manager = self._channel()
         channel = manager.__enter__()
         try:
@@ -954,16 +957,17 @@ class BindingControl:
                 sort_keys=True,
                 separators=(",", ":"),
             )
-            reply = _request(
-                channel,
-                {
-                    "operation": "binding_open",
-                    "cookie": cookie,
-                    "tenant_id": str(context.tenant_id),
-                    "phase": phase_wire,
-                    "writer": identity.wire(),
-                },
-            )
+            with stage("ledger_binding_open"):
+                reply = _request(
+                    channel,
+                    {
+                        "operation": "binding_open",
+                        "cookie": cookie,
+                        "tenant_id": str(context.tenant_id),
+                        "phase": phase_wire,
+                        "writer": identity.wire(),
+                    },
+                )
             lease = _BindingLease(
                 self,
                 manager,
@@ -974,7 +978,8 @@ class BindingControl:
                 _LEASE_CREATION,
                 phase_snapshot=phase_snapshot,
             )
-            return _issue_live_writer_binding(handle, lease)
+            with stage("live_bind_check"):
+                return _issue_live_writer_binding(handle, lease)
         except BaseException:
             manager.__exit__(None, None, None)
             raise

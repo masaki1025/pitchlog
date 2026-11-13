@@ -14,6 +14,8 @@
 from __future__ import annotations
 
 import json
+import os
+import re
 import subprocess
 from typing import Any, LiteralString, cast
 from uuid import UUID, uuid4
@@ -336,6 +338,7 @@ async def run():
         posted=await client.post('/games/'+game+'/sync/events',json=payload,
             headers=device_headers(pair,attempt))
         out['stages'].append(['sync',posted.status_code])
+        out['sync_server_timing']=posted.headers.get('server-timing')
         out['ack']=posted.json() if posted.status_code==200 else None
         if posted.status_code!=200:
             out['sync_body']=posted.text[:400]
@@ -516,6 +519,9 @@ def _app_arguments(db: Any, case: dict[str, Any]) -> list[str]:
         "--env",
         "PITCHLOG_VERTICAL_CASE=" + json.dumps(case),
     ]
+    if os.environ.get("PITCHLOG_SYNC_STAGE_TIMING") == "1":
+        # 性能計測のopt-inだけを実app容器へ渡す。既定の試験挙動は変えない。
+        args[1:1] = ["--env", "PITCHLOG_SYNC_STAGE_TIMING=1"]
     return args
 
 
@@ -528,7 +534,26 @@ def _run_case(db: Any, case: dict[str, Any]) -> dict[str, Any]:
         timeout=300,
     )
     assert process.returncode == 0, (process.stdout[-600:], process.stderr[-600:])
-    return cast(dict[str, Any], json.loads(process.stdout))
+    value = cast(dict[str, Any], json.loads(process.stdout))
+    if value.get("sync_server_timing"):
+        # opt-in計測時だけ、応答ヘッダの段階集計を試験ログへ1行で残す。
+        print("PITCHLOG_SYNC_SERVER_TIMING=" + str(value["sync_server_timing"]))
+        if os.environ.get("PITCHLOG_SYNC_STAGE_TIMING") == "1":
+            measured = re.search(
+                r"(?:^|, )total;dur=([0-9]+\.[0-9]+)", str(value["sync_server_timing"])
+            )
+            assert measured is not None, "Server-Timingにtotalがない"
+            total_ms = float(measured.group(1))
+            print(
+                "PITCHLOG_SYNC_TARGET_5S="
+                + json.dumps({"totalMs": total_ms, "met": total_ms <= 5000.0})
+            )
+            assert total_ms <= 5000.0, f"同期サーバー時間が5秒を超えた: {total_ms}ms"
+    if os.environ.get("PITCHLOG_SYNC_STAGE_TIMING") == "1":
+        for line in process.stderr.splitlines():
+            if line.startswith("PITCHLOG_SYNC_STAGE_TIMING="):
+                print("PITCHLOG_SYNC_STAGE_JSON=" + line.split("=", 1)[1])
+    return value
 
 
 def _read_case(db: Any) -> dict[str, Any]:

@@ -95,8 +95,10 @@ def _fingerprint(event: SyncEvent, source: object, handle: _TenantTransaction) -
     return source.read(handle, event).event_fingerprint
 
 
-def _live(state: _State, writer: PortWriter, event: SyncEvent) -> None:
-    """同じ生存scopeと実writer発行元を前後で確認する。"""
+def _assert_live_state(
+    state: _State, writer: PortWriter, event: SyncEvent
+) -> None:
+    """source.readを伴わず、同生存scopeと実writer発行元のidentityだけを再確認する。"""
     handle = state.handle
     if (
         type(handle) is not _TenantTransaction
@@ -113,12 +115,18 @@ def _live(state: _State, writer: PortWriter, event: SyncEvent) -> None:
         or not handle._context._has_valid_integrity_proof()
         or getattr(writer._execute, "__self__", None) is not handle
         or getattr(writer._execute, "__func__", None) is not _TenantTransaction.run
-        or _fingerprint(event, state.source, handle) != state.fingerprint
         or event.d5 != state.event.d5
         or event.game_id != state.event.game_id
     ):
         raise FirstBallFrameError
     handle._assert_writer_lifetime(state.lifetime)
+
+
+def _live(state: _State, writer: PortWriter, event: SyncEvent) -> None:
+    """同じ生存scopeと実writer発行元を前後で確認する。"""
+    _assert_live_state(state, writer, event)
+    if _fingerprint(event, state.source, state.handle) != state.fingerprint:
+        raise FirstBallFrameError
 
 
 def _state(bridge: FirstBallBridge, writer: PortWriter, event: SyncEvent) -> _State:
@@ -184,7 +192,8 @@ def _bind_source_first_ball(handle, writer, event, *, source):
             _fingerprint(event, source, handle),
             source,
         )
-        _live(state, writer, event)
+        # 直前に_fingerprintがsource.readを完了しているため、identityだけを確認する。
+        _assert_live_state(state, writer, event)
     except Exception:
         raise FirstBallFrameError from None
     for expired in tuple(_ATTEMPTED):
@@ -253,7 +262,9 @@ def evaluate_first_ball_frame(
         )
         _check_frozen_members(request)
         request = CombinedRequest.model_validate(request)
-        with open_domain_host() as host:
+        from pitchlog.sync.stage_timing import TimedOpen, stage
+
+        with TimedOpen(open_domain_host) as host:
             if type(host) is not NodeDomainHost or type(host._source) is not str:
                 raise FirstBallFrameError
             source = host._source
@@ -261,12 +272,13 @@ def evaluate_first_ball_frame(
             if digest != expected_artifact_sha256:
                 raise FirstBallFrameError
             _live(state, writer, event)
-            response = decode_combined_response(
-                host.call(
-                    "deriveFirstPitchWithContinuation",
-                    request.model_dump_json(by_alias=True),
+            with stage("host_call"):
+                response = decode_combined_response(
+                    host.call(
+                        "deriveFirstPitchWithContinuation",
+                        request.model_dump_json(by_alias=True),
+                    )
                 )
-            )
             if type(host._source) is not str or host._source != source:
                 raise FirstBallFrameError
         _live(state, writer, event)

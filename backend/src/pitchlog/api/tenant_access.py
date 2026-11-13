@@ -8,11 +8,19 @@ from uuid import UUID
 from fastapi import Depends, HTTPException, Request, Response
 from fastapi.routing import APIRoute
 from starlette.concurrency import run_in_threadpool
-from starlette.types import Receive, Scope, Send
+from starlette.types import Message, Receive, Scope, Send
 
 from pitchlog.api.cookie_identity import mark_same_token_cookie_route
 from pitchlog.api.request_presentation import RequestGateError, require_presented_token
 from pitchlog.repositories.context import TenantContext
+from pitchlog.sync.stage_timing import (
+    emit_sync_stage_timing,
+    finish_sync_stage_timing,
+    server_timing_value,
+    stage,
+    start_sync_stage_timing,
+    timing_enabled,
+)
 
 _MATCH_STATE = "pitchlog_tenant_match"
 _MATCH_ROUTE_STATE = "pitchlog_tenant_match_route"
@@ -89,24 +97,65 @@ class TenantMatchedRoute(APIRoute):
 
     async def handle(self, scope: Scope, receive: Receive, send: Send) -> None:
         """本文を解釈する標準ASGI経路へ照合済み要求だけを渡す。"""
-        if self.operation_id in _MATCH_OPERATIONS and (
-            self.methods is None or scope["method"] in self.methods
+        timer = None
+        token = None
+        status = 0
+        if (
+            self.operation_id == "sync_events"
+            and scope.get("type") == "http"
+            and timing_enabled()
         ):
-            mark_same_token_cookie_route(
-                scope, self.operation_id, scope["method"], self.path
-            )
-            request = Request(scope, receive)
-            request.scope.setdefault("state", {})[_MATCH_ROUTE_STATE] = True
-            value = await require_presented_token(request)
-            context = await run_in_threadpool(
-                require_tenant_access, request, Response(), value
-            )
-            expected = _canonical_header(request, _EXPECTED_HEADER)
-            challenge = _canonical_header(request, _CHALLENGE_HEADER)
-            if expected != str(context.tenant_id):
-                raise HTTPException(status_code=404)
-            request.scope["state"][_MATCH_STATE] = _TenantMatch(context, challenge)
-        await super().handle(scope, receive, send)
+            timer, token = start_sync_stage_timing()
+
+        async def send_observed(message: Message) -> None:
+            nonlocal status
+            if timer is not None and message["type"] == "http.response.start":
+                status = int(message["status"])
+                headers = list(message.get("headers", []))
+                try:
+                    timing_header = server_timing_value(timer).encode("ascii")
+                except Exception:
+                    timing_header = b"total;dur=0.0"
+                headers.append((b"server-timing", timing_header))
+                message = {**message, "headers": headers}
+            await send(message)
+
+        try:
+            if self.operation_id in _MATCH_OPERATIONS and (
+                self.methods is None or scope["method"] in self.methods
+            ):
+                mark_same_token_cookie_route(
+                    scope, self.operation_id, scope["method"], self.path
+                )
+                request = Request(scope, receive)
+                request.scope.setdefault("state", {})[_MATCH_ROUTE_STATE] = True
+                with stage("auth"):
+                    value = await require_presented_token(request)
+                    context = await run_in_threadpool(
+                        require_tenant_access, request, Response(), value
+                    )
+                    expected = _canonical_header(request, _EXPECTED_HEADER)
+                    challenge = _canonical_header(request, _CHALLENGE_HEADER)
+                    if expected != str(context.tenant_id):
+                        raise HTTPException(status_code=404)
+                request.scope["state"][_MATCH_STATE] = _TenantMatch(
+                    context, challenge
+                )
+            await super().handle(scope, receive, send_observed)
+        finally:
+            if timer is not None:
+                try:
+                    emit_sync_stage_timing(
+                        timer,
+                        method=str(scope.get("method", "")),
+                        route=str(self.operation_id or ""),
+                        status=status,
+                    )
+                except Exception:
+                    # 計測失敗で実応答・実例外を置き換えない。
+                    pass
+                finally:
+                    finish_sync_stage_timing(token)
 
 
 def tenant_match_response_headers(

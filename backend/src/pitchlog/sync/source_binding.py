@@ -6,6 +6,7 @@ registry登録APIは提供せず、pure登録doubleを実受付の証拠とは�
 
 from __future__ import annotations
 
+import sys
 from collections.abc import Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -20,6 +21,7 @@ from pitchlog.sync.idempotency import (
     operation_fingerprint,
 )
 from pitchlog.sync.model import ABSENT, SyncEvent, SyncRequest
+from pitchlog.sync.stage_timing import active, begin_stage, end_stage, stage
 from pitchlog.sync.wire_fingerprint import WireEventValue, wire_event_fingerprint
 from pitchlog.sync.wire_original import _canonical, encode_wire_original
 from pitchlog.sync.wire_source import WireSourceValue, checked_wire_source
@@ -372,6 +374,7 @@ def read_selected_event_source(
     Raises:
         SourceBindingError: 未発行/失効/実caller不一致/原値変更の場合。
     """
+    stage_begin = begin_stage("selected_source_derive")
     try:
         fingerprint = selected_event_fingerprint(binding, event)
         selected = _SELECTIONS[binding]
@@ -442,6 +445,7 @@ def read_selected_event_source(
                 raise ValueError(_ERROR)
         else:
             raise ValueError(_ERROR)
+        end_stage(stage_begin)
         return value
     except (
         AttributeError,
@@ -490,6 +494,19 @@ def _legacy_entry_scope(context, request, registrations):
         _LEGACY.pop(owner, None)
 
 
+def _source_read_caller() -> str:
+    """計測時だけ、薄いwrapperを飛ばして実際の境界関数名を返す。"""
+    frame = sys._getframe(2)
+    while frame is not None and frame.f_code.co_name in {
+        "read",
+        "_live",
+        "_execution_live",
+        "_fingerprint",
+    }:
+        frame = frame.f_back
+    return frame.f_code.co_name if frame is not None else "unknown"
+
+
 class _E1CoreSource:
     """実bound writerと元sourceの再検査口。純値だけから新資格を作らない。"""
 
@@ -502,6 +519,7 @@ class _E1CoreSource:
         "phase",
         "bound",
         "write_started",
+        "_cached_selected",
     )
 
     def __init__(self, binding, *, scope, context, request, event, phase, bound):
@@ -517,24 +535,55 @@ class _E1CoreSource:
         self.binding, self.scope, self.context = binding, scope, context
         self.request, self.event, self.phase, self.bound = request, event, phase, bound
         self.write_started = False
+        self._cached_selected = None
         self.read(scope, event)
+
+    def _reusable_selected(self):
+        """同一TX・同一不変identity・write前だけ純値を再利用する。"""
+        cached = self._cached_selected
+        if (
+            cached is None
+            or self.write_started
+            or cached[0] is not self.binding
+            or cached[1] is not self.context
+            or cached[2] is not self.request
+            or cached[3] is not self.event
+            or cached[4] is not self.bound
+            or cached[5] is not self.phase
+        ):
+            return None
+        return cached[6]
 
     def read(self, scope, event):
         """重要点ごとに同じ元bindingと同writerの現在値を照合する。"""
-        if (
-            scope is not self.scope
-            or event is not self.event
-            or self.bound._handle is not scope
-            or scope._context is not self.context
-        ):
-            raise SourceBindingError(_ERROR)
-        return self.bound.assert_event_source(
-            self.binding,
-            context=self.context,
-            request=self.request,
-            event=event,
-            phase=self.phase,
-        )
+        detail = _source_read_caller() if active() else None
+        with stage("source_read", detail=detail):
+            if (
+                scope is not self.scope
+                or event is not self.event
+                or self.bound._handle is not scope
+                or scope._context is not self.context
+            ):
+                raise SourceBindingError(_ERROR)
+            value = self.bound.assert_event_source(
+                self.binding,
+                context=self.context,
+                request=self.request,
+                event=event,
+                phase=self.phase,
+                cached=self._reusable_selected(),
+            )
+            if not self.write_started:
+                self._cached_selected = (
+                    self.binding,
+                    self.context,
+                    self.request,
+                    self.event,
+                    self.bound,
+                    self.phase,
+                    value,
+                )
+            return value
 
     def begin_write(self, scope, event):
         """最初の書込tokenより前にsourceを再確認して分岐を閉じる。"""

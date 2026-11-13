@@ -59,6 +59,7 @@ from pitchlog.sync.rejection import (
     apply_rejection_or_escrow,
     content_reason_for_precondition,
 )
+from pitchlog.sync.stage_timing import TimedScope, stage
 from pitchlog.sync.tokens import (
     RECORDING_GENERATION_READ_COLUMNS,
     RecordingGenerationByNumberReadToken,
@@ -774,10 +775,14 @@ def _apply_e1_f1(
     phase = replace(
         phase, attempt=replace(phase.attempt, body_fingerprint=body_fingerprint)
     )
-    if not _read_reference_device_state(context, reference_device):
-        return "B5"
-    if not game_accessible(context, UUID(request.game_id), tenant_transaction_scope):
-        return "B6"
+    with stage("device_state"):
+        if not _read_reference_device_state(context, reference_device):
+            return "B5"
+    with stage("game_accessible"):
+        if not game_accessible(
+            context, UUID(request.game_id), tenant_transaction_scope
+        ):
+            return "B6"
     from pitchlog.sync.ordinary_pitch_ports import (
         LineupPrefixContentValidationPort,
         OrdinaryPitchContentValidationPort,
@@ -821,16 +826,22 @@ def _apply_e1_f1(
 
     try:
         with (
-            tenant_transaction_scope(context) as scope,
+            TimedScope(
+                tenant_transaction_scope(context),
+                open_name="main_tx_open",
+                close_name="main_tx_close",
+            ) as scope,
             ExitStack() as qualification_stack,
         ):
             with _sync_apply_active():
                 # この呼出点だけB7へ写し、bind_writer内部の例外は伝播。
                 try:
-                    read_rg1_open(scope)
+                    with stage("rg1_precheck"):
+                        read_rg1_open(scope)
                 except RG1Unavailable:
                     return "B7"
-                bound = control.bind_writer(scope, context, phase, cookie=cookie)
+                with stage("writer_bind"):
+                    bound = control.bind_writer(scope, context, phase, cookie=cookie)
                 with (
                     gated_e1_writer(scope, rights) as gated,
                     ExitStack() as undo_qualification_stack,
@@ -890,26 +901,28 @@ def _apply_e1_f1(
                         undo_qualification_stack.enter_context(
                             _lifecycle_qualification_scope(scope, source)
                         )
-                    device = _verify_bound_device(
-                        bound,
-                        reference_device,
-                        request.game_id,
-                        presentation=state.device_presentation,
-                    )
+                    with stage("device_verify"):
+                        device = _verify_bound_device(
+                            bound,
+                            reference_device,
+                            request.game_id,
+                            presentation=state.device_presentation,
+                        )
                     if device != "match":
                         rejected_boundary = (
                             ("B6") if device == ("different_game") else ("B5")
                         )
                         raise rollback_marker
-                    preflight = _preflight_in_scope(
-                        scope,
-                        context,
-                        request,
-                        rights,
-                        gated.writer,
-                        (binding,),
-                        source=source,
-                    )
+                    with stage("preflight_d5"):
+                        preflight = _preflight_in_scope(
+                            scope,
+                            context,
+                            request,
+                            rights,
+                            gated.writer,
+                            (binding,),
+                            source=source,
+                        )
 
                     def reject_one(ctx, req, current, port, registration):
                         source.read(scope, current)

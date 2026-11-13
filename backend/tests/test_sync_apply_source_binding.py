@@ -723,3 +723,63 @@ def test_unregistered_receipt_is_a_fixed_closed_error():
         ValueError, match="^E-1又はlegacyの発行済みsourceを利用できません$"
     ):
         api._receipt(forged)
+
+
+def test_e1_core_source_reuses_selected_value_before_write_only(monkeypatch) -> None:
+    """同一TX・write前だけ純値を再利用し、照合呼出し自体は毎回維持する。"""
+    from types import SimpleNamespace
+
+    from pitchlog.sync.control_provider.writer_binding import _LiveWriterBinding
+
+    raw = _raw()
+    request = _request(raw)
+    frozen = freeze_wire_source(
+        game_id=raw["game_id"], d4=raw["d4"], raw_events=(raw,)
+    )
+    context = TenantContext(_TENANT, _ISSUANCE_CAPABILITY)
+    token = object()
+    calls: list[api.SelectedEventSourceValue | None] = []
+    value = api.SelectedEventSourceValue(
+        "e1",
+        1,
+        frozen.event_fingerprints[0],
+        frozen.request_fingerprint,
+        frozen.events[0],
+        "{}",
+    )
+
+    def fake_assert_event_source(
+        self, binding, *, context, request, event, phase, cached=None
+    ):
+        """実挙動の代わりに、渡されたcacheだけを観測する。"""
+        calls.append(cached)
+        return value
+
+    monkeypatch.setattr(
+        _LiveWriterBinding, "assert_event_source", fake_assert_event_source
+    )
+    scope = SimpleNamespace(_context=context)
+    bound = object.__new__(_LiveWriterBinding)
+    bound._handle = scope
+    with api._e1_receipt_scope(
+        context=context, request=request, source=frozen, entry_token=token
+    ) as receipt:
+        binding = api.e1_event_source(receipt, 1)
+        source = api._E1CoreSource(
+            binding,
+            scope=scope,
+            context=context,
+            request=request,
+            event=request.events[0],
+            phase=object(),
+            bound=bound,
+        )
+        assert calls == [None]
+        assert source.read(scope, request.events[0]) is value
+        assert calls[-1] is value
+        source.begin_write(scope, request.events[0])
+        assert calls[-1] is value
+        assert source.write_started is True
+        assert source.read(scope, request.events[0]) is value
+        assert calls[-1] is None
+    assert len(calls) == 4

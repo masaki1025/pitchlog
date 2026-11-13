@@ -241,7 +241,7 @@ def capture_recorded_play_identity(scope, receipt, source) -> RecordedPlayIdenti
     try:
         if type(source) is not _NativeStatsSource:
             raise PlayExportIdentityUnavailable
-        stats_native_flush._assert_scope(scope, receipt, source)
+        # 呼出元のpersist_accepted_play_exportが直前に_assert_scopeを完了している。
         tenant = source.tenant_id
         game_rows = _rows(
             scope,

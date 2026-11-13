@@ -810,7 +810,6 @@ def _recheck_and_insert_native_result(
     fresh = _fresh(minimum, writer, event, token)
     statement, parameters = _fixed_insert(token, minimum.context.tenant_id)
     _require_fixed_insert(statement, parameters, token, minimum.context.tenant_id)
-    _fresh(minimum, writer, event, token, fresh)
     cursor = minimum.session.execute(statement, parameters)
     try:
         rows = list(islice(cursor, 2))

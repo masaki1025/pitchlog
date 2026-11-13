@@ -1498,6 +1498,16 @@ export class GameScreenOrdinaryPitchController {
             return 'blocked'
           }
           this.#retryEvidenceUnavailable = false
+          // 資格読取の待機中に再照会がunresolvedを返した場合は送らない。
+          if (this.#inspectionResult === 'unresolved') return 'pending'
+          if (recovery !== null) {
+            const currentRecovery = this.#recovery
+            if (
+              currentRecovery === null ||
+              currentRecovery.attemptId !== recovery
+            )
+              return 'pending'
+          }
           this.#assert()
           const abort = new AbortController()
           this.#sendAbort = abort

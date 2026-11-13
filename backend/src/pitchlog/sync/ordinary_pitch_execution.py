@@ -31,6 +31,7 @@ from pitchlog.sync.ordinary_pitch_payload import (
 )
 from pitchlog.sync.ports import PortWriter
 from pitchlog.sync.source_binding import _E1CoreSource
+from pitchlog.sync.stage_timing import TimedOpen, stage_timed_host_call
 from pitchlog.sync.terminal_pitch_payload import (
     LineupPitchPlayPayload,
     TerminalPitchPlayPayload,
@@ -80,6 +81,7 @@ class _Execution:
     preparation_used: bool = False
     mode: str = "ordinary-pitch-play-v1"
     stats_source_reference: object = None
+    event_fingerprint: str | None = None
 
 
 _EXECUTIONS: dict[object, _Execution] = {}
@@ -104,7 +106,7 @@ def _live(state):
     ):
         raise OrdinaryPitchExecutionError
     handle._assert_writer_lifetime(state.lifetime)
-    state.source.read(handle, state.event)
+    view = state.source.read(handle, state.event)
     handle._assert_writer_lifetime(state.lifetime)
     if state.phase in {"ready", "consumed", "projected"} and state.payload is not None:
         from pitchlog.sync.terminal_pitch_payload import NonplayPitchCalculation
@@ -115,6 +117,7 @@ def _live(state):
             )
 
             _assert_nonplay_normal_prefix(state)
+    return view
 
 
 @contextmanager
@@ -150,7 +153,7 @@ def _bind_ordinary_pitch_execution(
     key = handle._state_key
     _EXECUTIONS[key] = state
     try:
-        _live(state)
+        state.event_fingerprint = _live(state).event_fingerprint
         if mode == "play-prefix-play-v3":
             _evaluate_lineup_prefix(state)
         elif mode == "play-prefix-play-v2":
@@ -167,7 +170,7 @@ def _bind_ordinary_pitch_execution(
             except (TypeError, ValueError, RecursionError):
                 state.phase = "rejected"
             if state.phase != "rejected":
-                with open_domain_host() as host:
+                with TimedOpen(open_domain_host) as host:
                     if (
                         type(host) is not NodeDomainHost
                         or type(host._source) is not str
@@ -182,7 +185,8 @@ def _bind_ordinary_pitch_execution(
                     requested = supplied.calculation.request.t1
                     request = _request_from_checkpoint(doc, requested)
                     response = decode_ordinary_continuation_response(
-                        host.call(
+                        stage_timed_host_call(
+                            host,
                             "deriveOrdinaryPitchWithContinuation",
                             request.model_dump_json(by_alias=True, exclude_unset=True),
                         )
@@ -366,6 +370,7 @@ def _require_ordinary_projection_completed(handle, event):
     _live(state)
     if state.event is not event or state.phase != "projected":
         raise OrdinaryPitchExecutionError
+    return state
 
 
 _QUALIFICATIONS: dict[object, _E1CoreSource] = {}
@@ -511,7 +516,7 @@ def _record_ordinary_right_epoch(handle, phase, epoch):
         or transaction._verified_recovery_epoch(handle, phase) != epoch
     ):
         raise OrdinaryPitchExecutionError
-    source.read(handle, source.event)
+    # 呼出元の_ordinary_qualification_activeが直前のsource.readを完了している。
     _QUALIFIED_EPOCHS[handle._state_key] = (source, epoch)
 
 
@@ -524,7 +529,7 @@ def _ordinary_verified_epoch(handle, source):
         or _QUALIFICATIONS.get(handle._state_key) is not source
     ):
         raise OrdinaryPitchExecutionError
-    source.read(handle, source.event)
+    # 呼出元のprefix readは各DB read直後にlive()でsource.readを完了している。
     return captured[1]
 
 
@@ -580,7 +585,7 @@ def _evaluate_play_prefix(state):
     except (TypeError, ValueError, RecursionError):
         state.phase = "rejected"
         return
-    with open_domain_host() as host:
+    with TimedOpen(open_domain_host) as host:
         if type(host) is not NodeDomainHost:
             raise OrdinaryPitchExecutionError
         digest = host.artifact_sha256
@@ -607,7 +612,8 @@ def _evaluate_play_prefix(state):
         q["t1"]["before"] = prefix.source.after.model_dump(mode="json", by_alias=True)
         request = PlayPrefixRequest.model_validate_json(json.dumps(q))
         response = decode_play_prefix_response(
-            host.call(
+            stage_timed_host_call(
+                host,
                 "derivePlayPrefixWithContinuation",
                 request.model_dump_json(by_alias=True, exclude_unset=True),
             )
@@ -744,7 +750,7 @@ def _evaluate_lineup_prefix_bound(state):
 
     if type(supplied.calculation) is NonplayPitchCalculation:
         return _evaluate_nonplay_normal_bound(state, supplied, raw_v7, raw_v8)
-    with open_domain_host() as host:
+    with TimedOpen(open_domain_host) as host:
         if type(host) is not NodeDomainHost:
             raise OrdinaryPitchExecutionError
         digest = host.artifact_sha256
@@ -763,7 +769,8 @@ def _evaluate_lineup_prefix_bound(state):
             verify_native_lineup_source(request, evidence, host)
             _live(state)
         response = decode_lineup_prefix_response(
-            host.call(
+            stage_timed_host_call(
+                host,
                 "deriveLineupPlayPrefixWithContinuation",
                 request.model_dump_json(by_alias=True, exclude_unset=True),
             )
@@ -860,11 +867,7 @@ def _read_ordinary_stats_source(handle, writer, event, projected):
     """3modeの実frame_idと一回consume済み投影だけを成績へ貸与する。"""
     if type(handle) is not transaction._TenantTransaction:
         raise OrdinaryPitchExecutionError
-    state = _EXECUTIONS.get(handle._state_key)
-    if type(state) is not _Execution:
-        raise OrdinaryPitchExecutionError
-    _live(state)
-    _require_ordinary_projection_completed(handle, event)
+    state = _require_ordinary_projection_completed(handle, event)
     anchor = state.stats_source_reference
     if (
         state.handle is not handle
@@ -881,6 +884,7 @@ def _read_ordinary_stats_source(handle, writer, event, projected):
         or state.preparation_digest is not None
         or state.payload is None
         or state.prefix is None
+        or type(state.event_fingerprint) is not str
         or type(state.frame_id) is not UUID
         or type(anchor) is not tuple
         or len(anchor) not in (8, 9)
@@ -935,7 +939,7 @@ def _evaluate_nonplay_normal_bound(state, supplied, raw_v7, raw_v8):
     )
 
     request = supplied.calculation.request
-    with open_domain_host() as host:
+    with TimedOpen(open_domain_host) as host:
         if type(host) is not NodeDomainHost:
             raise OrdinaryPitchExecutionError
         prefix = read_confirmed_nonplay_normal(
@@ -947,7 +951,8 @@ def _evaluate_nonplay_normal_bound(state, supplied, raw_v7, raw_v8):
         )
         _live(state)
         response = decode_nonplay_lineup_prefix_response(
-            host.call(
+            stage_timed_host_call(
+                host,
                 "deriveLineupPlayPrefixWithContinuation",
                 request.model_dump_json(by_alias=True, exclude_unset=True),
             )
