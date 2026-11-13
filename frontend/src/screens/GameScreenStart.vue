@@ -106,8 +106,29 @@ const scopeKey = computed(() =>
     detail.value?.away_team_record_id,
     detail.value?.home_team_record_id,
     detail.value?.applied_rules.dh,
+    detail.value?.applied_rules.regulationInnings,
+    detail.value?.applied_rules.extensionLimit,
   ]),
 )
+const ruleSummary = computed(() => {
+  const rules = detail.value?.applied_rules
+  if (!rules) return ''
+  const regulation = rules.regulationInnings
+  const extension = rules.extensionLimit
+  if (typeof regulation !== 'number' || !Number.isInteger(regulation)) return ''
+  if (
+    extension !== null &&
+    (typeof extension !== 'number' || !Number.isInteger(extension))
+  )
+    return ''
+  const extensionLabel =
+    extension === null
+      ? '上限なし'
+      : extension === regulation
+        ? '規定回まで（延長なし）'
+        : `${extension}回まで`
+  return `規定 ${regulation}回 ／ 延長 ${extensionLabel}`
+})
 function abort() {
   for (const side of sides) {
     requests[side]?.abort()
@@ -359,6 +380,9 @@ onScopeDispose(() => {
         <p class="font-extrabold">試合情報</p>
         <p class="mt-1">
           試合日：{{ detail.scheduled_at.slice(0, 10).replaceAll('-', '/') }}
+        </p>
+        <p v-if="ruleSummary" data-testid="rule-summary" class="mt-0.5">
+          {{ ruleSummary }}
         </p>
         <p class="mt-0.5 text-xs text-slate-500">
           先攻 {{ detail.away_team_record_id.slice(0, 8) }} ／ 後攻

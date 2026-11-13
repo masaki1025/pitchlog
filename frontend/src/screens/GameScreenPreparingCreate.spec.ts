@@ -118,6 +118,46 @@ it('必須大会/両team/5任意欄をフォームから運び、表示文字列
   await wrapper.get('form').trigger('submit')
   expect(state.submit).toHaveBeenCalledTimes(1)
 })
+it('規定回と延長上限を選ぶとrule_choiceを送り、既定選択では省略する', async () => {
+  await fill()
+  await wrapper.get('[data-testid="rule-mode"]').setValue('custom')
+  await wrapper.get('[data-testid="regulation-innings"]').setValue('7')
+  const extension = wrapper.get('[data-testid="extension-limit"]')
+  expect(
+    extension.findAll('option').map((option) => option.attributes('value')),
+  ).toEqual(['7', '9', '12'])
+  await wrapper.get('form').trigger('submit')
+  expect(state.submit).toHaveBeenCalledWith(
+    expect.objectContaining({
+      rule_choice: { regulation_innings: 7, extension_limit: 9 },
+    }),
+  )
+
+  state.status.value = 'ready'
+  await wrapper.get('[data-testid="rule-mode"]').setValue('default')
+  await wrapper.get('form').trigger('submit')
+  const last = (state.submit as ReturnType<typeof vi.fn>).mock.calls.at(-1)?.[0]
+  expect(last).not.toHaveProperty('rule_choice')
+})
+it('9回へ戻すと7回専用の延長上限を送らない', async () => {
+  await fill()
+  await wrapper.get('[data-testid="rule-mode"]').setValue('custom')
+  await wrapper.get('[data-testid="regulation-innings"]').setValue('7')
+  await wrapper.get('[data-testid="extension-limit"]').setValue('7')
+  await wrapper.get('[data-testid="regulation-innings"]').setValue('9')
+  expect(
+    wrapper
+      .get('[data-testid="extension-limit"]')
+      .findAll('option')
+      .map((option) => option.attributes('value')),
+  ).toEqual(['9', '12'])
+  await wrapper.get('form').trigger('submit')
+  expect(state.submit).toHaveBeenCalledWith(
+    expect.objectContaining({
+      rule_choice: { regulation_innings: 9, extension_limit: 9 },
+    }),
+  )
+})
 it('同teamを許し、新大会名を無変換で送る・空白onlyは送らない', async () => {
   await fill()
   await wrapper.get('[data-testid="home"]').setValue(self)

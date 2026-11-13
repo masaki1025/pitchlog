@@ -269,6 +269,78 @@ it.each(gameEnd.validationErrors)('$axisId $invalidValue 既12設定拒否', (c)
   ).toBeNull()
 })
 
+it('7回選択は7回裏完了で終了し、選択した延長上限だけで引き分け/継続する', () => {
+  const completed = (inning: bigint): EndBoundary => ({
+    completedHalf: 'bottom',
+    completedInning: inning,
+  })
+  const sevenNoExtra = rules({
+    regulationInnings: '7',
+    extensionLimit: '7',
+  })
+  expect(
+    evaluateEndCondition(
+      { ...initial, inning: 8n, half: 'top', home: 3n, away: 1n },
+      sevenNoExtra,
+      completed(7n),
+    ),
+  ).toMatchObject({ outcome: 'normal-end', endConditionDetected: true })
+  expect(
+    evaluateEndCondition(
+      { ...initial, inning: 8n, half: 'top', home: 2n, away: 2n },
+      sevenNoExtra,
+      completed(7n),
+    ),
+  ).toMatchObject({ outcome: 'limit-draw', endConditionDetected: true })
+
+  const sevenNine = rules({
+    regulationInnings: '7',
+    extensionLimit: '9',
+  })
+  expect(
+    evaluateEndCondition(
+      { ...initial, inning: 8n, half: 'top', home: 2n, away: 2n },
+      sevenNine,
+      completed(7n),
+    ),
+  ).toMatchObject({ outcome: 'extra-continue', endConditionDetected: false })
+  expect(
+    evaluateEndCondition(
+      { ...initial, inning: 10n, half: 'top', home: 2n, away: 2n },
+      sevenNine,
+      completed(9n),
+    ),
+  ).toMatchObject({ outcome: 'limit-draw', endConditionDetected: true })
+
+  const sevenTwelve = rules({
+    regulationInnings: '7',
+    extensionLimit: '12',
+  })
+  expect(
+    evaluateEndCondition(
+      { ...initial, inning: 10n, half: 'top', home: 2n, away: 2n },
+      sevenTwelve,
+      completed(9n),
+    ),
+  ).toMatchObject({ outcome: 'extra-continue', endConditionDetected: false })
+  expect(
+    evaluateEndCondition(
+      { ...initial, inning: 13n, half: 'top', home: 2n, away: 2n },
+      sevenTwelve,
+      completed(12n),
+    ),
+  ).toMatchObject({ outcome: 'limit-draw', endConditionDetected: true })
+
+  // 未選択時の9回既定は従来どおり9回裏完了で引き分け判定する。
+  expect(
+    evaluateEndCondition(
+      { ...initial, inning: 10n, half: 'top', home: 2n, away: 2n },
+      rules({ extensionLimit: '9' }),
+      completed(9n),
+    ),
+  ).toMatchObject({ outcome: 'limit-draw', endConditionDetected: true })
+})
+
 it('COLD03: 裏の有効得点playで第三アウトも確定していてもafter表へ取り落とさない', () => {
   const configured = rules({
     coldConditions: [{ pointDifference: '7', startInning: '7' }],

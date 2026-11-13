@@ -25,6 +25,7 @@ from sqlalchemy.sql.selectable import Select
 from pitchlog.api.schemas.base import BaseSchema, PageRequest
 from pitchlog.api.schemas.games import (
     ExistingTournament,
+    GameRuleChoice,
     NewTournament,
     PreparingGameCreate,
     PreparingGameListRequest,
@@ -34,10 +35,15 @@ from pitchlog.api.schemas.games import (
     encode_preparing_game_cursor,
 )
 from pitchlog.db.game_state.models import Game
+from pitchlog.db.game_state.rule_presets import (
+    RulePresetInvalid,
+    apply_rule_choice,
+)
 from pitchlog.db.game_state.rule_snapshot import (
     DomainValidatedRuleSnapshot,
     RuleSnapshotFailure,
     RuleSnapshotInvalid,
+    decode_applied_rules,
     encode_applied_rules,
 )
 from pitchlog.repositories.base import (
@@ -456,6 +462,119 @@ def test_saved_snapshot_materialization_decodes_through_real_codec() -> None:
     encoded["coldConditions"] = [{"pointDifference": 10, "startInning": 5}]
     assert raw["coldConditions"] == []
     assert immutable["coldConditions"] == ()
+
+
+@pytest.mark.parametrize(
+    "choice",
+    [
+        {"regulation_innings": 7, "extension_limit": 7},
+        {"regulation_innings": 7, "extension_limit": 9},
+        {"regulation_innings": 7, "extension_limit": 12},
+        {"regulation_innings": 9, "extension_limit": 9},
+        {"regulation_innings": 9, "extension_limit": 12},
+    ],
+)
+def test_game_rule_choice_accepts_only_reachable_screen_values(
+    choice: dict[str, int],
+) -> None:
+    """画面の5組だけをDTOで受理し、延長上限は規定回以上に閉じる。"""
+    parsed = GameRuleChoice.model_validate(choice)
+    assert parsed.regulation_innings == choice["regulation_innings"]
+    assert parsed.extension_limit == choice["extension_limit"]
+    assert (
+        PreparingGameCreate.model_validate(
+            {**_create_payload(), "rule_choice": choice}
+        ).rule_choice
+        == parsed
+    )
+
+
+@pytest.mark.parametrize(
+    "choice",
+    [
+        {"regulation_innings": 9, "extension_limit": 7},
+        {"regulation_innings": 7, "extension_limit": 5},
+        {"regulation_innings": 5, "extension_limit": 5},
+        {"regulation_innings": 7, "extension_limit": 7, "extra": 1},
+        {"regulation_innings": "7", "extension_limit": 7},
+    ],
+)
+def test_game_rule_choice_rejects_out_of_contract_pairs(
+    choice: dict[str, object],
+) -> None:
+    """範囲外・矛盾・未知keyを既定値へ補正しない。"""
+    with pytest.raises(ValidationError):
+        GameRuleChoice.model_validate(choice)
+
+
+def test_default_rule_choice_keeps_existing_snapshot_identity() -> None:
+    """既定と同じ9回・延長12回はIDも値も変えない。"""
+    base = decode_applied_rules(_saved_snapshot())
+    selected = apply_rule_choice(base, regulation_innings=9, extension_limit=12)
+    assert selected is base
+    assert encode_applied_rules(selected) == _saved_snapshot()
+
+
+def test_seven_inning_choice_changes_regulation_and_tiebreak() -> None:
+    """7回・9回までの選択は規定回と延長だけを差し替え、延長外TBを外す。"""
+    base = decode_applied_rules(_saved_snapshot())
+    selected = apply_rule_choice(base, regulation_innings=7, extension_limit=9)
+    structural = selected.structural
+    assert structural.regulation_innings == 7
+    assert structural.extension_limit == 9
+    assert structural.tiebreak is None
+    assert structural.cold_conditions == base.structural.cold_conditions
+    assert structural.dh == base.structural.dh
+    assert structural.rule_set_id != base.structural.rule_set_id
+    encoded = encode_applied_rules(selected)
+    assert set(encoded) == {
+        "ruleSetId",
+        "regulationInnings",
+        "coldConditions",
+        "extensionLimit",
+        "tiebreak",
+        "dh",
+    }
+    # 再取得・再送で同じ値とIDを再現できる。規則値の再計算ではない。
+    assert (
+        apply_rule_choice(base, regulation_innings=7, extension_limit=9).structural
+        == structural
+    )
+    assert decode_applied_rules(encoded) == selected
+
+
+def test_seven_inning_twelve_keeps_only_reachable_tiebreak() -> None:
+    """7回・12回までなら既定の10回TBをそのまま引き継ぐ。"""
+    base = decode_applied_rules(_saved_snapshot())
+    selected = apply_rule_choice(base, regulation_innings=7, extension_limit=12)
+    assert selected.structural.tiebreak is not None
+    assert selected.structural.tiebreak.start_inning == 10
+
+
+def test_nine_inning_no_extension_drops_tiebreak_outside_limit() -> None:
+    """9回・9回までの選択は10回TBを到達不能として保存しない。"""
+    base = decode_applied_rules(_saved_snapshot())
+    selected = apply_rule_choice(base, regulation_innings=9, extension_limit=9)
+    assert selected.structural.regulation_innings == 9
+    assert selected.structural.extension_limit == 9
+    assert selected.structural.tiebreak is None
+
+
+@pytest.mark.parametrize(
+    "regulation,extension",
+    [(5, 9), (9, 7), (True, 9), (7, True)],
+)
+def test_rule_choice_rejects_untyped_or_unreachable_values_before_codec(
+    regulation: object, extension: object
+) -> None:
+    """DTOを経ない直接呼出しでも画面の有限集合だけを受理する。"""
+    base = decode_applied_rules(_saved_snapshot())
+    with pytest.raises(RulePresetInvalid):
+        apply_rule_choice(
+            base,
+            regulation_innings=cast(Any, regulation),
+            extension_limit=cast(Any, extension),
+        )
 
 
 @pytest.mark.parametrize(

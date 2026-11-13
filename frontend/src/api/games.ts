@@ -37,6 +37,11 @@ export interface PreparingOptions {
   game_types: (GameChoice & { key: GameTypeKey })[]
   tournaments: { items: GameChoice[]; next_cursor: string | null }
 }
+/** 画面で選ぶ規定回と最終延長回。延長上限は行える最終回の番号。 */
+export interface GameRuleChoice {
+  regulation_innings: 7 | 9
+  extension_limit: 7 | 9 | 12
+}
 export interface PreparingGameCreate {
   scheduled_at: string
   game_type_key: GameTypeKey
@@ -44,6 +49,8 @@ export interface PreparingGameCreate {
   home_team_record_id: string
   tournament:
     { kind: 'existing'; key: string } | { kind: 'new'; display_name: string }
+  /** 省略時は試合区分の既定規則をそのまま保存する。 */
+  rule_choice?: GameRuleChoice
   plate_umpire: string | null
   section_label: string | null
   week_label: string | null

@@ -9,10 +9,10 @@ import hmac
 import math
 from datetime import datetime, timezone
 from types import MappingProxyType
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Self
 from uuid import UUID
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 
 from pitchlog.api.schemas.base import BaseSchema, EntityId, Page, PageRequest, Timestamp
 from pitchlog.db.game_state.rule_snapshot import (
@@ -54,6 +54,24 @@ TournamentSelection = Annotated[
 ]
 
 
+class GameRuleChoice(BaseSchema):
+    """画面で選ぶ規定回と最終延長回の閉じた組。
+
+    延長上限は追加できる回数ではなく、行える最終回の番号である。
+    既定を使う場合は ``PreparingGameCreate.rule_choice`` を省略する。
+    """
+
+    regulation_innings: Literal[7, 9]
+    extension_limit: Literal[7, 9, 12]
+
+    @model_validator(mode="after")
+    def require_reachable_limit(self) -> Self:
+        """延長上限が規定回を下回る組を既存codecへ渡さない。"""
+        if self.extension_limit < self.regulation_innings:
+            raise ValueError("延長上限は規定回以上が必要です")
+        return self
+
+
 class PreparingGameCreate(BaseSchema):
     """preparing 試合の作成に必要な利用者入力だけを受け取る。"""
 
@@ -62,6 +80,7 @@ class PreparingGameCreate(BaseSchema):
     away_team_record_id: EntityId
     home_team_record_id: EntityId
     tournament: TournamentSelection
+    rule_choice: GameRuleChoice | None = None
     plate_umpire: str | None = None
     section_label: str | None = None
     week_label: str | None = None
