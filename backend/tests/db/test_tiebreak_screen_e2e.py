@@ -35,8 +35,8 @@ _BENCH = UUID(int=214)
 @pytest.mark.skip(
     reason=(
         "9回54frameのsource chainとnative ledgerは通過したが、"
-        "consume_nonplay_tiebreak_start が transaction aborted を返す。"
-        "元SQLエラーの特定と保存成功の実証まで未完了。"
+        "consume_nonplay_tiebreak_start のCP SELECTがP0002で0行。"
+        "stamp.internal_generation/recovery_generationとCP行の照合修正まで未完了。"
     )
 )
 def test_tiebreak_screen_start_score_pitcher_change_replacement_reload(

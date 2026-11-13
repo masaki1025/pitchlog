@@ -59,3 +59,19 @@
 - 画面は非play CP refを `readCompleteUndoGame` から取得し、タイブレーク開始POSTまで到達。
 - 残る停止: `consume_nonplay_tiebreak_start` のSQL実行後に `psycopg.errors.InFailedSqlTransaction: current transaction is aborted` が返る。先のSQLエラーが後続の `assert_writer_binding` で隠れており、元エラーの特定が必要。
 - このため `test_tiebreak_screen_e2e.py` は skip を維持。タイブレーク保存成功・生還・交代・再配置・reloadは未通過。
+
+
+## 2026-11-14 追試3（HEAD `84ec5b7d` + 診断）
+
+- `consume_nonplay_tiebreak_start` の最初のSQLエラーを捕捉した。
+- 結果: **`P0002 query returned no rows`**、関数本体 line 57 の
+  `SELECT c.* INTO STRICT cp FROM sync_fence.ordinary_pitch_checkpoints ...`
+  で0行。
+- 条件は `c.internal_generation=stamp.internal_generation` と
+  `c.recovery_generation=stamp.recovery_generation`。nonplay stampとCP行の
+  世代/復旧世代が一致していない。
+- 後続の `assert_writer_binding` が `InFailedSqlTransaction` を返していたため、
+  元エラーはこれまで隠れていた。
+- 修正対象: tiebreakのnonplay consumeへ渡すstampの世代（D4/internal）と
+  CP行の世代の対応。substitutionの同SQLは2球試験で通るため、長い試合/
+  legacy CPでの世代解決差を追う。
