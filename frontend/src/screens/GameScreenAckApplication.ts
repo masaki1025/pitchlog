@@ -9,6 +9,7 @@
 // 返ったこと」である(docs/design/sync-protocol.md:764)。ACK が返らない場合は
 // 未送信のままで、自動再送の対象として残す。
 import { createAckAdapterInjections } from '../lib/sync/ackAdapter'
+import type { PlayerIdMappingTarget } from '../lib/sync/playerIdMapping'
 import type {
   DurableQueue,
   DurableQueueScope,
@@ -32,6 +33,8 @@ export type AckApplicationInput = Readonly<{
   d1: number
   /** ACK が返らなかった場合は渡さない。 */
   ack?: AckResponse
+  /** その場登録の A4 写像を対象イベントへ結合する。 */
+  playerIdMappingTarget?: PlayerIdMappingTarget
 }>
 
 export const ACK_APPLICATION_REASON = {
@@ -81,7 +84,14 @@ export async function applyAckToSlot(
 
   let injections
   try {
-    injections = createAckAdapterInjections({ d1: input.ack })
+    injections = createAckAdapterInjections({
+      d1: {
+        ...input.ack,
+        ...(input.playerIdMappingTarget === undefined
+          ? {}
+          : { playerIdMappingTarget: input.playerIdMappingTarget }),
+      },
+    })
   } catch {
     // ACK が返らない境界結果・未知の境界結果・読めない封筒はここで落ちる。
     return {

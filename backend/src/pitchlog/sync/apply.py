@@ -436,8 +436,10 @@ def _replay_e1_without_binding(
     if len(request.events) != 1:
         return None
     event = request.events[0]
-    if request.path != "P2" and not (request.path == "P1" and event.v5 == "undo"):
-        # 接続済み単一取消以外のP1/P3は既存の範囲外拒否へ委ねる。
+    if request.path != "P2" and not (
+        request.path == "P1" and event.v5 in ("undo", "player_registration")
+    ):
+        # 接続済み単一取消・その場登録以外のP1/P3は既存の範囲外拒否へ委ねる。
         return None
     if (
         type(event.d1) is not int
@@ -806,12 +808,18 @@ def _apply_e1_f1(
     lifecycle = type(validator) is LifecycleContentValidationPort
     substitution = type(validator) is SubstitutionContentValidationPort
     tiebreak = type(validator) is TiebreakStartContentValidationPort
+    from pitchlog.sync.player_registration_ports import (
+        PlayerRegistrationContentValidationPort,
+    )
+
+    registration = type(validator) is PlayerRegistrationContentValidationPort
     if len(request.events) != 1 or (
         not ordinary
         and not undo
         and not lifecycle
         and not substitution
         and not tiebreak
+        and not registration
         and request.events[0].d1 != 1
     ):
         raise _E1OutOfScope("E1要求はF1の範囲外")

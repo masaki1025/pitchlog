@@ -271,20 +271,24 @@ def operation_fingerprint(
     event: SyncEvent, path: D5Path, registration: RegistrationSource | None
 ) -> str:
     """受理・拒否・退避に共通する D5 内容同一性を一度だけ定義する。"""
+    registration_value: dict[str, object] | None = None
+    if registration is not None:
+        registration_value = {
+            "temporary_id": str(registration.temporary_id),
+            "team_record_id": str(registration.team_record_id),
+            "name": registration.name,
+            "roster_status_key": registration.roster_status_key,
+        }
+        # 任意項目は指定時だけ指紋へ含める。未指定の既存 D5 指紋を変えない。
+        for field_name in ("throws", "bats", "uniform_number"):
+            value = getattr(registration, field_name, None)
+            if value is not None:
+                registration_value[field_name] = value
     return source_fingerprint(
         {
             "event_fingerprint": event_source_fingerprint(event),
             "path": path,
-            "registration": (
-                None
-                if registration is None
-                else {
-                    "temporary_id": str(registration.temporary_id),
-                    "team_record_id": str(registration.team_record_id),
-                    "name": registration.name,
-                    "roster_status_key": registration.roster_status_key,
-                }
-            ),
+            "registration": registration_value,
         }
     )
 

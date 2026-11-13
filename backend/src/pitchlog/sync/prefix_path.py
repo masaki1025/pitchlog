@@ -109,12 +109,36 @@ _PLAYER_REFERENCE_NAMES = frozenset().union(*_PLAYER_REFERENCE_FIELDS.values())
 
 @dataclass(frozen=True, slots=True)
 class PlayerRegistration:
-    """その場登録の選手作成に必要な U-M1 operation の入力。"""
+    """その場登録の選手作成に必要な U-M1 operation の入力。
+
+    任意項目はオンラインの名簿登録と同じ入力面を断中でも失わないために持つ。
+    未指定のときは選手行の既定値(NULL)へ倒し、既存の D5 指紋を変えない。
+    """
 
     temporary_id: UUID
     team_record_id: UUID
     name: str
     roster_status_key: str
+    throws: str | None = None
+    bats: str | None = None
+    uniform_number: str | None = None
+
+    def __post_init__(self) -> None:
+        """選手作成 operation と同じ値域だけを許す。"""
+        if type(self.temporary_id) is not UUID or type(self.team_record_id) is not UUID:
+            raise ValueError("一時 ID とチーム記録 ID は UUID が必要")
+        if type(self.name) is not str or not self.name:
+            raise ValueError("name は空でない文字列が必要")
+        if type(self.roster_status_key) is not str or not self.roster_status_key:
+            raise ValueError("roster_status_key は空でない文字列が必要")
+        if self.throws not in {None, "right", "left"}:
+            raise ValueError("throws は right/left/NULL が必要")
+        if self.bats not in {None, "right", "left", "both"}:
+            raise ValueError("bats は right/left/both/NULL が必要")
+        if self.uniform_number is not None and (
+            type(self.uniform_number) is not str or not self.uniform_number
+        ):
+            raise ValueError("uniform_number は空でない文字列または NULL が必要")
 
 
 @dataclass(frozen=True, slots=True)
@@ -984,6 +1008,9 @@ def _apply_locked_in_scope(
                 registration.team_record_id,
                 registration.name,
                 registration.roster_status_key,
+                throws=registration.throws,
+                bats=registration.bats,
+                uniform_number=registration.uniform_number,
             )
         projected_event = _projection_event(
             scope,

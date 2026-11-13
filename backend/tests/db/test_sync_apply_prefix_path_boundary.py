@@ -533,6 +533,100 @@ def test_player_registration_mapping_is_saved_and_replayed(
     db.catalog.applicator.rollback()
 
 
+def test_player_registration_creates_optional_player_attributes(
+    prefix_database: _SyncDatabase,
+) -> None:
+    """断中登録でもオンライン名簿登録と同じ任意項目を選手行へ保存する。"""
+    db = prefix_database
+    with db.catalog.applicator.cursor() as cursor:
+        cursor.execute(
+            "SELECT home_team_record_id FROM games WHERE tenant_id = %s AND id = %s",
+            (db.tenant_a, db.game_a),
+        )
+        row = cursor.fetchone()
+        assert row is not None
+        team_id = row[0]
+    db.catalog.applicator.rollback()
+    temporary = uuid4()
+    registration = PlayerRegistration(
+        temporary,
+        team_id,
+        "断中登録選手",
+        "active",
+        throws="left",
+        bats="both",
+        uniform_number="18",
+    )
+    event = _event(
+        db.game_a,
+        kind="player_registration",
+        payload={"player_id": str(temporary)},
+    )
+    result, _ = _apply(db, event, registration=registration)
+    assert result.accepted
+    formal = UUID(result.temporary_id_mapping[0][1])
+    with db.catalog.applicator.cursor() as cursor:
+        cursor.execute(
+            "SELECT name, throws, bats, uniform_number FROM players "
+            "WHERE tenant_id = %s AND id = %s",
+            (db.tenant_a, formal),
+        )
+        assert cursor.fetchall() == [("断中登録選手", "left", "both", "18")]
+    db.catalog.applicator.rollback()
+
+
+def test_player_registration_different_temporary_id_is_b3b(
+    prefix_database: _SyncDatabase,
+) -> None:
+    """同じ D5 で一時 ID が変われば、別選手を作らず B3b として拒否する。"""
+    db = prefix_database
+    with db.catalog.applicator.cursor() as cursor:
+        cursor.execute(
+            "SELECT home_team_record_id FROM games WHERE tenant_id = %s AND id = %s",
+            (db.tenant_a, db.game_a),
+        )
+        row = cursor.fetchone()
+        assert row is not None
+        team_id = row[0]
+    db.catalog.applicator.rollback()
+    d5 = uuid4()
+    first_temporary = uuid4()
+    first = _event(
+        db.game_a,
+        d5=d5,
+        kind="player_registration",
+        payload={"player_id": str(first_temporary)},
+    )
+    first_result, _ = _apply(
+        db,
+        first,
+        registration=PlayerRegistration(first_temporary, team_id, "先着選手", "active"),
+    )
+    assert first_result.accepted
+    second_temporary = uuid4()
+    second = _event(
+        db.game_a,
+        d5=d5,
+        kind="player_registration",
+        payload={"player_id": str(second_temporary)},
+    )
+    second_result, _ = _apply(
+        db,
+        second,
+        registration=PlayerRegistration(
+            second_temporary, team_id, "後着選手", "active"
+        ),
+    )
+    assert (second_result.accepted, second_result.boundary) == (False, "B3b")
+    with db.catalog.applicator.cursor() as cursor:
+        cursor.execute(
+            "SELECT count(*) FROM players WHERE tenant_id = %s AND name = %s",
+            (db.tenant_a, "後着選手"),
+        )
+        assert cursor.fetchone() == (0,)
+    db.catalog.applicator.rollback()
+
+
 def test_undo_persists_resolved_target_slot(prefix_database: _SyncDatabase) -> None:
     """V10 の対象を試合・世代・D1 の組としてイベント行へ保存する。"""
     db = prefix_database

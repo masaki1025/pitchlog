@@ -11,6 +11,7 @@ import {
 } from '../lib/sync/durableQueue'
 import { queueStateId } from '../lib/sync/queueState'
 import { B3_REJECTION_KIND } from '../lib/sync/rejectionReason'
+import { PLAYER_REGISTRATION_KIND } from '../api/playerRegistrationWire'
 import type { SyncEvent } from '../lib/sync/syncEvent'
 import {
   ACK_APPLICATION_REASON,
@@ -276,6 +277,116 @@ describe('適用できない対象', () => {
       outcome: 'not-applied',
       reason: ACK_APPLICATION_REASON.NOT_TRANSITIONED,
     })
+    expect((await queue.readSlot(scope, slot.d1))?.state).toBe(
+      queueStateId('未送信'),
+    )
+  })
+})
+
+describe('その場登録の A4 写像を同期済み遷移へ結合する', () => {
+  const temporaryId = '9a8b7c6d-5e4f-4321-8765-4321fedcba98'
+  const officialId = '1a2b3c4d-5e6f-4789-8abc-def012345678'
+
+  async function appendRegistration(
+    queue: DurableQueue,
+  ): Promise<DurableQueueSlot> {
+    return queue.append(
+      queue.prepareAppend({
+        scope,
+        d5,
+        version: {},
+        event: {
+          fields: {
+            V1: d5,
+            V3: d4,
+            V4: gameId,
+            V5: PLAYER_REGISTRATION_KIND.id,
+            V7: { player_id: temporaryId },
+          },
+        },
+      }),
+    )
+  }
+
+  function registrationAck(
+    slot: DurableQueueSlot,
+    mappings?: readonly Readonly<{ temporaryId: string; officialId: string }>[],
+  ): AckResponse {
+    return {
+      envelope: {
+        advancedD3: slot.d1,
+        eventResults: [
+          { d4: slot.d4, d1: slot.d1, d5: slot.d5, a5Result: '受理' },
+        ],
+        ...(mappings ? { playerIdMappings: mappings } : {}),
+      },
+      boundaryResult: 'B1',
+    }
+  }
+
+  it('写像が対象イベントへ結合されたときだけ同期済みへ移す', async () => {
+    const queue = await openIsolatedQueue()
+    const slot = await appendRegistration(queue)
+    const result = await applyAckToSlot(
+      {
+        scope,
+        d1: slot.d1,
+        ack: registrationAck(slot, [{ temporaryId, officialId }]),
+        playerIdMappingTarget: {
+          eventKind: PLAYER_REGISTRATION_KIND,
+          event: slot.event,
+          key: { d4: slot.d4, d1: slot.d1, d5: slot.d5 },
+          temporaryId,
+        },
+      },
+      queue,
+    )
+    expect(result.outcome).toBe('applied')
+    expect((await queue.readSlot(scope, slot.d1))?.state).toBe(
+      queueStateId('同期済み'),
+    )
+  })
+
+  it('写像のない受理 ACK では未送信のまま保持する', async () => {
+    const queue = await openIsolatedQueue()
+    const slot = await appendRegistration(queue)
+    const result = await applyAckToSlot(
+      {
+        scope,
+        d1: slot.d1,
+        ack: registrationAck(slot),
+      },
+      queue,
+    )
+    expect(result.outcome).not.toBe('applied')
+    expect((await queue.readSlot(scope, slot.d1))?.state).toBe(
+      queueStateId('未送信'),
+    )
+  })
+
+  it('別の一時IDの写像では遷移しない', async () => {
+    const queue = await openIsolatedQueue()
+    const slot = await appendRegistration(queue)
+    const result = await applyAckToSlot(
+      {
+        scope,
+        d1: slot.d1,
+        ack: registrationAck(slot, [
+          {
+            temporaryId: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
+            officialId,
+          },
+        ]),
+        playerIdMappingTarget: {
+          eventKind: PLAYER_REGISTRATION_KIND,
+          event: slot.event,
+          key: { d4: slot.d4, d1: slot.d1, d5: slot.d5 },
+          temporaryId,
+        },
+      },
+      queue,
+    )
+    expect(result.outcome).not.toBe('applied')
     expect((await queue.readSlot(scope, slot.d1))?.state).toBe(
       queueStateId('未送信'),
     )

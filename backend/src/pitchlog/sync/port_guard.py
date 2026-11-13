@@ -519,6 +519,10 @@ def _load_first_ball_port_classes() -> tuple[type[object], ...]:
         PastCorrectionProjectionPort,
     )
     from pitchlog.sync.past_correction_rights import PastCorrectionRecordingRightsPort
+    from pitchlog.sync.player_registration_ports import (
+        PlayerRegistrationContentValidationPort,
+        PlayerRegistrationProjectionPort,
+    )
     from pitchlog.sync.substitution_ports import (
         SubstitutionContentValidationPort,
         SubstitutionProjectionPort,
@@ -544,6 +548,8 @@ def _load_first_ball_port_classes() -> tuple[type[object], ...]:
         PastCorrectionProjectionPort,
         SubstitutionContentValidationPort,
         SubstitutionProjectionPort,
+        PlayerRegistrationContentValidationPort,
+        PlayerRegistrationProjectionPort,
     )
 
 
