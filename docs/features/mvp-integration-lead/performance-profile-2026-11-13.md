@@ -54,3 +54,36 @@
 3. timing有効で1回実行し、stage合計が7920msを再現するか確認。
 4. `EXPLAIN (ANALYZE, BUFFERS)` / `pg_stat_statements`、broker時間、ledger commit時間、standby lagを測る。
 5. 機能assert全通過 + 計測した全同期が5秒以内 + 30秒binding/認可/RG1/durability検査不変を確認。
+
+## 2026-11-13 実測追記（stage timing と source 純値cache）
+
+- 実装: `PITCHLOG_SYNC_STAGE_TIMING=1` の時だけ、`POST /games/{game_id}/sync/events` の
+  route entry・auth・body parse・replay・device state・game accessible・main TX open・
+  writer bind・device verify・preflight D5・content eval（host open/call）・
+  write・projection・stats/export・RG1 commit check・binding close・commit・response を
+  1行JSON（標準エラー）と `Server-Timing` に出す。cookie・端末資格・V12・本文・
+  tenant/game識別子は出さない。既定は無効で、5秒assertの代用にはしない。
+- 同一TX・不変identity・write前だけ `SelectedEventSourceValue` を再利用する。
+  `assert_current`（lease/fence）、device、RG1、記録権、write後の読みは毎回維持する。
+- 実測 `test_first_ball_vertical_http_records_and_refuses_reload`（実HTTP/実writer/実broker）:
+  - cache前: total 9320.8ms、`source_read` 6792.1ms/135回、
+    `assert_current` 7409.8ms/311回（うち`lease_check` 7113.9ms）、
+    `stats_flush` 6085.3ms（`play_export` 3179.2ms、
+    `stats_save_source` 941.8ms、`stats_read_writer_state` 449.2ms）、
+    `content_eval` 856.5ms、`writer_bind` 173.8ms（`ledger_binding_open` 114.5ms）、
+    `binding_close` 33.6ms、`commit` 6.2ms。
+  - cache後: total 9764.2〜12764.9ms（同一負荷条件の反復ではなく環境変動を含む）、
+    `selected_source_derive` 378.8ms/136回 → 328.2〜396.1ms/120回。
+    write前だけの再利用のため総時間の改善は測定誤差内（約25〜50ms）に留まる。
+- 実画面E2E（`test_game_lifecycle_product_screen_e2e`、timing有効）:
+  6同期のサーバー時間は 23783.4 / 12930.8 / 8031.8 / 12075.6 / 12202.4 / 7057.3ms。
+  機能assert（6要求・3球・version 2・DB最終状態）は通過したが、
+  `syncDurationsMs.every(elapsed <= 5000)` は 24018ms で失敗した。
+  実行時は既存の隔離コンテナ69個が稼働し load average 3.9〜6.8 だったため、
+  7920ms との厳密な前後比較には使わない。
+- 結論: 現行の支配要因は (1) `source.read` ごとに2回走る `assert_current` の
+  broker `binding_check` 往復（311回、7.1〜10.0秒）と (2) stats/play export の
+  同一TX読み書き（6.1〜8.5秒）である。`binding_open` 114.5〜169.0ms・
+  `binding_close` 33.6〜36.6ms は支配的ではなく、ACK時closeの削除・非同期化は行わない。
+  今回の安全な純値cacheだけでは5秒目標へ届かない。timeout延長・assert緩和・検査省略は
+  していない。

@@ -56,6 +56,7 @@ from pitchlog.sync.ports import (
     RecordingRightsPort,
     _issue_port_writer,
 )
+from pitchlog.sync.stage_timing import begin_stage, end_stage
 from pitchlog.sync.tokens import (
     RECORDING_GENERATION_READ_COLUMNS,
     EventSlotInsertToken,
@@ -839,6 +840,7 @@ def _apply_locked_in_scope(
             PlayPrefixContentValidationPort,
         )
 
+        content_stage = begin_stage("content_eval")
         if type(validator) is LifecycleContentValidationPort:
             from pitchlog.sync.lifecycle_execution import _bind_lifecycle_execution
 
@@ -917,6 +919,7 @@ def _apply_locked_in_scope(
             else _port_predecision_phase(scope, "content")
         ):
             valid, reason = validator.validate(event, writer)
+        end_stage(content_stage)
         if not valid:
             raise P1ContentRejection(reason or "P1 の内容拒否は T9 へ渡す")
 
@@ -934,6 +937,7 @@ def _apply_locked_in_scope(
                 "w2_violation" if original_d5 is not None else "other",
             )
 
+        write_stage = begin_stage("write_ledger")
         if source is not _LEGACY_LOCKED_SOURCE:
             from pitchlog.sync.source_binding import SourceBindingError, _E1CoreSource
 
@@ -1032,6 +1036,8 @@ def _apply_locked_in_scope(
             if updated.rows != ((1,),):
                 raise RuntimeError("D3 の前進に失敗")
             reach("after_t3_prefix")
+        end_stage(write_stage)
+        projection_stage = begin_stage("projection")
         if type(validator) is FirstBallContentValidationPort:
             from pitchlog.sync.first_ball_execution import _bind_first_ball_projection
 
@@ -1097,6 +1103,7 @@ def _apply_locked_in_scope(
             )
 
             _require_first_ball_projection_completed(scope, projected_event)
+        end_stage(projection_stage)
         reach("after_t4_projection")
         if registration is not None:
             reach("before_t6_mapping")

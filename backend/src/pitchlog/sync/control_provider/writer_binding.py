@@ -94,25 +94,40 @@ class _LiveWriterBinding:
     def assert_current(self) -> None:
         """実leaseと同top-level TXをその場で再検証する。"""
         from pitchlog.repositories.writer_binding import _AssertWriterBindingToken
+        from pitchlog.sync.stage_timing import stage
 
         if self._used:
             raise WriterBindingUnavailable("writer資格が失効している")
-        self._handle._assert_writer_lifetime(self._owner)
-        self._handle._assert_rg1_lease()
-        self._lease.check()
-        self._handle.run_function(
-            _AssertWriterBindingToken(
-                self._lease.attempt_id,
-                self._lease.phase_id,
-                self._lease.nonce,
-                self._lease.device_id,
-                self._lease.game_id,
-            )
-        )
-        self._handle._assert_writer_lifetime(self._owner)
+        with stage("assert_current"):
+            with stage("lease_check"):
+                self._handle._assert_writer_lifetime(self._owner)
+                self._handle._assert_rg1_lease()
+                self._lease.check()
+            with stage("fence_assert"):
+                self._handle.run_function(
+                    _AssertWriterBindingToken(
+                        self._lease.attempt_id,
+                        self._lease.phase_id,
+                        self._lease.nonce,
+                        self._lease.device_id,
+                        self._lease.game_id,
+                    )
+                )
+            self._handle._assert_writer_lifetime(self._owner)
 
-    def assert_event_source(self, binding, *, context, request, event, phase):
-        """実RPC snapshotと当該sourceを同writerで再照合し、純値だけを返す。"""
+    def assert_event_source(
+        self, binding, *, context, request, event, phase, cached=None
+    ):
+        """実RPC snapshotと当該sourceを同writerで再照合し、純値だけを返す。
+
+        Args:
+            binding: 選択済みsource参照。
+            context: 同要求の実テナント文脈。
+            request: 同要求。
+            event: 同イベント。
+            phase: 実phase束縛。
+            cached: 同一不変identityで導出済みの純値。省略時だけ再導出する。
+        """
         import json
         from collections.abc import Mapping
         from uuid import UUID
@@ -122,7 +137,10 @@ class _LiveWriterBinding:
             D1lessPhaseBinding,
             EventPhaseBinding,
         )
-        from pitchlog.sync.source_binding import read_selected_event_source
+        from pitchlog.sync.source_binding import (
+            SelectedEventSourceValue,
+            read_selected_event_source,
+        )
 
         d1less = type(phase) is D1lessPhaseBinding
         if (
@@ -134,56 +152,64 @@ class _LiveWriterBinding:
             or type(phase.position) is not int
             or (not d1less and type(phase.d1) is not int)
             or type(phase.attempt.event_count) is not int
+            or (cached is not None and type(cached) is not SelectedEventSourceValue)
         ):
             raise WriterBindingUnavailable("実phaseと入力sourceが不一致")
         self.assert_current()
-        value = read_selected_event_source(
-            binding, context=context, request=request, event=event
-        )
-        try:
-            snapshot = json.loads(self._phase_snapshot)
-            actual = snapshot["phase"]
-            phase_wire = _phase_wire(
-                phase, UUID(actual["authority_id"]), actual["control_version"]
+        value = (
+            read_selected_event_source(
+                binding, context=context, request=request, event=event
             )
-            target = event.v10 if d1less else None
-            if (
-                snapshot["tenant_id"] != str(context.tenant_id)
-                or (
-                    type(phase) is EventPhaseBinding
-                    and phase.d1 != 1
-                    and snapshot.get("source_d1") != phase.d1
+            if cached is None
+            else cached
+        )
+        from pitchlog.sync.stage_timing import stage
+
+        with stage("phase_check"):
+            try:
+                snapshot = json.loads(self._phase_snapshot)
+                actual = snapshot["phase"]
+                phase_wire = _phase_wire(
+                    phase, UUID(actual["authority_id"]), actual["control_version"]
                 )
-                or (
-                    (d1less or phase.d1 == 1)
-                    and "source_d1" in snapshot
-                )
-                or actual != phase_wire
-                or value.origin != "e1"
-                or value.request_fingerprint != actual["request_fingerprint"]
-                or value.event_fingerprint != actual["event_fingerprint"]
-                or value.position != phase.position
-                or (
-                    event.d1 is not None
-                    if d1less
-                    else event.d1 != phase.d1
-                )
-                or (d1less and event.d4 is not None)
-                or (d1less and event.v5 != "play_change")
-                or event.d5 != actual["d5"]
-                or request.game_id != actual["game_id"]
-                or (
-                    not isinstance(target, Mapping)
-                    or str(target.get("d4")) != actual["wire_d4"]
-                    if d1less
-                    else request.d4 != actual["wire_d4"]
-                )
-                or (request.path == "P3") is not d1less
-                or actual["codec_version"] != 1
-            ):
-                raise ValueError
-        except (KeyError, TypeError, ValueError):
-            raise WriterBindingUnavailable("実phaseと入力sourceが不一致") from None
+                target = event.v10 if d1less else None
+                if (
+                    snapshot["tenant_id"] != str(context.tenant_id)
+                    or (
+                        type(phase) is EventPhaseBinding
+                        and phase.d1 != 1
+                        and snapshot.get("source_d1") != phase.d1
+                    )
+                    or (
+                        (d1less or phase.d1 == 1)
+                        and "source_d1" in snapshot
+                    )
+                    or actual != phase_wire
+                    or value.origin != "e1"
+                    or value.request_fingerprint != actual["request_fingerprint"]
+                    or value.event_fingerprint != actual["event_fingerprint"]
+                    or value.position != phase.position
+                    or (
+                        event.d1 is not None
+                        if d1less
+                        else event.d1 != phase.d1
+                    )
+                    or (d1less and event.d4 is not None)
+                    or (d1less and event.v5 != "play_change")
+                    or event.d5 != actual["d5"]
+                    or request.game_id != actual["game_id"]
+                    or (
+                        not isinstance(target, Mapping)
+                        or str(target.get("d4")) != actual["wire_d4"]
+                        if d1less
+                        else request.d4 != actual["wire_d4"]
+                    )
+                    or (request.path == "P3") is not d1less
+                    or actual["codec_version"] != 1
+                ):
+                    raise ValueError
+            except (KeyError, TypeError, ValueError):
+                raise WriterBindingUnavailable("実phaseと入力sourceが不一致") from None
         self.assert_current()
         return value
 

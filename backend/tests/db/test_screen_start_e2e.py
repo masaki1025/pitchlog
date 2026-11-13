@@ -195,6 +195,9 @@ def _app_container(db, app_port: int, origin: str) -> list[str]:
         "--env",
         "PITCHLOG_BINDING_CLIENT_CONFIG=/run/pitchlog/public/binding-client.json",
     ]
+    if os.environ.get("PITCHLOG_SYNC_STAGE_TIMING") == "1":
+        # 性能計測のopt-inだけを実app容器へ渡す。既定の試験挙動は変えない。
+        args[1:1] = ["--env", "PITCHLOG_SYNC_STAGE_TIMING=1"]
     if (
         os.environ.get("PITCHLOG_E2E_INITIAL_DIAGNOSTIC") == "1"
         or os.environ.get("PITCHLOG_E2E_CREATE_DIAGNOSTIC") == "1"

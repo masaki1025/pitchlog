@@ -30,6 +30,7 @@ from pitchlog.sync.lifecycle_ports import _LIFECYCLE_CONTENT_REJECTION_REASON
 from pitchlog.sync.model import SyncEvent
 from pitchlog.sync.ports import PortWriter
 from pitchlog.sync.source_binding import _E1CoreSource
+from pitchlog.sync.stage_timing import TimedOpen, stage
 
 
 class LifecycleExecutionError(RuntimeError):
@@ -249,7 +250,7 @@ def _bind_lifecycle_execution(handle, writer, event, source):
             except LifecyclePayloadError:
                 state.phase = "rejected"
             else:
-                host = stack.enter_context(open_domain_host())
+                host = stack.enter_context(TimedOpen(open_domain_host))
                 if type(host) is not NodeDomainHost:
                     raise LifecycleExecutionError("終了再開の実hostが不一致です")
                 digest = host.artifact_sha256
@@ -289,7 +290,8 @@ def _bind_lifecycle_execution(handle, writer, event, source):
                         )
                     )
                     _execution_live(state)
-                    response = evaluate_game_lifecycle(host, request)
+                    with stage("host_call"):
+                        response = evaluate_game_lifecycle(host, request)
                     _execution_live(state)
                     result = response.to_wire()
                     if not result["ok"]:

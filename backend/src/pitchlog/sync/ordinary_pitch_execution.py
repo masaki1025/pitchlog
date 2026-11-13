@@ -31,6 +31,7 @@ from pitchlog.sync.ordinary_pitch_payload import (
 )
 from pitchlog.sync.ports import PortWriter
 from pitchlog.sync.source_binding import _E1CoreSource
+from pitchlog.sync.stage_timing import TimedOpen, stage_timed_host_call
 from pitchlog.sync.terminal_pitch_payload import (
     LineupPitchPlayPayload,
     TerminalPitchPlayPayload,
@@ -167,7 +168,7 @@ def _bind_ordinary_pitch_execution(
             except (TypeError, ValueError, RecursionError):
                 state.phase = "rejected"
             if state.phase != "rejected":
-                with open_domain_host() as host:
+                with TimedOpen(open_domain_host) as host:
                     if (
                         type(host) is not NodeDomainHost
                         or type(host._source) is not str
@@ -182,7 +183,8 @@ def _bind_ordinary_pitch_execution(
                     requested = supplied.calculation.request.t1
                     request = _request_from_checkpoint(doc, requested)
                     response = decode_ordinary_continuation_response(
-                        host.call(
+                        stage_timed_host_call(
+                            host,
                             "deriveOrdinaryPitchWithContinuation",
                             request.model_dump_json(by_alias=True, exclude_unset=True),
                         )
@@ -580,7 +582,7 @@ def _evaluate_play_prefix(state):
     except (TypeError, ValueError, RecursionError):
         state.phase = "rejected"
         return
-    with open_domain_host() as host:
+    with TimedOpen(open_domain_host) as host:
         if type(host) is not NodeDomainHost:
             raise OrdinaryPitchExecutionError
         digest = host.artifact_sha256
@@ -607,7 +609,8 @@ def _evaluate_play_prefix(state):
         q["t1"]["before"] = prefix.source.after.model_dump(mode="json", by_alias=True)
         request = PlayPrefixRequest.model_validate_json(json.dumps(q))
         response = decode_play_prefix_response(
-            host.call(
+            stage_timed_host_call(
+                host,
                 "derivePlayPrefixWithContinuation",
                 request.model_dump_json(by_alias=True, exclude_unset=True),
             )
@@ -744,7 +747,7 @@ def _evaluate_lineup_prefix_bound(state):
 
     if type(supplied.calculation) is NonplayPitchCalculation:
         return _evaluate_nonplay_normal_bound(state, supplied, raw_v7, raw_v8)
-    with open_domain_host() as host:
+    with TimedOpen(open_domain_host) as host:
         if type(host) is not NodeDomainHost:
             raise OrdinaryPitchExecutionError
         digest = host.artifact_sha256
@@ -763,7 +766,8 @@ def _evaluate_lineup_prefix_bound(state):
             verify_native_lineup_source(request, evidence, host)
             _live(state)
         response = decode_lineup_prefix_response(
-            host.call(
+            stage_timed_host_call(
+                host,
                 "deriveLineupPlayPrefixWithContinuation",
                 request.model_dump_json(by_alias=True, exclude_unset=True),
             )
@@ -935,7 +939,7 @@ def _evaluate_nonplay_normal_bound(state, supplied, raw_v7, raw_v8):
     )
 
     request = supplied.calculation.request
-    with open_domain_host() as host:
+    with TimedOpen(open_domain_host) as host:
         if type(host) is not NodeDomainHost:
             raise OrdinaryPitchExecutionError
         prefix = read_confirmed_nonplay_normal(
@@ -947,7 +951,8 @@ def _evaluate_nonplay_normal_bound(state, supplied, raw_v7, raw_v8):
         )
         _live(state)
         response = decode_nonplay_lineup_prefix_response(
-            host.call(
+            stage_timed_host_call(
+                host,
                 "deriveLineupPlayPrefixWithContinuation",
                 request.model_dump_json(by_alias=True, exclude_unset=True),
             )

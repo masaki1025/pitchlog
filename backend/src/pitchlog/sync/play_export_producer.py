@@ -117,6 +117,8 @@ def _recorded_substitutes(
 
 def persist_accepted_play_export(scope, receipt, source, saved, revision: int) -> None:
     """一回消費済みnative source/保存版から88列を同TX内に保存する。"""
+    from pitchlog.sync.stage_timing import begin_stage, end_stage
+
     _assert_scope(scope, receipt, source)
     if (
         type(saved) is not tuple
@@ -128,17 +130,25 @@ def persist_accepted_play_export(scope, receipt, source, saved, revision: int) -
     ):
         raise ValueError("毎球CSVの成績保存版が不正")
     try:
+        identity_begin = begin_stage("play_export_identity")
         identity = capture_recorded_play_identity(scope, receipt, source)
+        end_stage(identity_begin)
+        substitutes_begin = begin_stage("play_export_substitutes")
         substitutes = _recorded_substitutes(scope, receipt, source, identity)
+        end_stage(substitutes_begin)
+        project_begin = begin_stage("play_export_project")
         direct = project_recorded_direct(identity, substitutes)
         call = build_save_snapshot_call(
             source, saved[0][0], saved[0][3], revision, direct
         )
+        end_stage(project_begin)
         _assert_scope(scope, receipt, source)
         require_private_save_call(call, FUNCTION_OPERATION_REGISTRY)
+        save_begin = begin_stage("play_export_save")
         rows = _bounded_rows(scope.session.execute(call.statement, call.parameters))
         _assert_scope(scope, receipt, source)
         decode_saved_play(rows, identity.play["id"])
+        end_stage(save_begin)
     except (
         PlayExportIdentityUnavailable,
         RecordedExportProjectionUnavailable,

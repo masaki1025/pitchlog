@@ -38,6 +38,7 @@ from pitchlog.repositories.tokens import (
     TenantOperationResult,
     TenantOperationToken,
 )
+from pitchlog.sync.stage_timing import begin_stage, end_stage, stage
 
 if TYPE_CHECKING:
     from pitchlog.repositories.game_start import BoundInitialStartPayload
@@ -692,6 +693,7 @@ class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
         Returns:
             Session を公開せず、束縛済み実行状態だけを参照する操作ハンドル。
         """
+        stage_begin = begin_stage("tx_enter")
         if self._handle is not None:
             raise RuntimeError("同じトランザクションスコープへ再入できない")
         if _SYNC_APPLY_ACTIVE.get():
@@ -764,6 +766,7 @@ class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
             _PLAY_EXPORT_HANDLES[state_key] = handle
         if self._started_read:
             _STARTED_READ_HANDLES[state_key] = (handle, session.get_transaction())
+        end_stage(stage_begin)
         return handle
 
     def __exit__(
@@ -788,7 +791,8 @@ class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
 
         if exception is None and handle is not None:
             try:
-                _before_writer_finish(handle)
+                with stage("precommit_writer_check"):
+                    _before_writer_finish(handle)
             except BaseException as precommit_error:
                 self.__exit__(
                     type(precommit_error),
@@ -803,7 +807,8 @@ class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
             if handle is None:
                 raise RuntimeError("終了前にscopeが失効している")
             try:
-                assert_rg1_open_before_commit(handle)
+                with stage("rg1_commit_check"):
+                    assert_rg1_open_before_commit(handle)
             except BaseException as precommit_error:
                 try:
                     self.__exit__(
@@ -869,22 +874,25 @@ class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
         if binding is not None and exception is None:
             binding.commit_attempted = True
         try:
-            exit_result = ExitStack.__exit__(
-                exit_stack,
-                exception_type,
-                exception,
-                traceback,
-            )
+            with stage("commit"):
+                exit_result = ExitStack.__exit__(
+                    exit_stack,
+                    exception_type,
+                    exception,
+                    traceback,
+                )
         except BaseException as primary_error:
             try:
-                session.close()
+                with stage("session_close"):
+                    session.close()
             finally:
                 from pitchlog.sync.control_provider.writer_binding import (
                     _after_writer_finish,
                 )
 
                 try:
-                    _after_writer_finish(expired_key)
+                    with stage("binding_close"):
+                        _after_writer_finish(expired_key)
                 except BaseException as binding_error:
                     raise primary_error from binding_error
             raise
@@ -892,14 +900,16 @@ class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
         from pitchlog.sync.control_provider.writer_binding import _after_writer_finish
 
         try:
-            _after_writer_finish(expired_key)
+            with stage("binding_close"):
+                _after_writer_finish(expired_key)
         except BaseException:
             session.close()
             raise
         if binding is not None and exception is None:
             binding.commit_completed = True
         try:
-            session.close()
+            with stage("session_close"):
+                session.close()
         except BaseException as close_error:
             if exception is not None and not exit_result:
                 raise exception.with_traceback(traceback) from close_error

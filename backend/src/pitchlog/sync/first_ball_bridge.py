@@ -253,7 +253,9 @@ def evaluate_first_ball_frame(
         )
         _check_frozen_members(request)
         request = CombinedRequest.model_validate(request)
-        with open_domain_host() as host:
+        from pitchlog.sync.stage_timing import TimedOpen, stage
+
+        with TimedOpen(open_domain_host) as host:
             if type(host) is not NodeDomainHost or type(host._source) is not str:
                 raise FirstBallFrameError
             source = host._source
@@ -261,12 +263,13 @@ def evaluate_first_ball_frame(
             if digest != expected_artifact_sha256:
                 raise FirstBallFrameError
             _live(state, writer, event)
-            response = decode_combined_response(
-                host.call(
-                    "deriveFirstPitchWithContinuation",
-                    request.model_dump_json(by_alias=True),
+            with stage("host_call"):
+                response = decode_combined_response(
+                    host.call(
+                        "deriveFirstPitchWithContinuation",
+                        request.model_dump_json(by_alias=True),
+                    )
                 )
-            )
             if type(host._source) is not str or host._source != source:
                 raise FirstBallFrameError
         _live(state, writer, event)

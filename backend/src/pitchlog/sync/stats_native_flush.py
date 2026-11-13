@@ -26,6 +26,7 @@ from pitchlog.sync.control_provider.writer_binding import (
     _LiveWriterBinding,
 )
 from pitchlog.sync.ports import PortWriter
+from pitchlog.sync.stage_timing import begin_stage, end_stage
 
 
 class StatsNativeFlushError(RuntimeError):
@@ -179,6 +180,8 @@ def _flush_native_stats(handle, writer, event, projected, *, generation):
         require_private_writer_call,
     )
 
+    stage_begin = begin_stage("stats_flush")
+    source_begin = begin_stage("stats_source")
     scope = _capture_scope(handle, writer)
     receipt = native._issue_native_stats_source(
         handle,
@@ -203,11 +206,15 @@ def _flush_native_stats(handle, writer, event, projected, *, generation):
     )
     # この私有入口の2固定factoryだけがSQLを形成する。caller SQLや汎用tokenは受けない。
     _assert_scope(scope, receipt, source)
+    end_stage(source_begin)
+    read_begin = begin_stage("stats_read_writer_state")
     before_rows = _bounded_rows(
         scope.session.execute(preflight.statement, preflight.parameters)
     )
     _assert_scope(scope, receipt, source)
     revision, old_source_set = decode_writer_state_rows(before_rows)[0]
+    end_stage(read_begin)
+    prepare_begin = begin_stage("stats_prepare")
     prepared = prepare_native_evaluation(
         json.loads(source.native_payload_json),
         attempt_id=source.attempt_id,
@@ -256,6 +263,8 @@ def _flush_native_stats(handle, writer, event, projected, *, generation):
         evaluation_json,
         binding_nonce=scope.nonce,
     )
+    end_stage(prepare_begin)
+    save_begin = begin_stage("stats_save_source")
     _assert_scope(scope, receipt, source)
     require_private_writer_call(
         "STATS_PRIMITIVES:save_source", save, transaction.FUNCTION_OPERATION_REGISTRY
@@ -264,9 +273,13 @@ def _flush_native_stats(handle, writer, event, projected, *, generation):
     _assert_scope(scope, receipt, source)
     # 新Sは新canonical集合のhash。旧Sとの同値を求めず、前値はSaveのCASへ全値束縛する。
     decoded = decode_save_source_rows(rows, source_event_id=source.source_event_id)
+    end_stage(save_begin)
     from pitchlog.sync.play_export_producer import persist_accepted_play_export
 
+    export_begin = begin_stage("play_export")
     persist_accepted_play_export(scope, receipt, source, decoded, revision + 1)
+    end_stage(export_begin)
+    end_stage(stage_begin)
     return TenantOperationResult(decoded)
 
 

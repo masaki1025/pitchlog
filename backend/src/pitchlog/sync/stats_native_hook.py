@@ -310,13 +310,16 @@ def _issue_native_stats_source(handle, writer, event, projected, *, generation):
         marker = object()
         pending = (*anchor, marker)
         state.stats_source_reference = pending
-        checked, seen, event_row, ledger_row, values = _read_values(
-            handle,
-            writer,
-            event,
-            projected,
-            generation,
-        )
+        from pitchlog.sync.stage_timing import stage
+
+        with stage("stats_source_read_values"):
+            checked, seen, event_row, ledger_row, values = _read_values(
+                handle,
+                writer,
+                event,
+                projected,
+                generation,
+            )
         if checked is not state or seen is not pending:
             raise StatsNativeSourceError
         receipt = object.__new__(NativeStatsSourceReceipt)

@@ -314,6 +314,7 @@ test('実画面の新規作成→開始→1球→終了→再開→2球→再終
           wireToHeadersMs: timing
             ? Math.round(timing.responseStart - timing.requestStart)
             : null,
+          serverTiming: response?.headers()['server-timing'] ?? null,
         }),
     )
     console.log(
