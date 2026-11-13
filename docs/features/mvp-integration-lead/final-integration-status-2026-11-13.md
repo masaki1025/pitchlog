@@ -105,3 +105,30 @@ writer-binding phase snapshot の `internal_generation`/`recovery_generation` �
 同じ短いDB試験で取得し、CP行の1/1と比較すること。stamp発行元（phase snapshot）と
 CP作成元（start/通常球）のどちらが誤っているかを確定し、誤っている側だけを直す。
 世代条件の削除・古いCPへのフォールバック・CPからの無条件コピーはしない。
+
+
+## 2026-11-14 追試6（タイブレーク開始の保存成立とGET 200）
+
+世代不一致の原因はCP/stampの世代値ではなく、**元INSERTのeventId束縛欠落**だった。
+
+- `_event_insert_token` が `tiebreak_start` の予約IDを解決せず、乱数`uuid4`で
+  operation_eventをINSERTしていた。consume SQLは`p->eventId`（実評価の予約ID）で
+  照合するためown_eventが0行となり、P0002がCP SELECTに見えていた。
+- `reserved_tiebreak_start_event_id` を元INSERTへ接続し、短い再現試験
+  `tests/test_tiebreak_start_event_reservation.py` とSQL述語の拒否試験
+  `tests/test_tiebreak_sql.py` を追加した。旧世代・別試合・別復旧世代の
+  完全一致条件は削除していない。
+- 非play CP閉型に`tiebreakFrames`/`tiebreak_start`を追加し、GET専用readerの
+  head検査へ`tiebreak_start_write_receipts`の受理印を接続した。
+- 製品assetの本文・P3前置pin・GET reader pinを同時に再生成した。
+
+実DB/実画面の実測（HEAD `2cc5baa8`）:
+
+- 9回54アウト消化→タイブレーク開始POST **200（受理）**。
+- CPは`revision=56`、`formatVersion=nonplay-prefix-checkpoint-v1`へ前進。
+- `tiebreak_start_write_receipts`と`nonplay_write_admissions`（right_verified）を確認。
+- 開始直後の`GET /started?projection=play-prefix-v3`は**200**。
+- 残る停止: 画面のreloadが`read_kind='nonplay-prefix'`の`RecordingContext`を
+  まだ構築せず、開始後の通常投球パネルが出ない。次球（本塁打）以降の
+  生還・投手交代・次半回再配置・reload・成績/CSVは未通過。
+- このため`tests/db/test_tiebreak_screen_e2e.py`はskipを維持する。
