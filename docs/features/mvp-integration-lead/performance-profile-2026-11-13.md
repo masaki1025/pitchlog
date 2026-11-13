@@ -87,3 +87,48 @@
   `binding_close` 33.6〜36.6ms は支配的ではなく、ACK時closeの削除・非同期化は行わない。
   今回の安全な純値cacheだけでは5秒目標へ届かない。timeout延長・assert緩和・検査省略は
   していない。
+
+## 2026-11-13 追記2（隣接する `_live`/`source.read` の統合）
+
+- 統合した隣接区間（間に外部呼出し・DB書込み・host.call・projection適用が無い区間だけ）:
+  - `_bind_first_ball_execution` の入口 `source.read` 直後の `_live` を identity 検査へ。
+  - `_bind_source_first_ball` の `_fingerprint` 直後の `_live` を identity 検査へ。
+  - 評価直後の `_live` は `_read_ready_first_ball_frame` の `_state` 再検査へ一本化。
+  - `_require_first_ball_projection_completed` /
+    `_require_ordinary_projection_completed` が state を返し、
+    `_read_*_stats_source` の重複 `_live` を除去。
+  - `_read_first_ball_stats_source` の末尾は `bridge._assert_live_state` とし、
+    直前の `_require` の `source.read` を再利用。
+  - `_read_values` は直前 `_execution` が照合した `state.event_fingerprint` を使い、
+    同じ source.read を重ねない。
+  - `_consume_first_ball_projection` の入口は `_projecting_state` と
+    `consume_first_ball_frame` の `_state` に委ねる。
+  - `_bind_lifecycle_execution` は `_execution_live` の戻り値（source view）を使い、
+    二度目の `source.read` を除去。
+  - `native_ledger_insert` の execute 直前の重複 `_fresh` を除去（書込み前後は維持）。
+  - stats: read前の重複 `_assert_scope`、consumeの再読、persist入口、substitutes先頭の
+    重複を統合（読み取り後・書込み前後・consume/projection境界は維持）。
+  - `ordinary_prefix._locked_prefix_context` は各DB read前の `live()` を
+    前回read直後の `live()` と統合（最初のread前と全read後は維持）。
+  - `apply_ordinary_pitch_projection` の consume直後・prepare直前の重複 `_live` を統合
+    （consume境界と `_bind_ordinary_preparation` 入口は維持）。
+- 実測（`PITCHLOG_SYNC_STAGE_TIMING=1`。同一コードの連続実行）:
+  - 初球 `test_first_ball_vertical_http_records_and_refuses_reload`:
+    `source_read` **135→42回**、`assert_current` **311→112回**、
+    `lease_check` 7113.9ms/311 → 2473.1ms/112、
+    total **9320.8ms → 4126.0 / 4514.8ms**（5秒assertは両回とも通過）。
+  - 通常球 `test_ordinary_pitch_vertical_http`（3球）:
+    `source_read` **62〜68→53〜56回**、`assert_current` **151〜163→133〜139回**、
+    total **5167〜5992ms→4523 / 4431 / 4507ms**（直近3回はすべて5秒以内）。
+    ただし負荷上昇時は5秒境界に近く、余裕は小さい。
+- 残る呼出しの境界（削除せず維持）:
+  - 初球: stats `_read_values` の開始/終了 `_execution`（19回）、`_state`（6）、
+    評価のDB read後・host前後（3）、bind入口/終了（2）、projection前後（2）、
+    write前後（2）、content検証（1）等。
+  - 通常球: stats `_read_values`（19）、prefixの各DB read直後（8〜11）、
+    qualification device/rights（5）、bind入口/終了（4）、projection（3）等。
+- 実画面E2E（`test_game_lifecycle_product_screen_e2e`）は、同期前のUI/ネットワーク
+  失敗（`net::ERR_NETWORK_CHANGED`、`ordinary-state-source`/「開始入力を確認できます」
+  未表示）で完走できず、公式の5秒assertは未観測。5秒達成の主張には使わない。
+- timeout・30秒binding・認可・tenant照合・記録権・RG1・lease/fence/deviceのDB検査は
+  延長・省略していない。

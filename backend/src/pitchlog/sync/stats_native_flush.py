@@ -123,9 +123,10 @@ def _assert_scope(scope, receipt=None, source=None) -> None:
     current = handle._writer_lifetime()
     if current[0] is not scope.lifetime[0] or current[1] is not scope.lifetime[1]:
         raise StatsNativeFlushError
-    scope.bound.assert_current()
     if receipt is None and source is None:
+        scope.bound.assert_current()
         return
+    # receipt/source併用時は直後の_read_valuesがsource.readを含む再検査を行う。
     if type(receipt) is not native.NativeStatsSourceReceipt:
         raise StatsNativeFlushError
     issued = native._RECEIPTS.get(receipt)
@@ -190,8 +191,9 @@ def _flush_native_stats(handle, writer, event, projected, *, generation):
         projected,
         generation=generation,
     )
-    source = native._consume_native_stats_source(handle, receipt)
-    _assert_scope(scope, receipt, source)
+    source = native._consume_native_stats_source(handle, receipt, prechecked=True)
+    # _issueの_read_valuesと_consumeのidentity検査直後で外部呼出しが無いため、
+    # ここでは重ねず、読み取り後の純計算を経て書込み前の_assert_scopeで再検査する。
     preflight = build_writer_state_call(
         source.attempt_id,
         source.phase_id,
@@ -205,7 +207,6 @@ def _flush_native_stats(handle, writer, event, projected, *, generation):
         transaction.FUNCTION_OPERATION_REGISTRY,
     )
     # この私有入口の2固定factoryだけがSQLを形成する。caller SQLや汎用tokenは受けない。
-    _assert_scope(scope, receipt, source)
     end_stage(source_begin)
     read_begin = begin_stage("stats_read_writer_state")
     before_rows = _bounded_rows(

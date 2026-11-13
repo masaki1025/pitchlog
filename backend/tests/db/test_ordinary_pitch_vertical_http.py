@@ -1,6 +1,7 @@
 """owned実PGで新規作成/開始/通常3球/同要求再送/新GETを実API接続する。"""
 
 import json
+import os
 import subprocess
 import tempfile
 from pathlib import Path
@@ -325,6 +326,10 @@ def test_actual_http_create_start_three_pitches_replay_and_prefix_reload(
             timeout=300,
         )
     assert process.returncode == 0, (process.stdout[-1000:], process.stderr[-1000:])
+    if os.environ.get("PITCHLOG_SYNC_STAGE_TIMING") == "1":
+        for line in process.stderr.splitlines():
+            if line.startswith("PITCHLOG_SYNC_STAGE_TIMING="):
+                print("PITCHLOG_SYNC_STAGE_JSON=" + line.split("=", 1)[1])
     result = json.loads(process.stdout)
     report = Path(tempfile.gettempdir()) / (
         "pitchlog/ordinary37-runtime-source-candidate-20261030/newAPI-last-result.json"

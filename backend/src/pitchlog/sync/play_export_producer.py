@@ -56,8 +56,12 @@ def _recorded_substitutes(
     if len(candidates) > 5 or any(type(value) is not UUID for value in candidates):
         raise RecordedExportProjectionUnavailable
     recorded: dict[UUID, dict[str, Any]] = {}
+    first_candidate = True
     for player_id in candidates:
-        _assert_scope(scope, receipt, source)
+        # 先頭は直前にcapture_recorded_play_identityが_assert_scopeを完了している。
+        if not first_candidate:
+            _assert_scope(scope, receipt, source)
+        first_candidate = False
         rows = tuple(
             scope.session.execute(
                 _SUBSTITUTE_SQL,
@@ -119,7 +123,7 @@ def persist_accepted_play_export(scope, receipt, source, saved, revision: int) -
     """一回消費済みnative source/保存版から88列を同TX内に保存する。"""
     from pitchlog.sync.stage_timing import begin_stage, end_stage
 
-    _assert_scope(scope, receipt, source)
+    # 呼出元の_flush_native_statsが保存SQL直後に_assert_scopeを完了している。
     if (
         type(saved) is not tuple
         or len(saved) != 1

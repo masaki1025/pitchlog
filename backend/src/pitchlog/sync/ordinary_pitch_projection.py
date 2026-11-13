@@ -36,7 +36,7 @@ def apply_ordinary_pitch_projection(handle, operation):
         state.event.d5
     ):
         raise OrdinaryPitchExecutionError
-    _live(state)
+    # _consume_ordinary_pitch_frameが値を返す直前に_liveを完了している。
     prefix, payload = state.prefix, state.payload
     if prefix is None or payload is None or state.frame_id is None:
         raise OrdinaryPitchExecutionError
@@ -137,7 +137,6 @@ def apply_ordinary_pitch_projection(handle, operation):
         }
     )
     lease = state.source.bound._lease
-    _live(state)
     token = PrepareOrdinaryProjectionToken(
         lease.attempt_id,
         lease.phase_id,

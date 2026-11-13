@@ -96,8 +96,8 @@ class _Execution:
 _EXECUTIONS: dict[object, _Execution] = {}
 
 
-def _live(state: _Execution) -> None:
-    """Actual runtime/writer/source/phase/nonceを各境界で再確認する。"""
+def _assert_live_state(state: _Execution) -> None:
+    """source.readを伴わず、同runtime/writer/source/phase/nonceのidentityだけを再確認する。"""
     handle, writer, source, bound = (
         state.handle,
         state.writer,
@@ -138,10 +138,15 @@ def _live(state: _Execution) -> None:
     ):
         raise FirstBallExecutionError
     handle._assert_writer_lifetime(state.lifetime)
-    view = source.read(handle, state.event)
+
+
+def _live(state: _Execution) -> None:
+    """Actual runtime/writer/source/phase/nonceを各境界で再確認する。"""
+    _assert_live_state(state)
+    view = state.source.read(state.handle, state.event)
     if view.event_fingerprint != state.event_fingerprint:
         raise FirstBallExecutionError
-    handle._assert_writer_lifetime(state.lifetime)
+    state.handle._assert_writer_lifetime(state.lifetime)
 
 
 def _participants(raw: str) -> FirstBallParticipants:
@@ -200,7 +205,8 @@ def _bind_first_ball_execution(handle, writer, event, source):
     )
     _EXECUTIONS[key] = state
     try:
-        _live(state)
+        # 入口のsource.read直後で外部呼出しが無いため、identityだけを再確認する。
+        _assert_live_state(state)
         with ExitStack() as stack:
             raw_v7, raw_v8 = None, None
             try:
@@ -241,7 +247,7 @@ def _bind_first_ball_execution(handle, writer, event, source):
                 except FirstBallContentRejected:
                     state.phase = "rejected"
                 else:
-                    _live(state)
+                    # 評価直後の再検査は_read_ready_first_ball_frameの_stateが所有する。
                     value = _read_ready_first_ball_frame(
                         bridge, frame, writer=writer, event=event
                     )
@@ -330,7 +336,7 @@ def _validate_first_ball_command(handle, operation) -> TenantOperationResult:
     )
 
 
-def _require_first_ball_projection_completed(handle, event) -> None:
+def _require_first_ball_projection_completed(handle, event) -> _Execution:
     """単位Bの正式consume/投影が未提供なら、成功へ補完せず全rollbackする。"""
     state = _EXECUTIONS.get(handle._state_key)
     if state is None:
@@ -338,6 +344,7 @@ def _require_first_ball_projection_completed(handle, event) -> None:
     _live(state)
     if event.d5 != state.event.d5 or state.phase != "projected":
         raise FirstBallExecutionError
+    return state
 
 
 def _same_wire_value(left: object, right: object) -> bool:
@@ -426,7 +433,8 @@ def _consume_first_ball_projection(handle, projected, writer) -> FirstBallFrameV
     if type(state) is not _Execution:
         raise FirstBallExecutionError
     try:
-        _live(state)
+        # 直前に_projecting_stateが_liveを完了し、consume_first_ball_frameも
+        # 値を返す前に_stateで同sourceを再検査する。
         if (
             handle is not state.handle
             or writer is not state.writer
@@ -572,11 +580,7 @@ def _read_first_ball_stats_source(handle, writer, event, projected):
 
     if type(handle) is not transaction._TenantTransaction:
         raise FirstBallExecutionError
-    state = _EXECUTIONS.get(handle._state_key)
-    if type(state) is not _Execution:
-        raise FirstBallExecutionError
-    _live(state)
-    _require_first_ball_projection_completed(handle, projected)
+    state = _require_first_ball_projection_completed(handle, projected)
     anchor = state.stats_source_reference
     bridge = bridge_api._STATES.get(state.bridge)
     if (
@@ -621,5 +625,6 @@ def _read_first_ball_stats_source(handle, writer, event, projected):
         )
     ):
         raise FirstBallExecutionError
-    bridge_api._live(bridge, writer, event)
+    # 直前に_require_first_ball_projection_completedがsource.readを完了している。
+    bridge_api._assert_live_state(bridge, writer, event)
     return state

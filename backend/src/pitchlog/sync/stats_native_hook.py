@@ -133,11 +133,13 @@ def _read_values(handle, writer, event, projected, generation):
     bound = source.bound
     lease = bound._lease
     phase = source.phase
-    view = source.read(handle, event)
+    # 直前の_executionがsource.readで照合済みの指紋を再利用する。
+    event_fingerprint = state.event_fingerprint
     if (
         type(event) is not SyncEvent
         or type(projected) is not SyncEvent
         or type(generation) is not int
+        or type(event_fingerprint) is not str
         or generation < 1
         or type(event.d1) is not int
         or event.d1 < 1
@@ -153,7 +155,7 @@ def _read_values(handle, writer, event, projected, generation):
         or phase.attempt.game_id != UUID(event.game_id)
         or phase.attempt.internal_generation != generation
         or lease.device_id != phase.attempt.device_id
-        or phase.event_fingerprint != view.event_fingerprint
+        or phase.event_fingerprint != event_fingerprint
         or json.loads(bound._phase_snapshot)["phase"]["internal_generation"]
         != generation
     ):
@@ -248,7 +250,7 @@ def _read_values(handle, writer, event, projected, generation):
             "tenant_id": handle._context.tenant_id,
             "d5": UUID(event.d5),
             "kind": "accepted",
-            "source_fingerprint": view.event_fingerprint,
+            "source_fingerprint": event_fingerprint,
             "reason": None,
             "retired_at": None,
             "import_batch_id": None,
@@ -276,7 +278,7 @@ def _read_values(handle, writer, event, projected, generation):
         projected.v6,
         UUID(event.d5),
         saved["id"],
-        view.event_fingerprint,
+        event_fingerprint,
         _json(native),
         rule_hash,
         lease.attempt_id,
@@ -349,8 +351,17 @@ def _issue_native_stats_source(handle, writer, event, projected, *, generation):
         raise StatsNativeSourceError from None
 
 
-def _consume_native_stats_source(handle, receipt) -> _NativeStatsSource:
-    """同handle/同frame/未改変原本の参照を一回消費し、T5はまだ評価しない。"""
+def _consume_native_stats_source(
+    handle, receipt, *, prechecked: bool = False
+) -> _NativeStatsSource:
+    """同handle/同frame/未改変原本の参照を一回消費し、T5はまだ評価しない。
+
+    Args:
+        handle: 対象の実トランザクション。
+        receipt: 同じframeへ発行済みの私有参照。
+        prechecked: 直前に_issueが_read_valuesを完了し、間に外部呼出しが無い場合だけ
+            True。receipt/registry/寿命のidentity検査は省略しない。
+    """
     if type(receipt) is not NativeStatsSourceReceipt:
         raise StatsNativeSourceError
     issued = _RECEIPTS.get(receipt)
@@ -381,6 +392,10 @@ def _consume_native_stats_source(handle, receipt) -> _NativeStatsSource:
         ):
             raise StatsNativeSourceError
         handle._assert_writer_lifetime(issued.lifetime)
+        if prechecked:
+            if type(issued.values) is not _NativeStatsSource:
+                raise StatsNativeSourceError
+            return issued.values
         state, anchor, event_row, ledger_row, values = _read_values(
             handle,
             issued.writer,

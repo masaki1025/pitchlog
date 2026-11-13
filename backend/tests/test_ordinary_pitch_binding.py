@@ -236,3 +236,39 @@ def test_binding_check_renews_only_the_same_live_lease(monkeypatch):
     )
     with pytest.raises(WriterBindingUnavailable):
         lease.check()
+
+
+def test_ordinary_epoch_identity_checks_survive_adjacent_consolidation(monkeypatch):
+    """隣接統合後もqualification/phase/epochのidentity検査を省略しない。"""
+    from types import SimpleNamespace
+
+    from pitchlog.sync import ordinary_pitch_execution as ordinary
+    from pitchlog.sync.source_binding import _E1CoreSource
+
+    key = object()
+    source = object.__new__(_E1CoreSource)
+    source.bound = object()
+    source.event = object()
+    handle = SimpleNamespace(_state_key=key)
+    phase = SimpleNamespace(kind="rights", bound=source.bound)
+    monkeypatch.setitem(ordinary._QUALIFICATIONS, key, source)
+    monkeypatch.setattr(ordinary.transaction, "_port_phase", lambda _: phase)
+    monkeypatch.setattr(
+        ordinary.transaction, "_verified_recovery_epoch", lambda _handle, _phase: 7
+    )
+    try:
+        ordinary._record_ordinary_right_epoch(handle, phase, 7)
+        assert ordinary._QUALIFIED_EPOCHS[key] == (source, 7)
+        assert ordinary._ordinary_verified_epoch(handle, source) == 7
+        with pytest.raises(ordinary.OrdinaryPitchExecutionError):
+            ordinary._ordinary_verified_epoch(handle, object())
+        monkeypatch.setitem(ordinary._QUALIFICATIONS, key, object())
+        with pytest.raises(ordinary.OrdinaryPitchExecutionError):
+            ordinary._ordinary_verified_epoch(handle, source)
+        monkeypatch.setitem(ordinary._QUALIFICATIONS, key, source)
+        with pytest.raises(ordinary.OrdinaryPitchExecutionError):
+            ordinary._record_ordinary_right_epoch(
+                handle, SimpleNamespace(kind="rights", bound=object()), 7
+            )
+    finally:
+        ordinary._QUALIFIED_EPOCHS.pop(key, None)

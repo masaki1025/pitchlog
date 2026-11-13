@@ -81,6 +81,7 @@ class _Execution:
     preparation_used: bool = False
     mode: str = "ordinary-pitch-play-v1"
     stats_source_reference: object = None
+    event_fingerprint: str | None = None
 
 
 _EXECUTIONS: dict[object, _Execution] = {}
@@ -105,7 +106,7 @@ def _live(state):
     ):
         raise OrdinaryPitchExecutionError
     handle._assert_writer_lifetime(state.lifetime)
-    state.source.read(handle, state.event)
+    view = state.source.read(handle, state.event)
     handle._assert_writer_lifetime(state.lifetime)
     if state.phase in {"ready", "consumed", "projected"} and state.payload is not None:
         from pitchlog.sync.terminal_pitch_payload import NonplayPitchCalculation
@@ -116,6 +117,7 @@ def _live(state):
             )
 
             _assert_nonplay_normal_prefix(state)
+    return view
 
 
 @contextmanager
@@ -151,7 +153,7 @@ def _bind_ordinary_pitch_execution(
     key = handle._state_key
     _EXECUTIONS[key] = state
     try:
-        _live(state)
+        state.event_fingerprint = _live(state).event_fingerprint
         if mode == "play-prefix-play-v3":
             _evaluate_lineup_prefix(state)
         elif mode == "play-prefix-play-v2":
@@ -368,6 +370,7 @@ def _require_ordinary_projection_completed(handle, event):
     _live(state)
     if state.event is not event or state.phase != "projected":
         raise OrdinaryPitchExecutionError
+    return state
 
 
 _QUALIFICATIONS: dict[object, _E1CoreSource] = {}
@@ -513,7 +516,7 @@ def _record_ordinary_right_epoch(handle, phase, epoch):
         or transaction._verified_recovery_epoch(handle, phase) != epoch
     ):
         raise OrdinaryPitchExecutionError
-    source.read(handle, source.event)
+    # 呼出元の_ordinary_qualification_activeが直前のsource.readを完了している。
     _QUALIFIED_EPOCHS[handle._state_key] = (source, epoch)
 
 
@@ -526,7 +529,7 @@ def _ordinary_verified_epoch(handle, source):
         or _QUALIFICATIONS.get(handle._state_key) is not source
     ):
         raise OrdinaryPitchExecutionError
-    source.read(handle, source.event)
+    # 呼出元のprefix readは各DB read直後にlive()でsource.readを完了している。
     return captured[1]
 
 
@@ -864,11 +867,7 @@ def _read_ordinary_stats_source(handle, writer, event, projected):
     """3modeの実frame_idと一回consume済み投影だけを成績へ貸与する。"""
     if type(handle) is not transaction._TenantTransaction:
         raise OrdinaryPitchExecutionError
-    state = _EXECUTIONS.get(handle._state_key)
-    if type(state) is not _Execution:
-        raise OrdinaryPitchExecutionError
-    _live(state)
-    _require_ordinary_projection_completed(handle, event)
+    state = _require_ordinary_projection_completed(handle, event)
     anchor = state.stats_source_reference
     if (
         state.handle is not handle
@@ -885,6 +884,7 @@ def _read_ordinary_stats_source(handle, writer, event, projected):
         or state.preparation_digest is not None
         or state.payload is None
         or state.prefix is None
+        or type(state.event_fingerprint) is not str
         or type(state.frame_id) is not UUID
         or type(anchor) is not tuple
         or len(anchor) not in (8, 9)

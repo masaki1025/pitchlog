@@ -204,10 +204,12 @@ def _execution_live(state, *, content=False):
         ):
             raise LifecycleExecutionError("終了再開content phaseが不一致です")
         handle._assert_writer_lifetime(state.lifetime)
-        state.source.read(handle, state.event)
+        view = state.source.read(handle, state.event)
         handle._assert_writer_lifetime(state.lifetime)
-    else:
-        _live(handle, state.source, state.event, state.lifetime, state.runtime)
+        return view
+    return _live(
+        handle, state.source, state.event, state.lifetime, state.runtime
+    )
 
 
 @contextmanager
@@ -236,10 +238,9 @@ def _bind_lifecycle_execution(handle, writer, event, source):
     _EXECUTIONS[key] = state
     try:
         with ExitStack() as stack:
-            _execution_live(state)
+            selected = _execution_live(state)
             try:
                 payload = read_lifecycle_event(event).to_wire()
-                selected = source.read(handle, event)
                 if selected.origin != "e1" or selected.wire_event is None:
                     raise LifecycleExecutionError("終了再開は真正E1だけを使用します")
                 original = _json_value(selected.wire_event.wire_event)

@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 from typing import Any, LiteralString, cast
 from uuid import UUID, uuid4
@@ -537,6 +538,21 @@ def _run_case(db: Any, case: dict[str, Any]) -> dict[str, Any]:
     if value.get("sync_server_timing"):
         # opt-in計測時だけ、応答ヘッダの段階集計を試験ログへ1行で残す。
         print("PITCHLOG_SYNC_SERVER_TIMING=" + str(value["sync_server_timing"]))
+        if os.environ.get("PITCHLOG_SYNC_STAGE_TIMING") == "1":
+            measured = re.search(
+                r"(?:^|, )total;dur=([0-9]+\.[0-9]+)", str(value["sync_server_timing"])
+            )
+            assert measured is not None, "Server-Timingにtotalがない"
+            total_ms = float(measured.group(1))
+            print(
+                "PITCHLOG_SYNC_TARGET_5S="
+                + json.dumps({"totalMs": total_ms, "met": total_ms <= 5000.0})
+            )
+            assert total_ms <= 5000.0, f"同期サーバー時間が5秒を超えた: {total_ms}ms"
+    if os.environ.get("PITCHLOG_SYNC_STAGE_TIMING") == "1":
+        for line in process.stderr.splitlines():
+            if line.startswith("PITCHLOG_SYNC_STAGE_TIMING="):
+                print("PITCHLOG_SYNC_STAGE_JSON=" + line.split("=", 1)[1])
     return value
 
 

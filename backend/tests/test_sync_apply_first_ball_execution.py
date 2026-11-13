@@ -180,6 +180,33 @@ def test_real_pair_once_ready_read_never_consumes_and_projection_is_not_supplied
         validate(rig)
 
 
+def test_identity_only_check_never_skips_source_read_or_identity_change(
+    rig, monkeypatch
+):
+    """隣接統合後もidentity検査と境界ごとのsource.readを省略しない。"""
+    with prepared(rig):
+        state = cast(Any, api._EXECUTIONS[rig.key])
+        calls: list[bool] = []
+
+        def read(owner, scope, event):
+            calls.append(True)
+            return rig.view
+
+        monkeypatch.setattr(_E1CoreSource, "read", read)
+        api._assert_live_state(state)
+        assert calls == []
+        api._live(state)
+        assert calls == [True]
+        original_writer = state.writer
+        state.writer = object()
+        try:
+            with pytest.raises(api.FirstBallExecutionError):
+                api._assert_live_state(state)
+        finally:
+            state.writer = original_writer
+        assert calls == [True]
+
+
 @pytest.mark.parametrize("kind", ["empty", "after", "people", "difference", "artifact"])
 def test_payload_mismatch_is_only_fixed_content_false(rig, kind):
     """保存観測/計算/名簿の不一致を既内容拒否へ写す。"""

@@ -566,5 +566,6 @@ def test_e1_bridge_requires_real_source_and_rechecks_wire_fingerprint(rig, monke
             fingerprint[0] = "wire-v1:" + "b" * 64
             with pytest.raises(FirstBallFrameError):
                 api._state(bridge, rig.writer, rig.event)
-    assert len(calls) >= 4
+    # bind時のfingerprint読取1回と、境界ごとの_state再読取だけを要求する。
+    assert len(calls) >= 3
     assert bridge not in api._STATES

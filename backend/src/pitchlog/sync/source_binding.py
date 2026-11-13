@@ -6,6 +6,7 @@ registry登録APIは提供せず、pure登録doubleを実受付の証拠とは�
 
 from __future__ import annotations
 
+import sys
 from collections.abc import Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -20,7 +21,7 @@ from pitchlog.sync.idempotency import (
     operation_fingerprint,
 )
 from pitchlog.sync.model import ABSENT, SyncEvent, SyncRequest
-from pitchlog.sync.stage_timing import begin_stage, end_stage, stage
+from pitchlog.sync.stage_timing import active, begin_stage, end_stage, stage
 from pitchlog.sync.wire_fingerprint import WireEventValue, wire_event_fingerprint
 from pitchlog.sync.wire_original import _canonical, encode_wire_original
 from pitchlog.sync.wire_source import WireSourceValue, checked_wire_source
@@ -493,6 +494,19 @@ def _legacy_entry_scope(context, request, registrations):
         _LEGACY.pop(owner, None)
 
 
+def _source_read_caller() -> str:
+    """計測時だけ、薄いwrapperを飛ばして実際の境界関数名を返す。"""
+    frame = sys._getframe(2)
+    while frame is not None and frame.f_code.co_name in {
+        "read",
+        "_live",
+        "_execution_live",
+        "_fingerprint",
+    }:
+        frame = frame.f_back
+    return frame.f_code.co_name if frame is not None else "unknown"
+
+
 class _E1CoreSource:
     """実bound writerと元sourceの再検査口。純値だけから新資格を作らない。"""
 
@@ -542,7 +556,8 @@ class _E1CoreSource:
 
     def read(self, scope, event):
         """重要点ごとに同じ元bindingと同writerの現在値を照合する。"""
-        with stage("source_read"):
+        detail = _source_read_caller() if active() else None
+        with stage("source_read", detail=detail):
             if (
                 scope is not self.scope
                 or event is not self.event

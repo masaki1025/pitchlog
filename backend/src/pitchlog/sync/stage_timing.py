@@ -92,6 +92,7 @@ class _Aggregate:
     total_us: int = 0
     max_us: int = 0
     first_start_us: int = 0
+    details: dict[str, int] | None = None
 
 
 class SyncStageTimer:
@@ -105,7 +106,9 @@ class SyncStageTimer:
         self._order: list[str] = []
         self._stages: dict[str, _Aggregate] = {}
 
-    def record(self, name: str, start_ns: int, end_ns: int) -> None:
+    def record(
+        self, name: str, start_ns: int, end_ns: int, detail: str | None = None
+    ) -> None:
         """固定段階名の所要を加算する。未知の名前は``other``へ寄せる。"""
         stage_name = name if name in _STAGE_NAMES else _OTHER
         aggregate = self._stages.get(stage_name)
@@ -117,23 +120,31 @@ class SyncStageTimer:
         aggregate.count += 1
         aggregate.total_us += duration_us
         aggregate.max_us = max(aggregate.max_us, duration_us)
+        if detail is not None:
+            if aggregate.details is None:
+                aggregate.details = {}
+            aggregate.details[detail] = aggregate.details.get(detail, 0) + 1
 
     def elapsed_us(self) -> int:
         """要求受付から現在までの経過マイクロ秒を返す。"""
         return (perf_counter_ns() - self._start_ns) // 1000
 
-    def stages(self) -> list[dict[str, int | str]]:
+    def stages(self) -> list[dict[str, object]]:
         """初回出現順の段階集計を返す。"""
-        return [
-            {
+        stages: list[dict[str, object]] = []
+        for name in self._order:
+            aggregate = self._stages[name]
+            item: dict[str, object] = {
                 "stage": name,
-                "count": self._stages[name].count,
-                "totalUs": self._stages[name].total_us,
-                "maxUs": self._stages[name].max_us,
-                "firstStartUs": self._stages[name].first_start_us,
+                "count": aggregate.count,
+                "totalUs": aggregate.total_us,
+                "maxUs": aggregate.max_us,
+                "firstStartUs": aggregate.first_start_us,
             }
-            for name in self._order
-        ]
+            if aggregate.details:
+                item["callers"] = dict(aggregate.details)
+            stages.append(item)
+        return stages
 
 
 def timing_enabled() -> bool:
@@ -159,7 +170,7 @@ def finish_sync_stage_timing(token: Token[SyncStageTimer | None] | None) -> None
 
 
 @contextmanager
-def stage(name: str) -> Iterator[None]:
+def stage(name: str, *, detail: str | None = None) -> Iterator[None]:
     """有効時だけ段階の所要を記録する。無効時は何もしない。"""
     timer = _CURRENT.get()
     if timer is None:
@@ -169,7 +180,12 @@ def stage(name: str) -> Iterator[None]:
     try:
         yield
     finally:
-        timer.record(name, start_ns, perf_counter_ns())
+        timer.record(name, start_ns, perf_counter_ns(), detail)
+
+
+def active() -> bool:
+    """現在の要求で段階計測が有効かを返す。"""
+    return _CURRENT.get() is not None
 
 
 def begin_stage(name: str) -> tuple[str, int] | None:

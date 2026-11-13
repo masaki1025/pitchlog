@@ -188,8 +188,11 @@ def _locked_prefix_context(handle, event, source):
         source.read(handle, event)
 
     def run(token):
-        """同handleの固定token以外を受け取らない。"""
-        live()
+        """同handleの固定token以外を受け取らない。
+
+        連続するDB readの間には外部呼出しが無いため、前回read直後のlive()を
+        次のread前の検査として再利用し、readの前後を二重に読まない。
+        """
         result = handle.run(token)
         live()
         return result

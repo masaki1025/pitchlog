@@ -333,6 +333,7 @@ def native(request, monkeypatch):
             payload=payload,
             phase="projected",
             mode=mode,
+            event_fingerprint=r.view.event_fingerprint,
             preparation_used=True,
         )
         state.stats_source_reference = (fr, state.frame_id, payload, *refs)
