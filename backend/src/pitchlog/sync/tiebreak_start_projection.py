@@ -75,6 +75,16 @@ def build_tiebreak_start_source(
             raise TiebreakStartProjectionError(
                 "タイブレーク開始の規則snapshotがありません"
             )
+        frames = content.get("tiebreakFrames", [])
+        if frames:
+            last_fields = frames[-1]["afterContext"]["current"]["stateFields"]
+            if (
+                last_fields["state.inning"] == fields["state.inning"]
+                and last_fields["state.half"] == fields["state.half"]
+            ):
+                raise TiebreakStartProjectionError(
+                    "タイブレーク開始の同半回二重配置です"
+                )
         if (
             payload["leadoffBatter"] != fields["state.battingOrder"]
             or payload["inning"] != fields["state.inning"]

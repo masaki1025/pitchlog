@@ -2316,7 +2316,7 @@ export function finishLineupContinuation(r: Json, raw: string): string {
   let tbRequired = false
   if (
     result.outcome === 'tiebreak-continue' &&
-    read(af, 'state.tiebreakActive') !== true
+    (read(af, 'state.tiebreakActive') !== true || completedHalf !== null)
   )
     tbRequired = true
   const t2 = {

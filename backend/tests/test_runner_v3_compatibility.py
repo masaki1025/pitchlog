@@ -132,7 +132,7 @@ def test_real_gate_preserves_four_historical_priors_and_rejects_unknown_pairs():
     _, registry, _ = _inputs()
     assert len(registry["cases"]) == 4
     active = json.loads(
-        (BASE / "play_prefix_v3_source_compatibility_v7.json").read_bytes()
+        (BASE / "play_prefix_v3_source_compatibility_v8.json").read_bytes()
     )
     execution = active["cases"][0]["executionArtifactSha256"]
     for row in registry["cases"]:
@@ -173,6 +173,8 @@ def test_legacy_registry_raw_change_is_rejected_before_qualification(tmp_path):
         "play_prefix_v3_source_compatibility_v6.json",
         "nonplay_v3_compatibility_witness_v7.json",
         "play_prefix_v3_source_compatibility_v7.json",
+        "nonplay_v3_compatibility_witness_v8.json",
+        "play_prefix_v3_source_compatibility_v8.json",
     ):
         destination = tmp_path / "contracts/state-transition" / name
         destination.parent.mkdir(parents=True, exist_ok=True)
@@ -182,7 +184,7 @@ def test_legacy_registry_raw_change_is_rejected_before_qualification(tmp_path):
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(ROOT / "frontend/public/domain" / name, destination)
     active = json.loads(
-        (BASE / "play_prefix_v3_source_compatibility_v7.json").read_bytes()
+        (BASE / "play_prefix_v3_source_compatibility_v8.json").read_bytes()
     )
     execution = active["cases"][0]["executionArtifactSha256"]
     reader._require_v3_compatibility(tmp_path, CURRENT, execution)

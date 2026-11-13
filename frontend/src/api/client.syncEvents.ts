@@ -15,7 +15,10 @@ import {
   type SyncEventViolation,
 } from '../lib/sync/validateSyncEvent'
 import { ApiError, type SyncRequestCredentials } from './client'
-import { postRecoverableSyncRequest } from './recoverableSyncPost'
+import {
+  postRecoverableSyncRequest,
+  type RecoverableSyncOptions,
+} from './recoverableSyncPost'
 
 /** スロットと wire のキーの対応(sync-wire-schema/design.md 3-2・3-3 の表)。 */
 const WIRE_KEY_BY_SLOT_ID = {
@@ -255,7 +258,7 @@ export function buildSyncEventRequestBody(
  */
 export async function postSyncEvents(
   request: SyncEventSendRequest,
-  options: { skipRecovery?: boolean; signal?: AbortSignal } = {},
+  options: RecoverableSyncOptions = {},
 ): Promise<SyncEventSendResult> {
   const built = buildSyncEventRequestBody(request)
   if ('sent' in built) {

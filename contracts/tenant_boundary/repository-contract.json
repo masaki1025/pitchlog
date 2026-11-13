@@ -308,6 +308,7 @@
     "SYNC_NONPLAY:prepare_nonplay_undo",
     "SYNC_NONPLAY:consume_nonplay_undo",
     "SYNC_NONPLAY:consume_nonplay_substitution",
+    "SYNC_NONPLAY:consume_nonplay_tiebreak_start",
     "SYNC_LIFECYCLE:bind_nonplay_device",
     "SYNC_LIFECYCLE:check_nonplay_right",
     "SYNC_LIFECYCLE:read_lifecycle_state",
@@ -321,5 +322,5 @@
     "SYNC_PLAY_PREFIX:read_viewer_play_prefix_history_page",
     "SYNC_PLAY_PREFIX:read_viewer_effective_version"
   ],
-  "source_digest": "76b416212f536d1e66e13cfbed58ee322529858028772e8228c5e7a415ab61f4"
+  "source_digest": "27fa861c97203840942732ee1a39c24366aae36dcea89788abe93b6c0f92304b"
 }

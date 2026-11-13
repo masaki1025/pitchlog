@@ -827,7 +827,6 @@ export async function prepareLineupPrefix(
     if (
       !hit ||
       hit.resultId !== observation.resultId ||
-      context.after.stateFields['state.tiebreakActive'] !== false ||
       context.after.stateFields['state.gameEnded'] !== false ||
       [hit.battedBall.hitX, hit.battedBall.hitY].some(
         (v) =>

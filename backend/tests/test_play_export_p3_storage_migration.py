@@ -189,7 +189,7 @@ def test_current_startup_declares_the_new_table_without_losing_old_storage():
         "writer_admissions",
         "writer_bindings",
     }
-    assert current.CURRENT_REVISION == "0050_play_export_p3_snapshots"
+    assert current.CURRENT_REVISION == "0051_tiebreak_start_receipt"
 
 
 @pytest.mark.parametrize("phase", ["pre-full", "full"])

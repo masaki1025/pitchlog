@@ -127,6 +127,30 @@ BEGIN
  AND e.event_kind='substitution' AND e.ledger_kind='accepted'
  AND NOT e.is_tombstone AND e.replaced_at IS NULL AND e.retired_at IS NULL
  AND e.import_batch_id IS NULL AND NOT e.migration_unverified
+ AND l.kind='accepted' AND l.retired_at IS NULL AND l.import_batch_id IS NULL
+ UNION ALL SELECT 1 FROM sync_fence.tiebreak_start_write_receipts tr
+ JOIN sync_fence.nonplay_write_admissions n ON
+ (n.tenant_id,n.attempt_id,n.phase_id)=(tr.tenant_id,tr.attempt_id,tr.phase_id)
+ JOIN public.operation_events e ON e.tenant_id=tr.tenant_id
+ AND e.id=tr.source_event_id AND e.game_id=tr.game_id
+ JOIN public.idempotency_ledger l ON l.tenant_id=e.tenant_id AND l.d5=e.d5
+ JOIN public.event_slots es ON (es.tenant_id,es.game_id,es.generation,es.d1)=
+ (e.tenant_id,e.game_id,e.generation,e.d1)
+ JOIN sync_fence.ordinary_pitch_checkpoints c ON
+ (c.tenant_id,c.game_id,c.internal_generation)=
+ (tr.tenant_id,tr.game_id,n.internal_generation)
+ WHERE tr.tenant_id=p_tenant_id AND tr.game_id=p_game_id
+ AND tr.source_d1=p_d3 AND tr.checkpoint_id=cp.id
+ AND tr.after_revision=cp.revision AND tr.after_digest=cp.content_digest
+ AND c.id=cp.id AND c.revision=cp.revision AND c.content=cp.content
+ AND c.xmin=tr.xmin AND n.xmin=tr.xmin AND e.xmin=tr.xmin
+ AND l.xmin=tr.xmin AND es.xmin=tr.xmin AND es.confirmed_version=1
+ AND n.internal_generation=p_generation AND n.state='right_verified'
+ AND n.d5=e.d5 AND n.event_fingerprint=l.source_fingerprint
+ AND e.generation=p_generation AND e.d1=p_d3
+ AND e.event_kind='tiebreak_start' AND e.ledger_kind='accepted'
+ AND NOT e.is_tombstone AND e.replaced_at IS NULL AND e.retired_at IS NULL
+ AND e.import_batch_id IS NULL AND NOT e.migration_unverified
  AND l.kind='accepted' AND l.retired_at IS NULL AND l.import_batch_id IS NULL)
  THEN {reject} END IF;
 {control_bridge_guard(generation="p_generation")}

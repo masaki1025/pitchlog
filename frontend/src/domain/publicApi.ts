@@ -1682,9 +1682,11 @@ function transitionTiebreakStartV1(requestJson: string): string {
   }
   const request = asObject(value)
   if (request === null) return errorResponse('INVALID_REQUEST')
+  const requestKeys = Object.keys(request).sort().join(',')
   if (
-    Object.keys(request).sort().join(',') !==
-    'activePlayerIds,restoreContext,rule,selection,version'
+    requestKeys !== 'activePlayerIds,restoreContext,rule,selection,version' &&
+    requestKeys !==
+      'activePlayerIds,lastPlacementHalf,restoreContext,rule,selection,version'
   )
     return errorResponse('INVALID_REQUEST')
   if (fieldValue(request, 'version') !== 'tiebreak-start-v1')
@@ -1730,6 +1732,19 @@ function transitionTiebreakStartV1(requestJson: string): string {
   } as unknown as TiebreakRestoreContext
   const substitutionState = fieldValue(restore, 'substitutionState')
   if (substitutionState !== null) context.substitutionState = substitutionState
+  let lastPlacementHalf: { inning: bigint; half: 'top' | 'bottom' } | null =
+    null
+  const lastHalf = asObject(fieldValue(request, 'lastPlacementHalf'))
+  if (lastHalf !== null) {
+    const lastInning = intField(fieldValue(lastHalf, 'inning'))
+    const lastHalfName = textField(fieldValue(lastHalf, 'half'))
+    if (
+      lastInning === null ||
+      (lastHalfName !== 'top' && lastHalfName !== 'bottom')
+    )
+      return errorResponse('INVALID_REQUEST')
+    lastPlacementHalf = { inning: lastInning, half: lastHalfName }
+  }
   const result = transitionTiebreakStart(
     context,
     {
@@ -1739,6 +1754,7 @@ function transitionTiebreakStartV1(requestJson: string): string {
     },
     { firstRunnerId: firstRunnerId, secondRunnerId: secondRunnerId },
     active,
+    lastPlacementHalf,
   )
   if (!result.ok) return errorResponse('INVALID_REQUEST')
   const after = result.afterContext

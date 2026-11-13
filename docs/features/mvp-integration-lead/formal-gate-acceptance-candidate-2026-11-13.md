@@ -145,16 +145,25 @@ SHA だけの差し替え、期待値の緩和、自己承認は行わない。
 - これらは受理値を緩めず、現行 source との機械的突合を回復するだけである。
   正式 7.7 の再 pin は本候補の独立レビュー後に別途行う。
 
-## 6. 別残差（本候補の対象外）
+## 6. 製品資産の追随結果（2026-11-13 追補）
 
-- `test_authz_repository_contract.py::test_stage_a_function_registration_matches_exact_asset_and_retains_rg1`
-  は、`operation_registry` が受理済み 60 件へ
-  `SYNC_NONPLAY:consume_nonplay_tiebreak_start` を 1 件追加しているため赤。
-  これは PR197 facts ではなく、タイブレーク開始 operation の正式受理（repository-contract 61 件化）待ち。
-  本ブランチでは期待値を緩めず、赤のまま残す。
-- `test_sync_apply_product_supply.py` の大量赤は
-  `contracts/authz/product/ddl-elements.json` が tiebreak 開始の候補宣言
-  （table / function / policy / ACL）をまだ含まないため。正式 product-authz 受理で
-  公式宣言経路から再導出する。手書き SQL の重複追加はしない。
-- `0051_tiebreak_start_write_receipt` は
-  `0050_play_export_p3_snapshots` の子として migration chain に含まれることを確認済み。
+- `contracts/authz/product/ddl-elements.json` へ `first_ball_product.ADDITIONS` の
+  完全行 5 件（table 1、policy 2、function 1、ACL 1）を追加した。手書き SQL の重複はない。
+- 公式 renderer の本文を `contracts/authz/product/function-bodies/functions|tables|policies|acl_expectations`
+  と `manifest.json` へ追加し、既存 4 関数の本文も現行 `nonplay_prefix_read_sql.py` /
+  `first_ball_product.BODIES` へ追随した。`check_authz_function_bodies.validate_repository(PRODUCT_SPEC)`
+  は 0 findings。
+- `repository-contract.json` と生成 `repository_contract.py` は
+  `SYNC_NONPLAY:consume_nonplay_tiebreak_start` を 1 件追加した（60→61）。
+  revision/history/snapshot は本 7.7 受理候補側で再導出し、自己承認しない。
+- migration の revision id は `alembic_version.version_num varchar(32)` 制約に収めるため
+  `0051_tiebreak_start_receipt` とした（ファイル名は `0051_tiebreak_start_write_receipt.py` のまま）。
+  `0050_play_export_p3_snapshots` の子として migration chain に含まれる。
+- `tests/db/test_substitution_vertical_http.py` は setup を含め **1 passed**（2026-11-13 実測）。
+  製品資産・migration・function body の exact 集合が揃ったことを確認した。
+- 残る `test_sync_apply_product_supply.py` の 5 件は、追加 5 行を含む
+  generated statement の件数/reference fixture を新しい受理点へ再固定するまで赤。
+  検査条件を緩めず、`batted_source_extension_reference_v1.json` の後継受理で解消する。
+- A branch の新 artifact `961844ed...` に合わせ、v7（`bb6768ea...`）は保持したまま
+  v8 witness/registry を追加した。v7 を書き換えず、v8 が `bb6768ea...` と
+  `961844ed...` の有限 pair を閉登録する。

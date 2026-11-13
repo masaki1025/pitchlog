@@ -1167,6 +1167,7 @@ def test_stage_a_function_registration_matches_exact_asset_and_retains_rg1() -> 
         "SYNC_NONPLAY:prepare_nonplay_undo",
         "SYNC_NONPLAY:consume_nonplay_undo",
         "SYNC_NONPLAY:consume_nonplay_substitution",
+        "SYNC_NONPLAY:consume_nonplay_tiebreak_start",
         "SYNC_LIFECYCLE:bind_nonplay_device",
         "SYNC_LIFECYCLE:check_nonplay_right",
         "SYNC_LIFECYCLE:read_lifecycle_state",
@@ -1180,7 +1181,7 @@ def test_stage_a_function_registration_matches_exact_asset_and_retains_rg1() -> 
         "SYNC_PLAY_PREFIX:read_viewer_play_prefix_history_page",
         "SYNC_PLAY_PREFIX:read_viewer_effective_version",
     )
-    assert len(expected) == 60
+    assert len(expected) == 61
     assert tuple(asset["product_function_operation_ids"]) == expected
     assert repository_contract.PRODUCT_FUNCTION_OPERATION_IDS == expected
     assert tuple(row.operation_id for row in PRODUCT_FUNCTION_OPERATIONS) == expected
@@ -1233,6 +1234,7 @@ def test_stage_a_function_registration_matches_exact_asset_and_retains_rg1() -> 
         "sync_right_api.prepare_nonplay_undo",
         "sync_right_api.consume_nonplay_undo",
         "sync_right_api.consume_nonplay_substitution",
+        "sync_right_api.consume_nonplay_tiebreak_start",
         "sync_right_api.bind_nonplay_device",
         "sync_right_api.check_nonplay_right",
         "sync_right_api.read_lifecycle_state",

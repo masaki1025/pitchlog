@@ -137,10 +137,7 @@ const strikeoutDetailAvailable = computed(() =>
 )
 const hitAvailable = computed(() => {
   if (!isLineupRecordingContext(displayed.value)) return false
-  return (
-    !displayed.value.after.stateFields['state.tiebreakActive'] &&
-    !displayed.value.after.stateFields['state.gameEnded']
-  )
+  return !displayed.value.after.stateFields['state.gameEnded']
 })
 const runnersState = computed(
   () => displayed.value.after.stateFields['state.runners'],
@@ -339,7 +336,6 @@ const tiebreakReady = computed(() => {
       rule.runnerPlacement !== 'first-second') ||
     rule.leadoffRule !== 'continue_lineup' ||
     Number(rule.startInning) > tiebreakInning.value ||
-    stateFields.value['state.tiebreakActive'] ||
     stateFields.value['state.runners'] !== 'empty' ||
     Number(stateFields.value['state.outs']) !== 0 ||
     Number(stateFields.value['state.count.strikes']) !== 0 ||
@@ -1093,7 +1089,6 @@ async function saveTiebreakStart() {
     !controller ||
     props.suspended ||
     busy.value ||
-    !canAppend.value ||
     !confirmed.value ||
     !tiebreakReady.value
   )

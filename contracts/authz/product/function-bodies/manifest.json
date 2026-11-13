@@ -4663,6 +4663,31 @@
       "element_id": "FUNCTION:sync_right_api:consume_nonplay_substitution(uuid, uuid, uuid, bytea, uuid, uuid, text)"
     },
     {
+      "path": "contracts/authz/product/function-bodies/tables/tiebreak_start_write_receipts.sql",
+      "element_type": "table",
+      "element_id": "tiebreak_start_write_receipts"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/policies/POLICY:tiebreak_start_write_receipts:tiebreak_start_receipt_select.sql",
+      "element_type": "policy",
+      "element_id": "POLICY:tiebreak_start_write_receipts:tiebreak_start_receipt_select"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/policies/POLICY:tiebreak_start_write_receipts:tiebreak_start_receipt_insert.sql",
+      "element_type": "policy",
+      "element_id": "POLICY:tiebreak_start_write_receipts:tiebreak_start_receipt_insert"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/acl_expectations/ACL:sync_fence:tiebreak_start_write_receipts:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "acl_expectation",
+      "element_id": "ACL:sync_fence:tiebreak_start_write_receipts:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:consume_nonplay_tiebreak_start(uuid, uuid, uuid, bytea, uuid, uuid, text).sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:sync_right_api:consume_nonplay_tiebreak_start(uuid, uuid, uuid, bytea, uuid, uuid, text)"
+    },
+    {
       "path": "contracts/authz/product/function-bodies/tables/substitution_write_receipts.sql",
       "element_type": "table",
       "element_id": "substitution_write_receipts"

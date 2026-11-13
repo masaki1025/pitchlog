@@ -120,6 +120,12 @@ export type TiebreakRunnerSelection = {
   secondRunnerId: string
 }
 
+/** 直前に配置を確定した半回。同半回の二重配置だけを拒否する。 */
+export type TiebreakPlacementHalf = {
+  inning: bigint
+  half: 'top' | 'bottom'
+}
+
 export type TiebreakTransition =
   | { ok: true; afterContext: TiebreakRestoreContext }
   | {
@@ -132,6 +138,7 @@ export type TiebreakTransition =
         | 'invalid-leadoff'
         | 'invalid-runner'
         | 'duplicate-runner'
+        | 'duplicate-placement'
     }
 
 function validUuid(value: unknown): value is string {
@@ -180,6 +187,7 @@ export function transitionTiebreakStart(
   rule: TiebreakStartRule,
   selection: TiebreakRunnerSelection,
   activePlayerIds: Array<string>,
+  lastPlacementHalf: TiebreakPlacementHalf | null = null,
 ): TiebreakTransition {
   if (
     context === null ||
@@ -200,6 +208,12 @@ export function transitionTiebreakStart(
     return { ok: false, error: 'not-tiebreak-inning' }
   if (before.gameEnded || before.inning < rule.startInning)
     return { ok: false, error: 'not-tiebreak-inning' }
+  if (
+    lastPlacementHalf !== null &&
+    lastPlacementHalf.inning === before.inning &&
+    lastPlacementHalf.half === before.half
+  )
+    return { ok: false, error: 'duplicate-placement' }
   let hasRunner = false
   for (const runner of context.runners) hasRunner = hasRunner || runner !== null
   if (

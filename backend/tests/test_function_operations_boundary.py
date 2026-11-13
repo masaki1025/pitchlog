@@ -259,6 +259,7 @@ def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> No
         "SYNC_NONPLAY:prepare_nonplay_undo",
         "SYNC_NONPLAY:consume_nonplay_undo",
         "SYNC_NONPLAY:consume_nonplay_substitution",
+        "SYNC_NONPLAY:consume_nonplay_tiebreak_start",
         "SYNC_LIFECYCLE:bind_nonplay_device",
         "SYNC_LIFECYCLE:check_nonplay_right",
         "SYNC_LIFECYCLE:read_lifecycle_state",
@@ -274,14 +275,10 @@ def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> No
     )
     from pitchlog.repositories import repository_contract
 
-    # 受理済み60件は正式repository-contractと一致し、タイブレーク開始の
-    # 候補1件だけを明示的に別枠で保持する（正式受理は7.7の別ゲート）。
     assert accepted == repository_contract.PRODUCT_FUNCTION_OPERATION_IDS
-    candidate = ("SYNC_NONPLAY:consume_nonplay_tiebreak_start",)
-    at = accepted.index("SYNC_NONPLAY:consume_nonplay_substitution") + 1
     assert tuple(
         entry.operation_id for entry in operation_registry.PRODUCT_FUNCTION_OPERATIONS
-    ) == (*accepted[:at], *candidate, *accepted[at:])
+    ) == accepted
     assert set(operation_registry.FUNCTION_OPERATION_REGISTRY) == {
         BattedBallOptionsToken,
         RG1PrecheckToken,
