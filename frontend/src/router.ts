@@ -18,6 +18,7 @@ import StartScreen from './screens/StartScreen.vue'
 import GameStatsScreen from './screens/GameStatsScreen.vue'
 import SeasonStats from './screens/SeasonStats.vue'
 import GameScreenRecordModeHost from './screens/GameScreenRecordModeHost.vue'
+import GameScreenRecordingRightHandover from './screens/GameScreenRecordingRightHandover.vue'
 import GameLineupChangeScreen from './screens/GameLineupChangeScreen.vue'
 import {
   LocalRecordingSession,
@@ -125,6 +126,12 @@ export function createAppRouter(history: RouterHistory = createWebHistory()) {
               ? localEntry.value.session
               : undefined,
         }),
+        meta: { requiresAuth: true },
+      },
+      {
+        path: '/games/:gameId/handover',
+        name: 'game-handover',
+        component: GameScreenRecordingRightHandover,
         meta: { requiresAuth: true },
       },
       {

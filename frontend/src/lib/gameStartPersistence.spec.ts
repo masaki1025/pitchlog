@@ -109,6 +109,59 @@ afterEach(() => {
 })
 
 describe('開始要求のIndexedDB保存境界', () => {
+  it('引き継ぎgrantを新端末の開始recordとして保存し、次回openで復元する', async () => {
+    const handle = await open()
+    await handle.rememberDevice(enrolled, tenant)
+    const handoverGame = '10000000-0000-4000-8000-000000000006'
+    const handoverRequest = '10000000-0000-4000-8000-000000000007'
+    const nextD4 = 'd4.1.' + 'C'.repeat(55)
+    const side = request().away
+    const lineups = {
+      away: { lineup_id: other, entries: side },
+      home: { lineup_id: game, entries: side },
+    }
+    const saved = await handle.rememberHandoverGrant(
+      tenant,
+      handoverGame,
+      {
+        tenant_id: tenant,
+        game_id: handoverGame,
+        handover_request_id: handoverRequest,
+        device_id: device,
+        d4: nextD4,
+        recovery_generation: '1',
+        recording_right_proof: proof,
+      },
+      { started_at: '2026-10-26T12:34:56Z', lineups },
+    )
+    expect(saved.status).toBe('received')
+    expect(saved.owner.start_request_id).toBe(handoverRequest)
+    expect(saved.grant?.d4).toBe(nextD4)
+    expect(saved.grant?.device_id).toBe(device)
+    handle.close()
+    const restored = await open()
+    const read = await restored.readStart(tenant, handoverGame)
+    expect(read?.status).toBe('received')
+    expect(read?.grant?.d4).toBe(nextD4)
+    expect(read?.request.start_request_id).toBe(handoverRequest)
+  })
+
+  it('解放済みの旧端末はgrantを保持したままreceivedでなくなる', async () => {
+    const handle = await prepared()
+    await handle.rememberGrant(owner, grant())
+    const released = await handle.markReleased(owner)
+    expect(released.status).toBe('released')
+    expect(released.grant?.recording_right_proof).toBe(proof)
+    const read = await handle.readStart(tenant, game)
+    expect(read?.status).toBe('released')
+    await expect(
+      handle.markReleased({
+        ...owner,
+        start_request_id: '10000000-0000-4000-8000-000000000099',
+      }),
+    ).rejects.toBeInstanceOf(GameStartPersistenceError)
+  })
+
   it('secure contextまたはIDB不在では保存を開始しない', async () => {
     vi.stubGlobal('isSecureContext', false)
     await safeFailure(GameStartPersistence.open())

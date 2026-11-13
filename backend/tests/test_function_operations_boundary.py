@@ -1631,6 +1631,7 @@ def test_initial_nine_function_signatures_are_closed_and_separate() -> None:
         "lock_current_start",
         "check_business_epoch",
         "insert_initial_grant",
+        "insert_handover_grant",
         "begin_start_attempt",
         "resolve_start_attempt",
     )
@@ -1860,7 +1861,7 @@ def test_initial_start_two_functions_keep_old_nine_separate() -> None:
         _ReadInitialStartContextToken,
     )
 
-    assert len(INITIAL_FUNCTION_OPERATIONS) == 9
+    assert len(INITIAL_FUNCTION_OPERATIONS) == 10
     assert tuple(s.function_id for s in _INITIAL_START_FUNCTION_OPERATIONS) == (
         "initial_right_api.read_initial_start_context",
         "initial_right_api.persist_initial_start",
@@ -2017,7 +2018,7 @@ def test_b2_legacy9_start2_and_new1_are_separate() -> None:
         INITIAL_FUNCTION_OPERATIONS,
     )
 
-    assert len(INITIAL_FUNCTION_OPERATIONS) == 9
+    assert len(INITIAL_FUNCTION_OPERATIONS) == 10
     assert len(_INITIAL_START_FUNCTION_OPERATIONS) == 2
     assert len(_INITIAL_ENROLL_FUNCTION_OPERATIONS) == 1
     spec = _INITIAL_ENROLL_FUNCTION_OPERATIONS[0]
@@ -2077,7 +2078,7 @@ def test_worker_lookup_registration_keeps_previous_tuples() -> None:
                 _INITIAL_RESOLVE_FUNCTION_OPERATIONS,
             ),
         )
-    ) == (9, 2, 1, 1)
+    ) == (10, 2, 1, 1)
     spec = _INITIAL_RESOLVE_FUNCTION_OPERATIONS[0]
     assert spec.capability_id == "CAP:initial_right:lookup_existing_start_attempt"
     assert tuple(k for k, _ in spec.input_fields) == (

@@ -16,7 +16,7 @@ const STARTS = 'starts'
 export type StoredGameStart = Readonly<{
   owner: GameStartOwner
   request: GameStartRequest
-  status: 'pending' | 'unknown' | 'received'
+  status: 'pending' | 'unknown' | 'received' | 'released'
   grant: InitialGameStartResponse | null
 }>
 
@@ -111,12 +111,17 @@ function stored(value: unknown, tenant: string, game: string): StoredGameStart {
   if (
     data.status !== 'pending' &&
     data.status !== 'unknown' &&
-    data.status !== 'received'
+    data.status !== 'received' &&
+    data.status !== 'released'
   )
     return invalid()
-  if (data.status !== 'received' && data.grant !== null) return invalid()
+  if (
+    (data.status === 'pending' || data.status === 'unknown') &&
+    data.grant !== null
+  )
+    return invalid()
   const grant =
-    data.status === 'received'
+    data.status === 'received' || data.status === 'released'
       ? parseInitialGameStartResponse(data.grant, owner)
       : null
   return Object.freeze({ owner, request, status: data.status, grant })
@@ -442,6 +447,157 @@ export class GameStartPersistence {
         )
       },
     )
+  }
+
+  async markReleased(ownerValue: GameStartOwner): Promise<StoredGameStart> {
+    let owner: GameStartOwner
+    try {
+      owner = parseGameStartOwner(ownerValue)
+    } catch {
+      return invalid()
+    }
+    return this.#run(
+      [DEVICES, STARTS],
+      'readwrite',
+      (transaction, done, watch) => {
+        const starts = transaction.objectStore(STARTS)
+        watch(
+          starts.get([owner.tenant_id, owner.game_id]),
+          (previous: unknown) => {
+            const saved = stored(previous, owner.tenant_id, owner.game_id)
+            if (canonical(saved.owner) !== canonical(owner)) invalid()
+            this.#device(transaction, saved.owner, saved.request, watch, () => {
+              if (saved.status === 'released') {
+                done(saved)
+                return
+              }
+              if (saved.status !== 'received') invalid()
+              const released: StoredGameStart = Object.freeze({
+                ...saved,
+                status: 'released',
+              })
+              starts.put(released)
+              done(released)
+            })
+          },
+        )
+      },
+    )
+  }
+
+  async rememberHandoverGrant(
+    tenantId: string,
+    gameId: string,
+    response: Readonly<{
+      tenant_id: string
+      game_id: string
+      handover_request_id: string
+      device_id: string
+      d4: string
+      recovery_generation: string
+      recording_right_proof: string
+    }>,
+    game: Readonly<{
+      started_at: string
+      lineups: Readonly<{
+        away: Readonly<{
+          lineup_id: string
+          entries: readonly Readonly<{
+            player_id: string
+            batting_order: number | string | null
+            fielding_position: unknown
+          }>[]
+        }>
+        home: Readonly<{
+          lineup_id: string
+          entries: readonly Readonly<{
+            player_id: string
+            batting_order: number | string | null
+            fielding_position: unknown
+          }>[]
+        }>
+      }>
+    }>,
+  ): Promise<StoredGameStart> {
+    const tenant = key(tenantId)
+    const gameKey = key(gameId)
+    let owner: GameStartOwner
+    let request: GameStartRequest
+    try {
+      if (
+        response.tenant_id !== tenant ||
+        response.game_id !== gameKey ||
+        typeof response.handover_request_id !== 'string' ||
+        typeof response.device_id !== 'string' ||
+        typeof response.d4 !== 'string' ||
+        typeof response.recovery_generation !== 'string' ||
+        typeof response.recording_right_proof !== 'string'
+      )
+        invalid()
+      owner = parseGameStartOwner({
+        tenant_id: tenant,
+        game_id: gameKey,
+        start_request_id: response.handover_request_id,
+        device_id: response.device_id,
+      })
+    } catch {
+      return invalid()
+    }
+    return this.#run<
+      Readonly<{
+        owner: GameStartOwner
+        request: GameStartRequest
+        grant: InitialGameStartResponse
+      }>
+    >([DEVICES, STARTS], 'readonly', (transaction, done, watch) => {
+      watch(transaction.objectStore(DEVICES).get(tenant), (value: unknown) => {
+        try {
+          const device = parseDeviceEnrollmentResponse(value, tenant)
+          if (device.device_id !== response.device_id) invalid()
+          request = parseGameStartRequest({
+            start_request_id: response.handover_request_id,
+            device_id: response.device_id,
+            device_credential: device.device_credential,
+            away: game.lineups.away.entries.map((entry) => ({
+              player_id: entry.player_id,
+              batting_order: entry.batting_order,
+              fielding_position: entry.fielding_position,
+            })),
+            home: game.lineups.home.entries.map((entry) => ({
+              player_id: entry.player_id,
+              batting_order: entry.batting_order,
+              fielding_position: entry.fielding_position,
+            })),
+          })
+          const grant = parseInitialGameStartResponse(
+            {
+              tenant_id: response.tenant_id,
+              game_id: response.game_id,
+              start_request_id: response.handover_request_id,
+              device_id: response.device_id,
+              d4: response.d4,
+              recovery_generation: response.recovery_generation,
+              recording_right_proof: response.recording_right_proof,
+              started_at: game.started_at,
+              away_lineup_id: game.lineups.away.lineup_id,
+              home_lineup_id: game.lineups.home.lineup_id,
+            },
+            owner,
+          )
+          // prepareStart は保存transactionを閉じるため、先に原要求を確定する。
+          done({ owner, request, grant })
+        } catch {
+          invalid()
+        }
+      })
+    }).then(async (prepared) => {
+      const storedStart = await this.prepareStart(
+        tenant,
+        gameKey,
+        prepared.request,
+      )
+      return this.rememberGrant(storedStart.owner, prepared.grant)
+    })
   }
 
   async rememberGrant(

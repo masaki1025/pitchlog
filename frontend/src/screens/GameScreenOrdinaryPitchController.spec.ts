@@ -413,6 +413,34 @@ it('late再掲ACKの高い水位で、応答に無い次slotを受理扱いに�
   }
 })
 
+it('解放済みの旧端末は既queue/HTTPを触らず、記録を再開しない', async () => {
+  vi.spyOn(GameStartPersistence, 'open').mockResolvedValue({
+    readDevice: async () => ({
+      tenant_id: tenant,
+      device_id: tenant,
+      device_credential: 'unit-only-credential',
+    }),
+    readStart: async () => ({
+      status: 'released',
+      grant: {
+        device_id: tenant,
+        d4: raw.current_d4,
+        away_lineup_id: raw.lineups.away.lineup_id,
+        home_lineup_id: raw.lineups.home.lineup_id,
+        recording_right_proof: 'unit-only-proof',
+        recovery_generation: raw.recovery_generation,
+      },
+    }),
+    close: () => {},
+  } as unknown as GameStartPersistence)
+  const post = accepted()
+  const c = controller()
+  expect(await c.inspect()).toBe('blocked')
+  expect(await c.submit(observation, vocabulary)).toBe('blocked')
+  expect(await slots()).toBe(0)
+  expect(post).not.toHaveBeenCalled()
+})
+
 it('server readの復旧世代と開始grantが違えば、既queue/HTTPを触らない', async () => {
   const seed = ordinaryContextFromRead(raw, tenant)
   const c = new GameScreenOrdinaryPitchController(
@@ -903,6 +931,36 @@ async function lineupController() {
   controllers.push(c)
   return c
 }
+it('新保持端末は引き継ぎ後のD4/端末/proofで通常記録を再開する', async () => {
+  vi.spyOn(GameStartPersistence, 'open').mockResolvedValue({
+    readDevice: async () => ({
+      tenant_id: tenant,
+      device_id: tenant,
+      device_credential: 'unit-only-credential',
+    }),
+    readStart: async () => ({
+      status: 'received',
+      grant: {
+        device_id: tenant,
+        d4: lineupFixture.value.current_d4,
+        away_lineup_id: lineupFixture.value.lineups.away.lineup_id,
+        home_lineup_id: lineupFixture.value.lineups.home.lineup_id,
+        recording_right_proof: 'unit-only-proof',
+        recovery_generation: lineupFixture.value.recovery_generation,
+      },
+    }),
+    close: () => {},
+  } as unknown as GameStartPersistence)
+  const post = accepted()
+  const c = await lineupController()
+  expect(await c.inspect()).toBe('ready')
+  expect(await c.submit(observation, vocabulary)).toBe('saved')
+  expect(post).toHaveBeenCalledOnce()
+  expect(post.mock.calls[0]![0].slots[0]!.d4).toBe(
+    lineupFixture.value.current_d4,
+  )
+})
+
 async function localLineupController() {
   const raw = structuredClone(lineupFixture.value)
   if (!isLineupPrefixGame(raw)) throw new Error('独立DTO不正')

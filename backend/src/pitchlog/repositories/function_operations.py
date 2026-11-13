@@ -106,6 +106,28 @@ _INITIAL_FUNCTION_TYPES = MappingProxyType(
             (),
             (),
         ),
+        "initial_right_api.insert_handover_grant": (
+            (
+                ("game_id", UUID),
+                ("start_request_id", UUID),
+                ("device_id", UUID),
+                ("attempt_id", UUID),
+                ("from_device_id", UUID),
+                ("from_credential_digest", bytes),
+                ("from_generation", int),
+                ("from_proof_digest", bytes),
+                ("last_d1", int),
+                ("generation", int),
+                ("recovery_generation", int),
+                ("proof_digest", bytes),
+                ("key_id", str),
+                ("nonce", bytes),
+                ("ciphertext", bytes),
+            ),
+            (("inserted", bool),),
+            (),
+            (),
+        ),
         "initial_right_api.begin_start_attempt": (
             (
                 ("game_id", UUID),
@@ -1299,15 +1321,19 @@ def prepare_function_operation(
                 "request_digest": 32,
                 "credential_digest": 32,
                 "proof_digest": 32,
+                "from_credential_digest": 32,
+                "from_proof_digest": 32,
                 "nonce": 12,
                 "ciphertext": 48,
             }
             if expected_type is bytes and len(value) != byte_lengths[name]:
                 raise FunctionOperationError("初期権の固定byte長が不一致")
-            if expected_type is int and not 0 < value < 2**63:
+            if expected_type is int and (
+                value < 0 if name == "last_d1" else not 0 < value < 2**63
+            ):
                 raise FunctionOperationError("初期権の整数は正bigintが必要")
             if expected_type is str and not value:
-                raise FunctionOperationError("初期権の文字列を空にできない")
+                raise FunctionOperationError(f"初期権の文字列を空にできない: {name}")
         if (
             spec.function_id in _SYNC_FIRST_BALL_FUNCTION_TYPES
             or spec.function_id in _SYNC_ORDINARY_PITCH_FUNCTION_TYPES

@@ -588,6 +588,41 @@ _INITIAL_FUNCTIONS: dict[str, dict[str, object]] = {
         ],
     },
     (
+        "FUNCTION:initial_right_api:insert_handover_grant(uuid, u"
+        "uid, uuid, uuid, uuid, uuid, bytea, bigint, bytea, bigint, "
+        "bigint, bigint, bytea, text, bytea, bytea)"
+    ): {
+        "function_id": (
+            "FUNCTION:initial_right_api:insert_handover_grant(uuid, uuid, "
+            "uuid, uuid, uuid, uuid, bytea, bigint, bytea, bigint, "
+            "bigint, bigint, bytea, text, bytea, bytea)"
+        ),
+        "schema_name": "initial_right_api",
+        "function_name": "insert_handover_grant",
+        "identity_args": (
+            "uuid, uuid, uuid, uuid, uuid, uuid, bytea, bigint, bytea, "
+            "bigint, bigint, bigint, bytea, text, bytea, bytea"
+        ),
+        "function_kind": "definer",
+        "owner_role_id": "pitchlog_initial_fn_owner",
+        "language": "plpgsql",
+        "returns": "boolean",
+        "security_mode": "definer",
+        "volatility": "volatile",
+        "search_path": ["pg_catalog", "pg_temp"],
+        "acl_expectations": [
+            {
+                "grantee": "pitchlog_initial_actor",
+                "privilege": "EXECUTE",
+                "grantable": False,
+            }
+        ],
+        "revoked_acl_expectations": [
+            {"grantee": "PUBLIC", "privilege": "EXECUTE", "grantable": False},
+            {"grantee": "pitchlog_app", "privilege": "EXECUTE", "grantable": False},
+        ],
+    },
+    (
         "FUNCTION:initial_right_api:begin_start_attempt(uuid, uu"
         "id, uuid, uuid, bytea, uuid)"
     ): {
@@ -2585,13 +2620,29 @@ def build_initial_function_declarations() -> dict[str, dict[str, object]]:
     return deepcopy(_INITIAL_FUNCTIONS)
 
 
+_HANDOVER_GRANT_FUNCTION_ID = (
+    "FUNCTION:initial_right_api:insert_handover_grant(uuid, uuid, uuid, "
+    "uuid, uuid, uuid, bytea, bigint, bytea, bigint, bigint, bigint, "
+    "bytea, text, bytea, bytea)"
+)
+
+
 def generate_initial_function_sql(function_id: str) -> str:
     """初期9APIの単一SQL定義または内部triggerの最小ACLを生成する。"""
+    from pathlib import Path
+
     from pitchlog.authz.initial_start_sql import (
         generate_start_function_sql,
         start_function_declarations,
     )
 
+    if function_id == _HANDOVER_GRANT_FUNCTION_ID:
+        # 通常引き継ぎの本文は認可資産の単一bodyを正本とする。
+        return (
+            Path(__file__).parents[4]
+            / "contracts/authz/product/function-bodies/functions"
+            / f"{function_id}.sql"
+        ).read_text(encoding="utf-8")
     if function_id == LOOKUP_FUNCTION_ID:
         return generate_lookup_function_sql()
     if function_id == ENROLL_FUNCTION_ID:

@@ -6136,6 +6136,16 @@
       "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:admin_vocabularies:display_name:pitchlog_sync_right_fn_owner.sql",
       "element_type": "column_acl_expectation",
       "element_id": "COLUMN-ACL:public:admin_vocabularies:display_name:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:initial_right_api:insert_handover_grant(uuid, uuid, uuid, uuid, uuid, uuid, bytea, bigint, bytea, bigint, bigint, bigint, bytea, text, bytea, bytea).sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:initial_right_api:insert_handover_grant(uuid, uuid, uuid, uuid, uuid, uuid, bytea, bigint, bytea, bigint, bigint, bigint, bytea, text, bytea, bytea)"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:recording_generations:retired_at:pitchlog_initial_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:recording_generations:retired_at:pitchlog_initial_fn_owner"
     }
   ]
 }

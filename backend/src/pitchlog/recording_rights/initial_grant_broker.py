@@ -29,12 +29,17 @@ from pitchlog.api.schemas.game_start import (
     InitialDeviceEnrollmentResponse,
     InitialGameStartResponse,
 )
+from pitchlog.api.schemas.handover import (
+    HandoverGrantResponse,
+    HandoverReleaseResponse,
+)
 from pitchlog.authz.database_transport import require_database_transport
 from pitchlog.db.engine import engine_connect_args
 from pitchlog.db.url import normalize_postgresql_url
 from pitchlog.recording_rights.initial_grant import (
     DurableGenerationSource,
     InitialGrant,
+    InitialGrantRecord,
     InitialGrantUnavailable,
     RecoveryEpochFence,
     V12Box,
@@ -607,8 +612,71 @@ class _ResolveStartCommand:
         self.original.__post_init__()
 
 
+@dataclass(frozen=True, slots=True)
+class _ReleaseHandoverCommand:
+    """旧保持端末の明示解放と新保持端末の指定だけを保持する。"""
+
+    identity: _BrokerIdentity = field(repr=False)
+    game_id: UUID
+    handover_request_id: UUID
+    from_device_id: UUID
+    to_device_id: UUID
+    from_generation: int
+    from_credential: SecretStr = field(repr=False)
+    from_proof: SecretStr = field(repr=False)
+    last_d1: int
+
+    def __post_init__(self) -> None:
+        """閉型・正域・秘密長だけを検査し、権利判定はSQLへ残す。"""
+        if (
+            type(self.identity) is not _BrokerIdentity
+            or any(
+                type(value) is not UUID
+                for value in (
+                    self.game_id,
+                    self.handover_request_id,
+                    self.from_device_id,
+                    self.to_device_id,
+                )
+            )
+            or type(self.from_generation) is not int
+            or not 0 < self.from_generation < 2**63
+            or type(self.last_d1) is not int
+            or self.last_d1 < 0
+        ):
+            raise _broker_invalid()
+        self.identity.__post_init__()
+        _broker_secret(self.from_credential)
+        _broker_secret(self.from_proof)
+
+
+@dataclass(frozen=True, slots=True)
+class _AcquireHandoverCommand:
+    """新保持端末が同じ引き継ぎ要求の配達を受ける。"""
+
+    identity: _BrokerIdentity = field(repr=False)
+    game_id: UUID
+    handover_request_id: UUID
+    device_id: UUID
+    device_credential: SecretStr = field(repr=False)
+
+    def __post_init__(self) -> None:
+        """閉型と資格長だけを検査する。"""
+        if type(self.identity) is not _BrokerIdentity or any(
+            type(value) is not UUID
+            for value in (self.game_id, self.handover_request_id, self.device_id)
+        ):
+            raise _broker_invalid()
+        self.identity.__post_init__()
+        _broker_secret(self.device_credential)
+
+
 type _BrokerCommand = (
-    _EnrollDeviceCommand | _StartInitialGameCommand | _ResolveStartCommand
+    _EnrollDeviceCommand
+    | _StartInitialGameCommand
+    | _ResolveStartCommand
+    | _ReleaseHandoverCommand
+    | _AcquireHandoverCommand
 )
 
 
@@ -620,15 +688,16 @@ def _broker_command_source(command: _BrokerCommand) -> dict[str, object]:
         _EnrollDeviceCommand,
         _StartInitialGameCommand,
         _ResolveStartCommand,
+        _ReleaseHandoverCommand,
+        _AcquireHandoverCommand,
     ):
         raise _broker_invalid()
     command.__post_init__()
-    selected = cast(
-        _EnrollDeviceCommand | _StartInitialGameCommand,
-        command.original if type(command) is _ResolveStartCommand else command,
+    identity = (
+        command.original.identity
+        if type(command) is _ResolveStartCommand
+        else cast(Any, command).identity
     )
-    assert type(selected) in (_EnrollDeviceCommand, _StartInitialGameCommand)
-    identity = selected.identity
     result: dict[str, object] = {
         "version": 1,
         "command": (
@@ -637,12 +706,20 @@ def _broker_command_source(command: _BrokerCommand) -> dict[str, object]:
             else "resolve_start"
             if type(command) is _ResolveStartCommand
             else "start_initial_game"
+            if type(command) is _StartInitialGameCommand
+            else "release_handover"
+            if type(command) is _ReleaseHandoverCommand
+            else "acquire_handover"
         ),
         "expected_tenant_id": str(identity.expected_tenant_id),
         "challenge": str(identity.challenge),
         "cookie": identity.cookie.get_secret_value(),
     }
-    if type(selected) is _StartInitialGameCommand:
+    if type(command) in (_StartInitialGameCommand, _ResolveStartCommand):
+        selected = (
+            command.original if type(command) is _ResolveStartCommand else command
+        )
+        assert type(selected) is _StartInitialGameCommand
         result["game_id"] = str(selected.game_id)
         result["request"] = {
             "start_request_id": str(selected.start_request_id),
@@ -651,6 +728,28 @@ def _broker_command_source(command: _BrokerCommand) -> dict[str, object]:
             "away": [_entry_json(e) for e in selected.payload.away],
             "home": [_entry_json(e) for e in selected.payload.home],
         }
+    elif type(command) is _ReleaseHandoverCommand:
+        result.update(
+            {
+                "game_id": str(command.game_id),
+                "handover_request_id": str(command.handover_request_id),
+                "from_device_id": str(command.from_device_id),
+                "to_device_id": str(command.to_device_id),
+                "from_generation": command.from_generation,
+                "from_credential": command.from_credential.get_secret_value(),
+                "from_proof": command.from_proof.get_secret_value(),
+                "last_d1": command.last_d1,
+            }
+        )
+    elif type(command) is _AcquireHandoverCommand:
+        result.update(
+            {
+                "game_id": str(command.game_id),
+                "handover_request_id": str(command.handover_request_id),
+                "device_id": str(command.device_id),
+                "device_credential": command.device_credential.get_secret_value(),
+            }
+        )
     return result
 
 
@@ -726,9 +825,32 @@ def _decode_initial_command(frame: bytes) -> _BrokerCommand:
             "enroll_device",
             "start_initial_game",
             "resolve_start",
+            "release_handover",
+            "acquire_handover",
         ):
             raise ValueError
-        keys = common if name == "enroll_device" else common | {"game_id", "request"}
+        if name in ("enroll_device", "start_initial_game", "resolve_start"):
+            keys = (
+                common if name == "enroll_device" else common | {"game_id", "request"}
+            )
+        elif name == "release_handover":
+            keys = common | {
+                "game_id",
+                "handover_request_id",
+                "from_device_id",
+                "to_device_id",
+                "from_generation",
+                "from_credential",
+                "from_proof",
+                "last_d1",
+            }
+        else:
+            keys = common | {
+                "game_id",
+                "handover_request_id",
+                "device_id",
+                "device_credential",
+            }
         if set(value) != keys or type(value["cookie"]) is not str:
             raise ValueError
         identity = _BrokerIdentity(
@@ -738,16 +860,46 @@ def _decode_initial_command(frame: bytes) -> _BrokerCommand:
         )
         if name == "enroll_device":
             return _EnrollDeviceCommand(identity)
-        request = GameStartRequest.model_validate(value["request"])
-        start = _StartInitialGameCommand(
-            identity,
-            _broker_uuid(value["game_id"]),
-            request.start_request_id,
-            request.device_id,
-            request.device_credential,
-            InitialStartPayload(_entries(request.away), _entries(request.home)),
-        )
-        command = _ResolveStartCommand(start) if name == "resolve_start" else start
+        if name == "release_handover":
+            if (
+                type(value["from_credential"]) is not str
+                or type(value["from_proof"]) is not str
+                or type(value["from_generation"]) is not int
+                or type(value["last_d1"]) is not int
+            ):
+                raise ValueError
+            command = _ReleaseHandoverCommand(
+                identity,
+                _broker_uuid(value["game_id"]),
+                _broker_uuid(value["handover_request_id"]),
+                _broker_uuid(value["from_device_id"]),
+                _broker_uuid(value["to_device_id"]),
+                value["from_generation"],
+                SecretStr(value["from_credential"]),
+                SecretStr(value["from_proof"]),
+                value["last_d1"],
+            )
+        elif name == "acquire_handover":
+            if type(value["device_credential"]) is not str:
+                raise ValueError
+            command = _AcquireHandoverCommand(
+                identity,
+                _broker_uuid(value["game_id"]),
+                _broker_uuid(value["handover_request_id"]),
+                _broker_uuid(value["device_id"]),
+                SecretStr(value["device_credential"]),
+            )
+        else:
+            request = GameStartRequest.model_validate(value["request"])
+            start = _StartInitialGameCommand(
+                identity,
+                _broker_uuid(value["game_id"]),
+                request.start_request_id,
+                request.device_id,
+                request.device_credential,
+                InitialStartPayload(_entries(request.away), _entries(request.home)),
+            )
+            command = _ResolveStartCommand(start) if name == "resolve_start" else start
         if _broker_command_source(command) != value:
             raise ValueError
         # bool/int等のPython同値性だけに頼らずwire全bytesへ逆射影して照合する。
@@ -821,17 +973,30 @@ class _BrokerReply:
     """応答の分類のみ。parse結果を実登録/開始の証拠へ昇格しない。"""
 
     status: Literal[
-        "enrolled", "started", "denied", "conflict", "unavailable", "unresolved"
+        "enrolled",
+        "started",
+        "released",
+        "acquired",
+        "denied",
+        "conflict",
+        "unavailable",
+        "unresolved",
     ]
-    value: InitialDeviceEnrollmentResponse | InitialGameStartResponse | None = field(
-        default=None, repr=False
-    )
+    value: (
+        InitialDeviceEnrollmentResponse
+        | InitialGameStartResponse
+        | HandoverReleaseResponse
+        | HandoverGrantResponse
+        | None
+    ) = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
         """未知statusを型内部にも保持せず、成功を補完しない。"""
         if type(self.status) is not str or self.status not in (
             "enrolled",
             "started",
+            "released",
+            "acquired",
             "denied",
             "conflict",
             "unavailable",
@@ -841,6 +1006,8 @@ class _BrokerReply:
         if self.value is not None and type(self.value) not in (
             InitialDeviceEnrollmentResponse,
             InitialGameStartResponse,
+            HandoverReleaseResponse,
+            HandoverGrantResponse,
         ):
             raise _broker_invalid()
 
@@ -862,6 +1029,8 @@ def _initial_reply_source(
         if type(reply.value) not in (
             InitialDeviceEnrollmentResponse,
             InitialGameStartResponse,
+            HandoverReleaseResponse,
+            HandoverGrantResponse,
         ):
             raise _broker_invalid()
         # construct/強制変更した値をserializerへ先に渡すと警告へ原値が出得る。
@@ -869,17 +1038,21 @@ def _initial_reply_source(
             "device_credential"
             if type(reply.value) is InitialDeviceEnrollmentResponse
             else "recording_right_proof"
+            if type(reply.value) in (InitialGameStartResponse, HandoverGrantResponse)
+            else None
         )
-        if type(getattr(reply.value, secret_field)) is not SecretStr:
+        if secret_field is not None and (
+            type(getattr(reply.value, secret_field)) is not SecretStr
+        ):
             raise _broker_invalid()
         checked = type(reply.value).model_validate(dict(vars(reply.value)))
         body = checked.model_dump(mode="json")
         if type(reply.value) is InitialDeviceEnrollmentResponse:
             body["device_credential"] = reply.value.device_credential.get_secret_value()
-        elif type(reply.value) is InitialGameStartResponse:
-            body["recording_right_proof"] = (
-                reply.value.recording_right_proof.get_secret_value()
-            )
+        elif type(reply.value) in (InitialGameStartResponse, HandoverGrantResponse):
+            body["recording_right_proof"] = cast(
+                Any, reply.value
+            ).recording_right_proof.get_secret_value()
         value["value"] = body
     return value
 
@@ -899,8 +1072,14 @@ def _decode_initial_reply(frame: bytes, command: _BrokerCommand) -> _BrokerReply
         status = value.get("status")
         if type(status) is not str:
             raise ValueError
-        model: InitialDeviceEnrollmentResponse | InitialGameStartResponse | None = None
-        if status in ("enrolled", "started"):
+        model: (
+            InitialDeviceEnrollmentResponse
+            | InitialGameStartResponse
+            | HandoverReleaseResponse
+            | HandoverGrantResponse
+            | None
+        ) = None
+        if status in ("enrolled", "started", "released", "acquired"):
             if set(value) != {"version", "command", "challenge", "status", "value"}:
                 raise ValueError
             if status == "enrolled" and type(command) is _EnrollDeviceCommand:
@@ -927,6 +1106,32 @@ def _decode_initial_reply(frame: bytes, command: _BrokerCommand) -> _BrokerReply
                     or model.game_id != selected.game_id
                     or model.start_request_id != selected.start_request_id
                     or model.device_id != selected.device_id
+                ):
+                    raise ValueError
+                _broker_generation(model.d4, model.tenant_id, model.game_id)
+            elif status == "released" and type(command) is _ReleaseHandoverCommand:
+                model = HandoverReleaseResponse.model_validate_json(
+                    _broker_json(value["value"])
+                )
+                if (
+                    model.tenant_id != command.identity.expected_tenant_id
+                    or model.game_id != command.game_id
+                    or model.handover_request_id != command.handover_request_id
+                    or model.from_device_id != command.from_device_id
+                    or model.to_device_id != command.to_device_id
+                    or model.from_generation != str(command.from_generation)
+                    or model.last_d1 != command.last_d1
+                ):
+                    raise ValueError
+            elif status == "acquired" and type(command) is _AcquireHandoverCommand:
+                model = HandoverGrantResponse.model_validate_json(
+                    _broker_json(value["value"])
+                )
+                if (
+                    model.tenant_id != command.identity.expected_tenant_id
+                    or model.game_id != command.game_id
+                    or model.handover_request_id != command.handover_request_id
+                    or model.device_id != command.device_id
                 ):
                     raise ValueError
                 _broker_generation(model.d4, model.tenant_id, model.game_id)
@@ -1536,6 +1741,262 @@ def _worker_resolve_start(
     return _InitialStartedGame(grant, receipt)
 
 
+def _handover_request_digest(command: _ReleaseHandoverCommand) -> bytes:
+    """同じ引き継ぎ要求の再送だけを同一attemptへ束縛するdigestを作る。"""
+    import hashlib
+
+    source = {
+        "domain": "pitchlog.recording-right.handover.v1",
+        "tenant_id": str(command.identity.expected_tenant_id),
+        "game_id": str(command.game_id),
+        "handover_request_id": str(command.handover_request_id),
+        "from_device_id": str(command.from_device_id),
+        "to_device_id": str(command.to_device_id),
+        "from_generation": command.from_generation,
+        "last_d1": command.last_d1,
+    }
+    return hashlib.sha256(
+        json.dumps(
+            source,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        ).encode("utf-8")
+    ).digest()
+
+
+def _release_handover(
+    context: TenantContext,
+    runtime: object,
+    command: _ReleaseHandoverCommand,
+    state: _WorkerState,
+    fence: RecoveryEpochFence,
+) -> HandoverReleaseResponse:
+    """旧保持端末の解放を既ledger・既V12・既SQLで一度だけ確定する。
+
+    Args:
+        context: 実Cookieから発行されたテナント文脈。
+        runtime: 実actor runtime。
+        command: 閉じた解放要求。
+        state: workerの固定ledger/actor。
+        fence: 実復旧世代の共有lock。
+
+    Returns:
+        新V12を含まない解放結果。
+
+    Raises:
+        InitialGrantConflict: 同一要求の内容が一致しない場合。
+        InitialGrantUnavailable: 権利・世代・水位を確認できない場合。
+    """
+    from datetime import timezone
+
+    from pitchlog.repositories.initial_recording_right import _StartOwner
+    from pitchlog.repositories.rg1 import (
+        assert_rg1_open_before_commit,
+        read_rg1_open,
+    )
+    from pitchlog.repositories.transaction import _initial_actor_transaction_scope
+    from pitchlog.sync.first_ball_proof import proof_digest
+
+    command.__post_init__()
+    digest = _handover_request_digest(command)
+    owner = _StartOwner(
+        context.tenant_id,
+        command.game_id,
+        command.handover_request_id,
+        command.to_device_id,
+        uuid4(),
+        digest,
+    )
+    fence.assert_held()
+    with _initial_actor_transaction_scope(context, runtime, "intent") as transaction:
+        _verify_business_binding(transaction, runtime)
+        read_rg1_open(transaction)
+        rows = transaction.run_function(
+            _BeginStartAttemptToken(
+                owner.game_id,
+                owner.start_request_id,
+                owner.device_id,
+                owner.request_digest,
+                owner.attempt_id,
+            )
+        ).rows
+        if not rows or type(rows[0][0]) is not UUID:
+            raise InitialGrantUnavailable("引き継ぎ要求を確認できない")
+        owner = replace(owner, attempt_id=rows[0][0])
+        outcome = rows[0][1]
+        assert_rg1_open_before_commit(transaction)
+        fence.assert_held()
+    released_at = datetime.now(timezone.utc)
+    if outcome == "committed":
+        # 同じ要求の再送は同じ解放結果を返し、新しい世代を発行しない。
+        return HandoverReleaseResponse(
+            tenant_id=context.tenant_id,
+            game_id=command.game_id,
+            handover_request_id=command.handover_request_id,
+            from_device_id=command.from_device_id,
+            from_generation=str(command.from_generation),
+            to_device_id=command.to_device_id,
+            last_d1=command.last_d1,
+            released_at=released_at,
+        )
+    if outcome != "pending":
+        raise InitialGrantUnavailable("引き継ぎ要求の状態を確認できない")
+    from pitchlog.repositories.initial_recording_right import (
+        _initial_recording_right_scope,
+    )
+
+    with _initial_recording_right_scope(context, owner, runtime) as scope:
+        _verify_business_binding(scope._transaction, runtime)
+        reserved = state.source.reserve(
+            owner.attempt_id,
+            context.tenant_id,
+            command.game_id,
+            command.handover_request_id,
+        )
+        if (
+            reserved.tenant_id != context.tenant_id
+            or reserved.game_id != command.game_id
+            or reserved.start_request_id != command.handover_request_id
+        ):
+            raise InitialGrantUnavailable("D4予約の所有要求が一致しない")
+        epoch = state.source.current_recovery_generation()
+        if reserved.recovery_generation != epoch or epoch != fence.generation:
+            raise InitialGrantUnavailable("復旧世代が一致しない")
+        state.source.claim(
+            owner.attempt_id,
+            context.tenant_id,
+            command.game_id,
+            command.handover_request_id,
+        )
+        proof, proof_digest_value, envelope = _actor_state(runtime).box.issue(
+            context.tenant_id,
+            command.game_id,
+            command.handover_request_id,
+            command.to_device_id,
+            reserved.generation,
+            epoch,
+        )
+        scope.insert_handover_grant(
+            InitialGrantRecord(
+                context.tenant_id,
+                command.game_id,
+                command.handover_request_id,
+                command.to_device_id,
+                reserved.generation,
+                epoch,
+                proof_digest_value,
+                envelope,
+            ),
+            from_device_id=command.from_device_id,
+            from_credential=command.from_credential.get_secret_value(),
+            from_generation=command.from_generation,
+            from_proof_digest=proof_digest(command.from_proof.get_secret_value()),
+            last_d1=command.last_d1,
+        )
+        if state.source.current_recovery_generation() != epoch:
+            raise InitialGrantUnavailable("復旧世代が一致しない")
+        from pitchlog.repositories.rg1 import read_rg1_open
+
+        read_rg1_open(scope._transaction)
+        scope.assert_handover_open_before_commit()
+        fence.assert_held()
+    fence.assert_held()
+    # proof は応答へ出さず、新保持端末の取得時だけ再交付する。
+    del proof
+    return HandoverReleaseResponse(
+        tenant_id=context.tenant_id,
+        game_id=command.game_id,
+        handover_request_id=command.handover_request_id,
+        from_device_id=command.from_device_id,
+        from_generation=str(command.from_generation),
+        to_device_id=command.to_device_id,
+        last_d1=command.last_d1,
+        released_at=released_at,
+    )
+
+
+def _acquire_handover(
+    context: TenantContext,
+    runtime: object,
+    command: _AcquireHandoverCommand,
+    state: _WorkerState,
+    fence: RecoveryEpochFence,
+) -> HandoverGrantResponse | None:
+    """新保持端末の資格を確認し、同じ要求の配達だけを再交付する。"""
+    from pitchlog.repositories.initial_recording_right import _StartOwner
+
+    command.__post_init__()
+    digest = _handover_request_digest_from_acquire(command)
+    owner = _StartOwner(
+        context.tenant_id,
+        command.game_id,
+        command.handover_request_id,
+        command.device_id,
+        uuid4(),
+        digest,
+    )
+    fence.assert_held()
+    from pitchlog.repositories.initial_recording_right import (
+        _initial_recording_right_scope,
+    )
+
+    with _initial_recording_right_scope(context, owner, runtime) as scope:
+        _verify_business_binding(scope._transaction, runtime)
+        record = scope.read_handover_grant(
+            device_id=command.device_id,
+            credential=command.device_credential.get_secret_value(),
+        )
+        if record is None:
+            return None
+        grant = InitialGrant(
+            record.game_id,
+            record.generation,
+            str(record.recovery_generation),
+            record.device_id,
+            _actor_state(runtime).box.reopen(record),
+        )
+        from pitchlog.repositories.rg1 import read_rg1_open
+
+        read_rg1_open(scope._transaction)
+        scope.assert_open_before_commit()
+    fence.assert_held()
+    return HandoverGrantResponse(
+        tenant_id=context.tenant_id,
+        game_id=command.game_id,
+        handover_request_id=command.handover_request_id,
+        device_id=grant.holder_device_id,
+        d4=encode_d4_reference(context.tenant_id, command.game_id, grant.generation),
+        recovery_generation=grant.recovery_generation,
+        recording_right_proof=SecretStr(grant.recording_right_proof),
+    )
+
+
+def _handover_request_digest_from_acquire(
+    command: _AcquireHandoverCommand,
+) -> bytes:
+    """取得側は要求IDと端末だけで固定の32byte束縛を作る。"""
+    import hashlib
+
+    source = {
+        "domain": "pitchlog.recording-right.handover.acquire.v1",
+        "tenant_id": str(command.identity.expected_tenant_id),
+        "game_id": str(command.game_id),
+        "handover_request_id": str(command.handover_request_id),
+        "device_id": str(command.device_id),
+    }
+    return hashlib.sha256(
+        json.dumps(
+            source,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        ).encode("utf-8")
+    ).digest()
+
+
 def _dispatch_initial_command(command: _BrokerCommand, runtime: object) -> _BrokerReply:
     """閉3操作だけを実Cookie→私有製品入口へ接ぎ、成功はpostcommitだけ。"""
     from pitchlog.repositories.tenant_context_issuance import (
@@ -1545,13 +2006,19 @@ def _dispatch_initial_command(command: _BrokerCommand, runtime: object) -> _Brok
     state = _worker_state(runtime)
     # 再encode/decodeで強制改変も拒否し、wire外の能力を受け取らない。
     command = _decode_initial_command(_encode_initial_command(command))
-    selected = cast(
-        _EnrollDeviceCommand | _StartInitialGameCommand,
-        command.original if type(command) is _ResolveStartCommand else command,
-    )
-    assert type(selected) in (_EnrollDeviceCommand, _StartInitialGameCommand)
+    if type(command) is _ResolveStartCommand:
+        selected_start = command.original
+        identity = selected_start.identity
+    elif type(command) in (_EnrollDeviceCommand, _StartInitialGameCommand):
+        selected_start = command if type(command) is _StartInitialGameCommand else None
+        identity = cast(Any, command).identity
+    elif type(command) in (_ReleaseHandoverCommand, _AcquireHandoverCommand):
+        selected_start = None
+        identity = cast(Any, command).identity
+    else:
+        raise _broker_invalid()
     verified = _issue_initial_broker_context(
-        selected.identity.cookie, selected.identity.expected_tenant_id, state.verifier
+        identity.cookie, identity.expected_tenant_id, state.verifier
     )
     if verified is None:
         return _BrokerReply("denied")
@@ -1565,21 +2032,46 @@ def _dispatch_initial_command(command: _BrokerCommand, runtime: object) -> _Brok
         except InitialGrantUnavailable:
             return _BrokerReply("unavailable")
         return _BrokerReply("enrolled", response)
-    assert type(selected) is _StartInitialGameCommand
+    if type(command) in (_ReleaseHandoverCommand, _AcquireHandoverCommand):
+        try:
+            with state.source.recovery_fence() as fence:
+                if type(command) is _ReleaseHandoverCommand:
+                    release = _release_handover(
+                        context, state.actor, command, state, fence
+                    )
+                    fence.assert_held()
+                    return _BrokerReply("released", release)
+                acquired = _acquire_handover(
+                    context,
+                    state.actor,
+                    cast(_AcquireHandoverCommand, command),
+                    state,
+                    fence,
+                )
+                if acquired is None:
+                    return _BrokerReply("unresolved")
+                fence.assert_held()
+                return _BrokerReply("acquired", acquired)
+        except Exception as error:
+            from pitchlog.recording_rights.initial_grant import InitialGrantConflict
+
+            conflict = isinstance(error, InitialGrantConflict)
+        return _BrokerReply("conflict" if conflict else "unresolved")
+    assert type(selected_start) is _StartInitialGameCommand
     try:
         with state.source.recovery_fence() as fence:
             if type(command) is _ResolveStartCommand:
-                result = _worker_resolve_start(selected, context, state, fence)
+                result = _worker_resolve_start(selected_start, context, state, fence)
                 if result is None:
                     return _BrokerReply("unresolved")
                 owner = result.receipt.owner
             else:
-                bound = _worker_start_bound(selected, context.tenant_id, uuid4())
+                bound = _worker_start_bound(selected_start, context.tenant_id, uuid4())
                 result = _start_initial_game(
                     context,
                     state.actor,
                     bound,
-                    selected.device_credential.get_secret_value(),
+                    selected_start.device_credential.get_secret_value(),
                     state.source,
                     fence,
                 )
