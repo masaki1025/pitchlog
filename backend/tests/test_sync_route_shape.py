@@ -42,6 +42,24 @@ def test_d1_event_without_d2_is_out_of_scope() -> None:
         _request_path({"events": [_event()]})
 
 
+def test_single_player_registration_is_p1() -> None:
+    """単一のその場登録だけをP1として受ける。"""
+    assert _request_path({"events": [_event(event_kind="player_registration")]}) == "P1"
+
+
+def test_player_registration_cannot_mix_with_other_events() -> None:
+    """その場登録を他のイベントと同じ要求へ混ぜない。"""
+    with pytest.raises(_E1OutOfScope):
+        _request_path(
+            {
+                "events": [
+                    _event(event_kind="player_registration"),
+                    _event(d2=1),
+                ]
+            }
+        )
+
+
 @pytest.mark.parametrize(
     "payload",
     [{}, {"events": []}, {"events": "x"}, {"events": [1]}, "not-object", None],

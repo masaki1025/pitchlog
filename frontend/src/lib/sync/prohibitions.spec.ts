@@ -138,6 +138,7 @@ const EXPECTED_PRODUCT_FILE_NAMES = [
   'syncEvent.ts',
   'syncNotices.ts',
   'temporaryIdMapping.ts',
+  'temporaryPlayerMappingStore.ts',
   'undoQueueing.ts',
   'validateSyncEvent.ts',
 ] as const
@@ -330,6 +331,11 @@ const EXPECTED_VALUE_EXPORTS = {
     'TEMPORARY_ID_MAPPING_RULES',
     'TemporaryIdMapping',
     'assertD5IsNotTemporary',
+  ],
+  'temporaryPlayerMappingStore.ts': [
+    'TemporaryPlayerMappingConflictError',
+    'TemporaryPlayerMappingError',
+    'TemporaryPlayerMappingStore',
   ],
   'undoQueueing.ts': ['queueUndoEvent'],
   'validateSyncEvent.ts': [
@@ -564,6 +570,7 @@ const EXPECTED_TYPE_EXPORTS = {
     'TemporaryIdMappingRecord',
     'TemporaryIdProvenance',
   ],
+  'temporaryPlayerMappingStore.ts': ['TemporaryPlayerMappingRecord'],
   'undoQueueing.ts': [
     'UndoOperationResolution',
     'UndoOperationResolver',

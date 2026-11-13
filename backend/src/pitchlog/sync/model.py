@@ -288,6 +288,7 @@ class SyncRequest:
                 "state_diff",
                 "replacement_state",
                 "target_reference",
+                "registration",
             }
         )
         for raw_event in raw_events:

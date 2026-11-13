@@ -37,7 +37,12 @@ import {
 import type { RawSubstitutionDraft } from './GameScreenSubstitutionTypes'
 
 export type SubstitutionProductResult =
-  'ready' | 'saved' | 'saved-awaiting-read' | 'pending' | 'blocked'
+  | 'ready'
+  | 'saved'
+  | 'saved-awaiting-read'
+  | 'pending'
+  | 'awaiting-registration'
+  | 'blocked'
 
 type Resources = {
   queue: DurableQueue
@@ -239,12 +244,13 @@ export class GameScreenSubstitutionProductController {
   async #resumePrepared(): Promise<SubstitutionProductResult> {
     const prepared = await this.#prepared()
     if (!prepared) return 'ready'
+    if (prepared.event.fields.V5 !== SUBSTITUTION_KIND.id)
+      return 'awaiting-registration'
     await this.#read()
     const c = this.#context!
     const r = this.#resources!
     const payload = prepared.event.fields.V7
     if (
-      prepared.event.fields.V5 !== SUBSTITUTION_KIND.id ||
       !isSubstitutionPayload(payload) ||
       !sameOrdinaryWire(payload.expectedCheckpoint, c.checkpoint) ||
       c.nextD1 !== prepared.d1 ||
@@ -322,9 +328,12 @@ export class GameScreenSubstitutionProductController {
     try {
       await this.#read()
       await this.#open()
-      return (await this.#oldest()) || (await this.#prepared())
-        ? 'pending'
-        : 'ready'
+      const oldest = await this.#oldest()
+      if (oldest)
+        return oldest.event.fields.V5 === SUBSTITUTION_KIND.id
+          ? 'pending'
+          : 'awaiting-registration'
+      return (await this.#prepared()) ? 'pending' : 'ready'
     } catch {
       this.#context = null
       return 'blocked'
@@ -348,8 +357,12 @@ export class GameScreenSubstitutionProductController {
         { gameIdentifier: this.#gameId },
         async () => {
           this.#assert()
-          if ((await this.#oldest()) || (await this.#prepared()))
-            return 'pending'
+          const oldest = await this.#oldest()
+          if (oldest)
+            return oldest.event.fields.V5 === SUBSTITUTION_KIND.id
+              ? 'pending'
+              : 'awaiting-registration'
+          if (await this.#prepared()) return 'pending'
           await this.#read()
           const c = this.#context!
           const r = this.#resources!
@@ -433,7 +446,7 @@ export class GameScreenSubstitutionProductController {
           this.#assert()
           const slot = await this.#oldest()
           if (slot && slot.event.fields.V5 !== SUBSTITUTION_KIND.id)
-            return 'pending'
+            return 'awaiting-registration'
           return slot ? this.#send(slot) : this.#resumePrepared()
         },
         this.#injections(),

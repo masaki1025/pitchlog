@@ -253,6 +253,35 @@ def test_s1_payload_keeps_s2_values() -> None:
     assert d1_request.v12 == 12
 
 
+def test_s1_payload_keeps_registration_supplement() -> None:
+    """その場登録の registration を S-1 の外形として受理する。"""
+    request = SyncRequest.from_payload(
+        "P1",
+        GAME,
+        {
+            "events": [
+                {
+                    "d5": D5,
+                    "game_id": GAME,
+                    "d1": 1,
+                    "d4": "opaque",
+                    "event_kind": "player_registration",
+                    "payload": {"player_id": D5},
+                    "registration": {
+                        "temporary_id": D5,
+                        "team_record_id": GAME,
+                        "name": "選手",
+                        "roster_status_key": "active",
+                    },
+                }
+            ],
+            "recording_right_proof": "proof",
+        },
+    )
+    assert request.path == "P1"
+    assert request.events[0].v5 == "player_registration"
+
+
 def test_duplicate_d5_is_left_for_processing() -> None:
     """D5 の重複は S-1 で拒否せず、処理段階へ渡す。"""
     request = _request(events=(_event(), _event(d1=2)))
@@ -351,6 +380,14 @@ def test_unregistered_port_is_rejected_before_call() -> None:
             ("pitchlog.sync.past_correction_ports", "PastCorrectionProjectionPort"),
             ("pitchlog.sync.substitution_ports", "SubstitutionContentValidationPort"),
             ("pitchlog.sync.substitution_ports", "SubstitutionProjectionPort"),
+            (
+                "pitchlog.sync.player_registration_ports",
+                "PlayerRegistrationContentValidationPort",
+            ),
+            (
+                "pitchlog.sync.player_registration_ports",
+                "PlayerRegistrationProjectionPort",
+            ),
         }
     )
     import pitchlog.sync.first_ball_projection  # noqa: F401  # 登録集合の固定bootstrap

@@ -211,10 +211,35 @@ it('その場登録の回答を正式な選手作成入力へ写し、不正は�
 })
 
 it('登録失敗を入力拒否と結果不明へ分ける', () => {
-  const rejected = registrationFailure(new ApiError(422, 'invalid', [], undefined, undefined))
+  const rejected = registrationFailure(
+    new ApiError(422, 'invalid', [], undefined, undefined),
+  )
   expect(rejected.reload).toBe(false)
   expect(rejected.message).toContain('入力内容')
   const unknown = registrationFailure(new Error('network'))
   expect(unknown.reload).toBe(true)
   expect(unknown.message).toContain('登録結果を確認できません')
+})
+
+it('未確定の断中登録を候補に出し、交代の確定は保留する', () => {
+  const c = context()
+  const temporaryId = 'ffffffff-ffff-4fff-8fff-ffffffffffff'
+  const pending = [{ temporaryId, name: '断中新人', side: 'home' as const }]
+  const request = substitutionRequest(c, pending)
+  expect(
+    request.operations.find((operation) => operation.kind === 'pitcher')
+      ?.incoming,
+  ).toContainEqual({ id: temporaryId, label: '断中新人（登録未確定）' })
+
+  const input = draft(c)
+  const held = {
+    ...input,
+    incomingId: temporaryId,
+    answers: { ...input.answers, side: 'home' },
+  }
+  expect(validateSubstitutionDraft(c, held, pending)).toMatchObject({
+    kind: 'pending',
+    messages: ['選手登録の確定を待っています'],
+  })
+  expect(prepareSubstitution(c, held, d5, eventId)).toBeNull()
 })

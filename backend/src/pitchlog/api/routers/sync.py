@@ -99,6 +99,11 @@ from pitchlog.sync.past_correction_preparation import (
 from pitchlog.sync.past_correction_projection import PastCorrectionProjectionError
 from pitchlog.sync.past_correction_rights import PastCorrectionRecordingRightsPort
 from pitchlog.sync.play_export_producer import PlayExportWriterUnavailable
+from pitchlog.sync.player_registration_ports import (
+    PlayerRegistrationContentValidationPort,
+    PlayerRegistrationProjectionPort,
+)
+from pitchlog.sync.player_registration_wire import read_player_registrations
 from pitchlog.sync.source_binding import (
     SourceBindingError,
     _e1_receipt_scope,
@@ -136,7 +141,7 @@ def _phase_id(attempt: UUID, request_fingerprint: str) -> UUID:
 
 
 def _request_path(payload: object) -> Literal["P1", "P2"]:
-    """既P2と単一取消P1だけを選ぶ。V7の意味検査はD5照合後に行う。"""
+    """既P2と単一取消・その場登録のP1だけを選ぶ。V7の意味検査はD5照合後に行う。"""
     if not isinstance(payload, dict):
         raise RequestShapeError("S-1: 本文が object ではない")
     if "change" in payload:
@@ -151,6 +156,13 @@ def _request_path(payload: object) -> Literal["P1", "P2"]:
         if len(events) == 1:
             return "P1"
         raise _E1OutOfScope("取消は単一イベントP1だけを提供する")
+    if any(
+        isinstance(event, dict) and event.get("event_kind") == "player_registration"
+        for event in events
+    ):
+        if len(events) == 1:
+            return "P1"
+        raise _E1OutOfScope("その場登録は単一イベントP1だけを提供する")
     if any(isinstance(event, dict) and "d2" in event for event in events):
         return "P2"
     raise _E1OutOfScope("本入口は初球P2に限定する")
@@ -453,14 +465,23 @@ def sync_events(
         raw_events = payload["events"]
         if not isinstance(raw_events, list):
             raise RequestShapeError("S-1: イベント列が必要")
+        raw_event_values = tuple(
+            dict(event) for event in cast(list[Mapping[str, object]], raw_events)
+        )
+        registrations = read_player_registrations(raw_event_values)
         source = freeze_wire_source(
             game_id=sync_request.game_id,
             d4=str(sync_request.d4),
-            raw_events=tuple(
-                dict(event) for event in cast(list[Mapping[str, object]], raw_events)
-            ),
+            raw_events=raw_event_values,
         )
-    except (_E1OutOfScope, RequestShapeError, WireSourceError, KeyError, TypeError):
+    except (
+        _E1OutOfScope,
+        RequestShapeError,
+        WireSourceError,
+        KeyError,
+        TypeError,
+        ValueError,
+    ):
         raise HTTPException(status_code=422) from None
     # ②B5の実端末資格を確認してから、③B6/④D5の再掲分類へ進む。
     try:
@@ -563,10 +584,12 @@ def sync_events(
                 and isinstance(event.v7, Mapping)
                 and event.v7.get("formatVersion") == "substitution-event-v1"
             )
+            registration = event.v5 == "player_registration"
             if (
                 not undo
                 and not lifecycle
                 and not substitution
+                and not registration
                 and isinstance(event.v7, Mapping)
                 and event.v7.get("formatVersion")
                 not in {
@@ -594,6 +617,8 @@ def sync_events(
                     if undo
                     else SubstitutionProjectionPort()
                     if substitution
+                    else PlayerRegistrationProjectionPort()
+                    if registration
                     else LineupPrefixProjectionPort()
                     if lineup_prefix
                     else PlayPrefixProjectionPort()
@@ -609,6 +634,8 @@ def sync_events(
                     if undo
                     else SubstitutionContentValidationPort()
                     if substitution
+                    else PlayerRegistrationContentValidationPort()
+                    if registration
                     else LineupPrefixContentValidationPort()
                     if lineup_prefix
                     else PlayPrefixContentValidationPort()
@@ -617,6 +644,7 @@ def sync_events(
                     if ordinary
                     else FirstBallContentValidationPort()
                 ),
+                registrations=registrations,
             )
     except _E1OutOfScope:
         raise HTTPException(status_code=501) from None

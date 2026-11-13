@@ -51,6 +51,13 @@ export type VerifiedSubstitutionContext = Readonly<{
   uniformNumbers: Readonly<Record<string, string | null>>
 }>
 
+/** 断中登録のうち、まだ正式 ID が確定していない選手の画面候補。 */
+export type PendingRegistrationChoice = Readonly<{
+  temporaryId: string
+  name: string
+  side: Side
+}>
+
 export type PreparedSubstitution = Readonly<{
   event: SyncEvent
   prediction: Extract<SubstitutionResult, { ok: true }>
@@ -214,6 +221,7 @@ const registrationQuestions: readonly SubstitutionQuestion[] = [
 /** 選手候補と設問はGET由来の実配置・実在籍から供給し、画面に意味判定を置かない。 */
 export function substitutionRequest(
   c: VerifiedSubstitutionContext,
+  pendingRegistrations: readonly PendingRegistrationChoice[] = [],
 ): SubstitutionRequest {
   const operations: SubstitutionOperationSupply[] = []
   for (const kind of [
@@ -241,6 +249,15 @@ export function substitutionRequest(
       ...c.eligibleBySide.away,
       ...c.eligibleBySide.home,
     ].filter((player) => !c.state.exitedPlayerIds.includes(player.id))
+    // 断中登録は正式 ID が確定するまで選べるが、交代の確定は保留する。
+    for (const pending of pendingRegistrations) {
+      if (!incoming.some((player) => player.id === pending.temporaryId)) {
+        incoming.push({
+          id: pending.temporaryId,
+          label: `${pending.name}（登録未確定）`,
+        })
+      }
+    }
     operations.push({
       kind,
       outgoing: choices(c, [...outgoing]),
@@ -401,10 +418,47 @@ function operation(
   return null
 }
 
+function pendingRegistrationIds(
+  pendingRegistrations: readonly PendingRegistrationChoice[],
+): ReadonlySet<string> {
+  return new Set(pendingRegistrations.map((pending) => pending.temporaryId))
+}
+
+function draftUsesPendingRegistration(
+  draft: RawSubstitutionDraft,
+  pending: ReadonlySet<string>,
+): boolean {
+  if (draft.incomingId !== null && pending.has(draft.incomingId)) return true
+  const changes = draft.answers['changes']
+  return Array.isArray(changes)
+    ? changes.some(
+        (change) =>
+          change !== null &&
+          typeof change === 'object' &&
+          typeof (change as { incomingId?: unknown }).incomingId === 'string' &&
+          pending.has((change as { incomingId: string }).incomingId),
+      )
+    : false
+}
+
 export function validateSubstitutionDraft(
   c: VerifiedSubstitutionContext,
   draft: RawSubstitutionDraft,
+  pendingRegistrations: readonly PendingRegistrationChoice[] = [],
 ): SubstitutionValidation {
+  // 一時 ID のまま交代を確定しない。写像が確定するまで保留として表示する。
+  if (
+    draftUsesPendingRegistration(
+      draft,
+      pendingRegistrationIds(pendingRegistrations),
+    )
+  ) {
+    return {
+      identity: draft.identity,
+      kind: 'pending',
+      messages: ['選手登録の確定を待っています'],
+    }
+  }
   const selected = operation(c, draft)
   const candidate =
     selected &&
