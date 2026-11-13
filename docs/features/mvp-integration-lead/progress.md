@@ -41,6 +41,14 @@
   - **P2**: 打球語彙cacheの破棄が認証watchの `immediate` に依存し、同tenantの再表示でも毎回消え、フォーム非表示中の認証切替では残った。`noteBattedBallAuthKey` を導入し、認証キーが変わった時だけ一度破棄する（初回マウント・同tenant再表示では保持）。
 - ACK喪失E2Eは是正後も **1 passed / 105.31秒**。
 
+### 2026-11-13 18:45 タイブレーク開始の接続候補を隔離ブランチへ前進
+
+- `feature/mvp-tiebreak-pipeline-20261113` HEAD **`446ff9da`** に、タイブレーク開始の実画面パネル・E1保存・非play read/receipt・契約schema/型・投影検証を接続してpushした。統合ブランチへは未マージ。
+- 実画面 `GameScreenOrdinaryPitch.vue` は、`tiebreakStartRequired` の時だけ規則適合選手を選ぶパネルを表示し、`submitTiebreakStart` が既存の単一writer・耐久queue・ACKで `tiebreak_start` を送る。成功後は再取得まで追加入力を止める。
+- 検証: フロント全件 **217 files / 4145 tests passed**、タイブレーク投影 **5 passed**、非play/交代 **147 passed**。
+- 統合前に必要な正式追随: 新artifact `bb6768ea...` のv7 compatibility witness、`test_function_operations_boundary` のregistry 1件、past-correction系9件の再pin、`test_sync_apply_product_supply` の関数供給。タイブレーク画面の実DB/実画面E2Eは未実施。
+- 並行トラックを分離worktreeで開始: `feature/mvp-formal-repin-20261113`（446ff9da起点）、`feature/mvp-rules-20261113`（12047cad起点）、`feature/mvp-performance-20261113`（12047cad起点）。
+
 ### 2026-11-13 08:10 タイブレーク候補の隔離前進
 
 - 別worktree `feature/mvp-tiebreak-pipeline-20261113`（HEAD `20839a5e`、リモートpush済み）へ、タイブレーク開始の**artifact入口**と非play保存骨格を固定した。統合ブランチへは未マージ。
