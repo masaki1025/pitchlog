@@ -1255,7 +1255,16 @@ BEGIN
  AND n.internal_generation=e.generation AND n.d5=e.d5
  AND n.wire_d4=head->>'generation' AND n.state='right_verified'
  AND n.event_fingerprint=l.source_fingerprint
- AND sr.xmin=e.xmin AND n.xmin=e.xmin AND l.xmin=e.xmin)))
+ AND sr.xmin=e.xmin AND n.xmin=e.xmin AND l.xmin=e.xmin
+ UNION ALL SELECT 1 FROM sync_fence.tiebreak_start_write_receipts tr
+ JOIN sync_fence.nonplay_write_admissions n ON
+ (n.tenant_id,n.attempt_id,n.phase_id)=(tr.tenant_id,tr.attempt_id,tr.phase_id)
+ WHERE tr.tenant_id=e.tenant_id AND tr.source_event_id=e.id
+ AND tr.checkpoint_id=cp.id AND tr.source_d1=e.d1
+ AND n.internal_generation=e.generation AND n.d5=e.d5
+ AND n.wire_d4=head->>'generation' AND n.state='right_verified'
+ AND n.event_fingerprint=l.source_fingerprint
+ AND tr.xmin=e.xmin AND n.xmin=e.xmin AND l.xmin=e.xmin)))
  OR cp.content->'content'->'d1Head'->'source'->>'d1' IS DISTINCT FROM p_d3::text
  OR (cp.content->'content'->>'nextPhysicalPlayNumber')::bigint IS DISTINCT FROM
  (SELECT COALESCE(pg_catalog.max(pr.play_number),0)+1 FROM public.play_rows pr

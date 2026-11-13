@@ -1191,9 +1191,6 @@ def _require_started_read_token(
         from pitchlog.repositories.lifecycle_function_operations import (
             LifecycleDisplayToken,
         )
-        from pitchlog.repositories.nonplay_prefix_read_operations import (
-            NonplayActiveHistoryReadToken,
-        )
         from pitchlog.repositories.ordinary_order import OrdinaryOrderSummaryToken
         from pitchlog.repositories.ordinary_prefix_operations import (
             OrdinaryCheckpointReadToken,
@@ -1229,7 +1226,6 @@ def _require_started_read_token(
             StartedOrdinaryHistoryPageToken,
             StartedPlayPrefixHistoryPageToken,
             StartedNonplayActiveHistoryReadToken,
-            NonplayActiveHistoryReadToken,
             ViewerEffectiveVersionReadToken,
             ViewerPlayPrefixHistoryPageToken,
         }

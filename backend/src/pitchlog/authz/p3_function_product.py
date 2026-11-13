@@ -82,7 +82,7 @@ _OLD_PINS = {
         "FUNCTION:sync_right_api:read_nonplay_active_history(uuid, uuid,"
         " bigint, uuid, bigint, bigint, bigint, bigint, bigint, bigint, "
         "uuid, integer)"
-    ): ("827d7b9adf2aa609450f43a1a23bf28f1dd77e611e8bab6dddb16ad79afb4685"),
+    ): ("269bde399776b4e1647c6c73ecbb9dc8d372376ecbe28062647f1e5657081747"),
     (
         "FUNCTION:sync_right_api:read_nonplay_history_page(uuid, uuid, u"
         "uid, bytea, uuid, uuid, text)"

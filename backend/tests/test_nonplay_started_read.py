@@ -137,9 +137,8 @@ async def test_nonplay_get_in_rr_scope_uses_unlocked_page(monkeypatch):
         )
     assert response.status_code == 200
     assert response.json()["read_kind"] == "nonplay-prefix"
-    # 非play CPはplay-onlyのGET専用関数ではなく非play受理印を照合するreaderで読む。
-    assert NonplayActiveHistoryReadToken in calls
-    assert StartedNonplayActiveHistoryReadToken not in calls
+    assert StartedNonplayActiveHistoryReadToken in calls
+    assert NonplayActiveHistoryReadToken not in calls
     assert not any(
         type(token) in {GameLockToken, RecordingGenerationLockToken}
         for token in bundle.calls
