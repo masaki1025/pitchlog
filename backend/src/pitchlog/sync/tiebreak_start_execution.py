@@ -49,6 +49,7 @@ class _Execution:
     anchor: tuple | None = None
     projected: SyncEvent | None = None
     projection_call: object = None
+    native_anchor: tuple | None = None
 
 
 _EXECUTIONS: dict[object, _Execution] = {}

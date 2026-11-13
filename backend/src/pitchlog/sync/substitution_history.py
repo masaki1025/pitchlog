@@ -29,7 +29,12 @@ def verify_substitution_gaps(
         content = source["checkpoint"]["content"]
         stack = source["activeStack"]
         substitutions = content.get("substitutionFrames", [])
-        if type(stack) is not list or type(substitutions) is not list:
+        tiebreaks = content.get("tiebreakFrames", [])
+        if (
+            type(stack) is not list
+            or type(substitutions) is not list
+            or type(tiebreaks) is not list
+        ):
             raise SubstitutionHistoryError("交代履歴の配列が不一致")
         by_anchor: dict[str | None, list] = {}
         controls: dict[str, list] = {}
@@ -37,20 +42,24 @@ def verify_substitution_gaps(
         seen_ids: set[str] = set()
         seen_d5: set[str] = set()
         play_ids = {frame["play"]["playId"] for frame in stack}
-        for frame in substitutions:
+        for frame in [*substitutions, *tiebreaks]:
             source_ref = frame["source"]
             anchor = frame["afterPlayId"]
             identity = (source_ref["generation"], source_ref["d1"])
+            event_kind = source_ref["eventKind"]
             if (
-                source_ref["eventKind"] != "substitution"
+                event_kind not in {"substitution", "tiebreak_start"}
                 or source_ref["gameId"] != content["scope"]["gameId"]
                 or (anchor is not None and anchor not in play_ids)
                 or identity in seen_events
                 or source_ref["eventId"] in seen_ids
                 or source_ref["d5"] in seen_d5
-                or "substitutionState" not in frame["afterContext"]
+                or (
+                    event_kind == "substitution"
+                    and "substitutionState" not in frame["afterContext"]
+                )
             ):
-                raise SubstitutionHistoryError("交代frameの参照が不一致")
+                raise SubstitutionHistoryError("交代/タイブレークframeの参照が不一致")
             seen_events.add(identity)
             seen_ids.add(source_ref["eventId"])
             seen_d5.add(source_ref["d5"])

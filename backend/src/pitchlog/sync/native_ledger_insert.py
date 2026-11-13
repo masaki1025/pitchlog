@@ -189,8 +189,29 @@ def _fresh(minimum, writer, event, token, expected: _Fresh | None = None) -> _Fr
     _minimum(handle, minimum)
     from pitchlog.sync import lifecycle_execution as lifecycle
     from pitchlog.sync import substitution_execution as substitution
+    from pitchlog.sync import tiebreak_start_execution as tiebreak
     from pitchlog.sync import undo_execution as undo
 
+    if minimum.key in tiebreak._EXECUTIONS:
+        if any(
+            value is not None
+            for value in (
+                first._EXECUTIONS.get(minimum.key),
+                ordinary._EXECUTIONS.get(minimum.key),
+                undo._EXECUTIONS.get(minimum.key),
+                substitution._EXECUTIONS.get(minimum.key),
+                lifecycle._EXECUTIONS.get(minimum.key),
+            )
+        ):
+            raise NativeLedgerInsertError
+        return _fresh_tiebreak(
+            minimum,
+            writer,
+            event,
+            token,
+            expected,
+            tiebreak._EXECUTIONS[minimum.key],
+        )
     if minimum.key in lifecycle._EXECUTIONS:
         if any(
             x.get(minimum.key) is not None
@@ -199,6 +220,7 @@ def _fresh(minimum, writer, event, token, expected: _Fresh | None = None) -> _Fr
                 ordinary._EXECUTIONS,
                 undo._EXECUTIONS,
                 substitution._EXECUTIONS,
+                tiebreak._EXECUTIONS,
             )
         ):
             raise NativeLedgerInsertError
@@ -211,6 +233,7 @@ def _fresh(minimum, writer, event, token, expected: _Fresh | None = None) -> _Fr
                 ordinary._EXECUTIONS.get(minimum.key),
                 undo._EXECUTIONS.get(minimum.key),
                 lifecycle._EXECUTIONS.get(minimum.key),
+                tiebreak._EXECUTIONS.get(minimum.key),
             )
         ):
             raise NativeLedgerInsertError
@@ -221,6 +244,7 @@ def _fresh(minimum, writer, event, token, expected: _Fresh | None = None) -> _Fr
             or ordinary._EXECUTIONS.get(minimum.key) is not None
             or lifecycle._EXECUTIONS.get(minimum.key) is not None
             or substitution._EXECUTIONS.get(minimum.key) is not None
+            or tiebreak._EXECUTIONS.get(minimum.key) is not None
         ):
             raise NativeLedgerInsertError
         return _fresh_undo(minimum, writer, event, token, expected)
@@ -388,6 +412,110 @@ def _fresh(minimum, writer, event, token, expected: _Fresh | None = None) -> _Fr
     ):
         raise NativeLedgerInsertError
     _minimum(handle, minimum)
+    return result
+
+
+def _fresh_tiebreak(
+    minimum,
+    writer,
+    event,
+    token,
+    expected: _Fresh | None,
+    state,
+) -> _Fresh:
+    """タイブレーク開始の実評価frameを再確認し、play用StatsStateを作らない。"""
+    from pitchlog.sync import tiebreak_start_execution as tiebreak
+
+    handle = minimum.handle
+    _minimum(handle, minimum)
+    if type(state) is not tiebreak._Execution or state.phase != "ready":
+        raise NativeLedgerInsertError
+    source = state.source
+    if type(source) is not _E1CoreSource:
+        raise NativeLedgerInsertError
+    bound, phase, anchor = source.bound, source.phase, state.anchor
+    if (
+        state.handle is not handle
+        or state.writer is not writer
+        or state.event is not event
+        or state.runtime is not minimum.runtime
+        or source.scope is not handle
+        or source.context is not minimum.context
+        or source.event is not event
+        or source.write_started is not True
+        or type(bound) is not _LiveWriterBinding
+        or _LIVE_BINDINGS.get(minimum.key) is not bound
+        or bound._handle is not handle
+        or bound._used is not False
+        or bound._owner[0] is not minimum.lifetime[0]
+        or bound._owner[1] is not minimum.lifetime[1]
+        or type(phase) is not EventPhaseBinding
+        or phase.attempt.tenant_id != minimum.context.tenant_id
+        or phase.attempt.game_id != UUID(event.game_id)
+        or phase.d1 != event.d1
+        or phase.d5 != UUID(event.d5)
+        or type(anchor) is not tuple
+        or len(anchor) != 7
+        or anchor[0] is not state.frame
+        or anchor[1] is not state.prefix
+        or anchor[2] is not state.payload
+        or anchor[3] != state.artifact
+        or type(bound._lease.nonce) is not bytes
+        or len(bound._lease.nonce) != 32
+        or bound._lease._phase_snapshot != bound._phase_snapshot
+        or type(writer) is not PortWriter
+        or writer._active is not True
+        or getattr(writer._execute, "__self__", None) is not handle
+        or getattr(writer._execute, "__func__", None)
+        is not transaction._TenantTransaction.run
+        or state.prefix is None
+        or state.before is None
+        or state.after is None
+        or state.evidence is None
+        or state.fingerprint != token.source_fingerprint
+        or event.v5 != "tiebreak_start"
+        or _json(state.payload.to_wire()) != _json(event.v7)
+    ):
+        raise NativeLedgerInsertError
+    _check_token(token, event, phase.event_fingerprint)
+    if state.native_anchor is None:
+        state.native_anchor = (
+            state.frame,
+            state.prefix,
+            state.payload,
+            bound,
+            bound._lease,
+            phase,
+            bound._lease.nonce,
+            bound._phase_snapshot,
+        )
+    fresh_anchor = state.native_anchor
+    result = _Fresh(
+        minimum,
+        writer,
+        event,
+        state,
+        source,
+        bound,
+        bound._lease,
+        phase,
+        fresh_anchor,
+        bound._lease.nonce,
+        bound._phase_snapshot,
+        "tiebreak-start-event-v1",
+    )
+    if expected is not None and (
+        result.state is not expected.state
+        or result.source is not expected.source
+        or result.bound is not expected.bound
+        or result.lease is not expected.lease
+        or result.phase is not expected.phase
+        or result.anchor is not expected.anchor
+        or result.nonce != expected.nonce
+        or result.snapshot != expected.snapshot
+        or result.mode != expected.mode
+    ):
+        raise NativeLedgerInsertError
     return result
 
 
