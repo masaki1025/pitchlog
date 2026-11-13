@@ -50,3 +50,12 @@
 
 - `tests/test_sync_apply_product_supply.py` は 2642 passed / 4 failed。
 - 残りは batted source extension reference の後継（terminal 30文のうち変更された読み取り関数）と stats extension pin の再導出。`catalog_after_revision` の後継受理が必要。
+
+
+## 2026-11-14 追試2（HEAD `84ec5b7d`）
+
+- 9回54frameのnonplay source chainに `tiebreakFrames` を接続し、`NonplaySourceUnavailable: 交代frameの連結が不一致` を解消した。
+- タイブレーク開始のnative台帳へ `_fresh_tiebreak` を追加し、実評価frameの同一性・lease・phase・payloadを保持した。
+- 画面は非play CP refを `readCompleteUndoGame` から取得し、タイブレーク開始POSTまで到達。
+- 残る停止: `consume_nonplay_tiebreak_start` のSQL実行後に `psycopg.errors.InFailedSqlTransaction: current transaction is aborted` が返る。先のSQLエラーが後続の `assert_writer_binding` で隠れており、元エラーの特定が必要。
+- このため `test_tiebreak_screen_e2e.py` は skip を維持。タイブレーク保存成功・生還・交代・再配置・reloadは未通過。
