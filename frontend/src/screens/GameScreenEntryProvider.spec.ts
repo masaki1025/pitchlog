@@ -71,15 +71,19 @@ function button(wrapper: VueWrapper, text: string) {
 }
 function providerProbe(
   capture: (value: ReturnType<typeof usePreparingEntryProvider>) => void,
+  kind: 'list' | 'detail' = 'list',
 ) {
   return defineComponent({
     setup() {
-      const value = usePreparingEntryProvider('list')
+      const value = usePreparingEntryProvider(kind)
       capture(value)
       return () =>
         h(
           'div',
-          value.page.value?.data?.items[0]?.label ?? value.page.value?.status,
+          kind === 'list'
+            ? (value.page.value?.data?.items[0]?.label ??
+                value.page.value?.status)
+            : (value.preparing.value?.status ?? ''),
         )
     },
   })
@@ -225,6 +229,36 @@ it.each([404, 403, 503, 200])(
     expect(detailCalls()).toBe(2)
   },
 )
+it('再読込した詳細は保存済み7回snapshotを再計算せず同じ6-keyで返す', async () => {
+  const stored = {
+    ruleSetId: '0b6f9c52-6f4d-5b1e-9f3a-6d2c8a4e7b10',
+    regulationInnings: 7,
+    coldConditions: [],
+    extensionLimit: 9,
+    tiebreak: null,
+    dh: true,
+  }
+  fetchMock.mockImplementation(async (url, init) =>
+    response(
+      String(url) === `/api/games/${id}`
+        ? { ...game, applied_rules: stored }
+        : { items: [game], next_cursor: null },
+      init,
+    ),
+  )
+  const router = createAppRouter(createMemoryHistory())
+  await router.push(`/games/${id}/record`)
+  let provider: ReturnType<typeof usePreparingEntryProvider> | undefined
+  const probe = providerProbe((value) => {
+    provider = value
+  }, 'detail')
+  const wrapper = mount(probe, {
+    global: { plugins: [{ install: installAppProviders }, router] },
+  })
+  wrappers.push(wrapper)
+  await flushPromises()
+  expect(provider?.preparing.value?.data?.saved.applied_rules).toEqual(stored)
+})
 it('不正UUIDをfetch前に閉じる', async () => {
   const { wrapper } = await view('/games/not-a-uuid/record')
   expect(wrapper.text()).toContain('試合IDが正しくありません')

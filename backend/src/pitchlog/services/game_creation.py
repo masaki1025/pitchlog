@@ -20,6 +20,7 @@ from pitchlog.api.schemas.games import (
     TournamentSelection,
     encode_preparation_options_cursor,
 )
+from pitchlog.db.game_state.rule_presets import apply_rule_choice
 from pitchlog.db.game_state.rule_snapshot import encode_applied_rules
 from pitchlog.repositories.preparing_game_creation import (
     PreparingGameInsertToken,
@@ -162,6 +163,13 @@ def create_preparing_game(
     snapshot = resolve_stage_a_rule(
         scope, StageARuleRequest(body.game_type_key, tournament_key, False)
     )
+    if body.rule_choice is not None:
+        # 画面選択は既定規則の値へ一度だけ適用し、以後は保存snapshotだけを読む。
+        snapshot = apply_rule_choice(
+            snapshot,
+            regulation_innings=body.rule_choice.regulation_innings,
+            extension_limit=body.rule_choice.extension_limit,
+        )
     encoded = encode_applied_rules(snapshot)
     game_id = uuid4()
     _require_inserted(

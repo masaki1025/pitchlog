@@ -28,6 +28,9 @@ const initial = () => ({
   tournament_kind: 'existing' as 'existing' | 'new',
   tournament_key: '',
   display_name: '',
+  rule_mode: 'default' as 'default' | 'custom',
+  regulation_innings: 9,
+  extension_limit: 9,
   plate_umpire: '',
   section_label: '',
   week_label: '',
@@ -54,6 +57,18 @@ const teams = computed(() => {
     ).values(),
   ]
 })
+const extensionOptions = computed(() =>
+  draft.regulation_innings === 7
+    ? ([
+        { value: 7, label: '延長なし（7回で引き分け）' },
+        { value: 9, label: '9回まで' },
+        { value: 12, label: '12回まで' },
+      ] as const)
+    : ([
+        { value: 9, label: '延長なし（9回で引き分け）' },
+        { value: 12, label: '12回まで' },
+      ] as const),
+)
 const tournaments = computed(() => [
   ...new Map(
     [
@@ -84,6 +99,17 @@ watch(
   },
 )
 watch(
+  () => draft.regulation_innings,
+  () => {
+    if (
+      !extensionOptions.value.some(
+        (item) => item.value === draft.extension_limit,
+      )
+    )
+      draft.extension_limit = draft.regulation_innings
+  },
+)
+watch(
   () => [auth.teamId, auth.authEpoch, route.path],
   () => {
     Object.assign(draft, initial())
@@ -106,10 +132,26 @@ const valid = computed(
     teams.value.some((team) => team.id === draft.home_team_record_id) &&
     (draft.tournament_kind === 'new'
       ? draft.display_name.trim().length > 0
-      : tournaments.value.some((item) => item.key === draft.tournament_key)),
+      : tournaments.value.some((item) => item.key === draft.tournament_key)) &&
+    (draft.rule_mode === 'default' ||
+      extensionOptions.value.some(
+        (item) => item.value === draft.extension_limit,
+      )),
 )
+function ruleChoice(): PreparingGameCreate['rule_choice'] {
+  if (draft.rule_mode !== 'custom') return undefined
+  const regulation = draft.regulation_innings
+  const extension = draft.extension_limit
+  if (regulation !== 7 && regulation !== 9) return undefined
+  if (extension !== 7 && extension !== 9 && extension !== 12) return undefined
+  return {
+    regulation_innings: regulation,
+    extension_limit: extension,
+  }
+}
 function submit() {
   if (!valid.value) return
+  const choice = ruleChoice()
   const body: PreparingGameCreate = {
     scheduled_at: `${draft.scheduled_at}:00+09:00`,
     game_type_key: draft.game_type_key as GameTypeKey,
@@ -125,6 +167,7 @@ function submit() {
     day_label: draft.day_label,
     game_number_label: draft.game_number_label,
   }
+  if (choice !== undefined) body.rule_choice = choice
   void provider.submit(body)
 }
 </script>
@@ -167,6 +210,40 @@ function submit() {
             </option>
           </select></label
         >
+        <label
+          >適用する規則<select
+            v-model="draft.rule_mode"
+            data-testid="rule-mode"
+          >
+            <option value="default">試合区分の既定規則を使う</option>
+            <option value="custom">規定回と延長上限を選ぶ</option>
+          </select></label
+        >
+        <template v-if="draft.rule_mode === 'custom'">
+          <label
+            >規定回<select
+              v-model.number="draft.regulation_innings"
+              data-testid="regulation-innings"
+            >
+              <option :value="7">7回</option>
+              <option :value="9">9回</option>
+            </select></label
+          >
+          <label
+            >延長<select
+              v-model.number="draft.extension_limit"
+              data-testid="extension-limit"
+            >
+              <option
+                v-for="item in extensionOptions"
+                :key="item.value"
+                :value="item.value"
+              >
+                {{ item.label }}
+              </option>
+            </select></label
+          >
+        </template>
         <label
           >先攻チーム<select
             v-model="draft.away_team_record_id"

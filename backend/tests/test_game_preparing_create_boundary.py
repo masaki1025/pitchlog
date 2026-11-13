@@ -29,8 +29,10 @@ from pitchlog.api.schemas.games import (
     encode_preparation_options_cursor,
 )
 from pitchlog.db.game_state.models import Game
+from pitchlog.db.game_state.rule_snapshot import decode_applied_rules
 from pitchlog.db.tenant_isolation.models import TenantVocabulary
 from pitchlog.repositories import base, transaction
+from pitchlog.repositories.game_start import _saved_start_rule_wire
 from pitchlog.repositories.operation_registry import FUNCTION_OPERATION_REGISTRY
 from pitchlog.repositories.preparing_game_creation import (
     PREPARING_GAME_CREATE_OPERATIONS,
@@ -373,6 +375,101 @@ def test_service_revalidates_mutated_dto_before_rg1_sql(
         with _scope(monkeypatch, []) as (scope, events, _):
             game_creation.create_preparing_game(scope, body)
     assert events == ["session", "begin", "rollback", "close"]
+
+
+def _create_replies() -> list[Any]:
+    """作成serviceの固定SQL順に合成行を返す。"""
+    return [
+        _Result((("spring",),)),
+        _Result(((_SELF, "self", "self", None),)),
+        _Result(((_SELF,),)),
+        _Result(((_OTHER, "opponent", "opponent", None),)),
+        _Result(((_OTHER,),)),
+        _Result(rowcount=1),
+    ]
+
+
+def test_creation_with_rule_choice_persists_once_and_start_reuses_snapshot(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """7回・9回の選択を一度だけ保存し、開始側が同じ6-keyを読む。"""
+    base = decode_applied_rules(_saved_snapshot())
+    seen: list[object] = []
+
+    def resolver(scope: object, request: object) -> object:
+        seen.append(request)
+        return base
+
+    monkeypatch.setattr(game_creation, "resolve_stage_a_rule", resolver)
+    monkeypatch.setattr(game_creation, "read_rg1_open", lambda *a, **k: None)
+    monkeypatch.setattr(
+        game_creation, "assert_rg1_open_before_commit", lambda *a, **k: None
+    )
+    with _scope(monkeypatch, _create_replies(), candidates=True) as (
+        scope,
+        events,
+        calls,
+    ):
+        body = PreparingGameCreate.model_validate(
+            {
+                **_create_payload(),
+                "away_team_record_id": str(_SELF),
+                "home_team_record_id": str(_OTHER),
+                "rule_choice": {"regulation_innings": 7, "extension_limit": 9},
+            }
+        )
+        item = game_creation.create_preparing_game(scope, body)
+    assert "rollback" not in events and "commit" in events
+    assert len(seen) == 1
+    stored = cast(dict[str, object], calls[-1]["applied_rules"])
+    assert stored == item.applied_rules
+    assert stored["regulationInnings"] == 7
+    assert stored["extensionLimit"] == 9
+    assert stored["tiebreak"] is None
+    assert stored["ruleSetId"] != str(base.structural.rule_set_id)
+    # 再取得は保存済み6-keyを同じ値へ戻すだけで、規則を再解決しない。
+    assert decode_applied_rules(stored) == decode_applied_rules(item.applied_rules)
+    # 開始経路もDBのapplied_rulesから同じ7回・9回をwireへ写す。
+    wire = _saved_start_rule_wire(stored)
+    assert wire.regulation_innings == "7"
+    assert wire.extension_limit == "9"
+    assert wire.tiebreak is None
+
+
+def test_creation_without_rule_choice_keeps_resolved_default_snapshot(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """未選択の9回既定は既存ID・既存5値を1つも変えない。"""
+    base = decode_applied_rules(_saved_snapshot())
+    seen: list[object] = []
+
+    def resolver(scope: object, request: object) -> object:
+        seen.append(request)
+        return base
+
+    monkeypatch.setattr(game_creation, "resolve_stage_a_rule", resolver)
+    monkeypatch.setattr(game_creation, "read_rg1_open", lambda *a, **k: None)
+    monkeypatch.setattr(
+        game_creation, "assert_rg1_open_before_commit", lambda *a, **k: None
+    )
+    with _scope(monkeypatch, _create_replies(), candidates=True) as (
+        scope,
+        _,
+        calls,
+    ):
+        item = game_creation.create_preparing_game(
+            scope,
+            PreparingGameCreate.model_validate(
+                {
+                    **_create_payload(),
+                    "away_team_record_id": str(_SELF),
+                    "home_team_record_id": str(_OTHER),
+                }
+            ),
+        )
+    assert len(seen) == 1
+    assert item.applied_rules == _saved_snapshot()
+    assert calls[-1]["applied_rules"] == _saved_snapshot()
 
 
 def test_new_name_conflict_and_missing_parent_roll_back_in_real_handle(

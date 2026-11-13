@@ -17,7 +17,10 @@ const game = '10000000-0000-4000-8000-000000000002'
 const away = '20000000-0000-4000-8000-000000000001'
 const path = `/games/${game}/record`
 const wrappers: VueWrapper[] = []
-function saved(dh: boolean): PreparingGame {
+function saved(
+  dh: boolean,
+  rules: Record<string, unknown> = {},
+): PreparingGame {
   return {
     id: game,
     scheduled_at: '2026-10-26T10:00:00+09:00',
@@ -31,7 +34,7 @@ function saved(dh: boolean): PreparingGame {
     day_label: null,
     game_number_label: null,
     status: 'preparing',
-    applied_rules: { dh },
+    applied_rules: { dh, ...rules },
   }
 }
 function players(team: string, offset = 0) {
@@ -83,7 +86,11 @@ function connection(registered = true) {
   }
   return { value, state }
 }
-async function view(dh = false, registered = true) {
+async function view(
+  dh = false,
+  registered = true,
+  rules: Record<string, unknown> = {},
+) {
   const router = createAppRouter(createMemoryHistory())
   await router.push(path)
   const api = connection(registered)
@@ -93,7 +100,12 @@ async function view(dh = false, registered = true) {
     path,
     requestKey: game,
     status: 'ready' as const,
-    data: { tenantId: tenant, gameId: game, label: '試合', saved: saved(dh) },
+    data: {
+      tenantId: tenant,
+      gameId: game,
+      label: '試合',
+      saved: saved(dh, rules),
+    },
   }
   const wrapper = mount(GameScreenStart, {
     props: { preparing, connection: api.value },
@@ -206,6 +218,28 @@ it('端末資格の保存前は選手入力・取得を開かず、明示登録�
   expect(api.value.enroll).toHaveBeenCalledTimes(1)
   expect(wrapper.find('select').exists()).toBe(true)
   expect(fetch).toHaveBeenCalledTimes(2)
+})
+
+it('再読込した保存snapshotの7回・延長上限を開始画面へ同じ値で表示する', async () => {
+  const { wrapper } = await view(false, true, {
+    regulationInnings: 7,
+    extensionLimit: 9,
+    coldConditions: [],
+    tiebreak: null,
+  })
+  const summary = wrapper.get('[data-testid="rule-summary"]')
+  expect(summary.text()).toContain('規定 7回')
+  expect(summary.text()).toContain('延長 9回まで')
+
+  const defaultView = await view(false, true, {
+    regulationInnings: 9,
+    extensionLimit: 9,
+    coldConditions: [],
+    tiebreak: null,
+  })
+  expect(
+    defaultView.wrapper.get('[data-testid="rule-summary"]').text(),
+  ).toContain('延長 規定回まで（延長なし）')
 })
 
 it('選手名をHTMLとして描画しない', async () => {
