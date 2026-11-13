@@ -468,6 +468,85 @@ def _load_batted_source_reference(raw: bytes | None = None):
     return json.loads(data)
 
 
+_BATTED_SUCCESSOR_PATH = (
+    Path(__file__).parent / "fixtures/batted_source_extension_successor_v1.json"
+)
+
+
+def _load_batted_successor(raw: bytes | None = None):
+    """後継fixtureの全byteを独立pinへ照合し、現木採取の自己合格を拒否する。"""
+    import hashlib
+
+    data = _BATTED_SUCCESSOR_PATH.read_bytes() if raw is None else raw
+    assert (
+        hashlib.sha256(data).hexdigest()
+        == _EXPECTED_SOURCE_PINS["batted_extension_successor_sha256"]
+    )
+    return json.loads(data)
+
+
+def _successor_current_rows(successor, rows):
+    """後継fixtureの3文が現行生成行の同byte一件だけを指すことを検査する。"""
+    changed = successor["changed_statements"]
+    assert len(changed) == 3
+    assert {row["element_id"] for row in changed} == {
+        _BATTED_PREPARE_ID,
+        "FUNCTION:sync_right_api:finish_play_prefix_projection()",
+        "FUNCTION:sync_right_api:guard_play_prefix_runner_insert()",
+    }
+    observed = {}
+    for row in rows:
+        marker = re.findall(r"(?m)^-- ELEMENT-ID: ([^\n]+)", row.sql)
+        assert len(marker) == 1
+        if marker[0] in {item["element_id"] for item in changed}:
+            observed.setdefault(marker[0], []).append(
+                {"sequence": row.sequence, "sql": row.sql}
+            )
+    for item in changed:
+        assert observed[item["element_id"]] == [item["current"]]
+    return {item["element_id"]: item["current"] for item in changed}
+
+
+def _verify_successor_git(successor):
+    """後継のcatalog/生成器treeを固定Gitの同一objectへ束縛する。"""
+    import hashlib
+    import subprocess
+
+    catalog = successor["catalog"]
+    generator = successor["generator"]
+    revision = generator["revision"]
+    assert revision == catalog["revision"]
+    assert (
+        subprocess.check_output(
+            ["git", "rev-parse", "--verify", revision + "^{commit}"],
+            cwd=ROOT,
+            text=True,
+        ).strip()
+        == revision
+    )
+    for path, tree_oid in generator["tree_paths"].items():
+        assert (
+            subprocess.check_output(
+                ["git", "rev-parse", f"{revision}:{path}"], cwd=ROOT, text=True
+            ).strip()
+            == tree_oid
+        )
+        assert (
+            subprocess.check_output(
+                ["git", "rev-parse", f"HEAD:{path}"], cwd=ROOT, text=True
+            ).strip()
+            == tree_oid
+        )
+    current = (ROOT / catalog["path"]).read_bytes()
+    assert hashlib.sha256(current).hexdigest() == catalog["sha256"]
+    assert (
+        subprocess.check_output(
+            ["git", "show", f"{revision}:{catalog['path']}"], cwd=ROOT
+        )
+        == current
+    )
+
+
 def _batted_statement_id(sql: str) -> str:
     """原典のmarkerが一意な文だけを有限対応へ送る。"""
     markers = re.findall(r"(?m)^-- ELEMENT-ID: ([^\n]+)", sql)
@@ -485,10 +564,6 @@ def _project_stats_source_extension(rows):
     before, after = (
         json.loads(subprocess.check_output(["git", "show", f"{rev}:{path}"], cwd=ROOT))
         for rev in revisions
-    )
-    assert (
-        subprocess.check_output(["git", "show", f"{revisions[1]}:{path}"], cwd=ROOT)
-        == (ROOT / path).read_bytes()
     )
     section_sizes = {
         "roles": 0,
@@ -513,13 +588,12 @@ def _project_stats_source_extension(rows):
         fresh = new.keys() - old.keys()
         assert len(fresh) == section_sizes[section.section_name]
         added.update((section.element_type, key) for key in fresh)
-    assert len(added) == 89 and len(rows) == 794
+    assert len(added) == 89
     added_ids = {identifier for _, identifier in added}
     assert len(added_ids) == len(added)
     observed: set[str] = set()
-    projected = []
     for row in rows:
-        # 既batted対向と同じ型拒否を、成績89文の射影前にも適用する。
+        # 既batted対向と同じ型拒否を、成績89文の後継検査前にも適用する。
         assert type(row.sequence) is int
         assert type(row.sql) is str
         markers = re.findall(r"(?m)^-- ELEMENT-ID: ([^\n]+)", row.sql)
@@ -527,18 +601,30 @@ def _project_stats_source_extension(rows):
         key = markers[0]
         assert key not in observed
         observed.add(key)
-        if key not in added_ids:
-            projected.append(row)
-    assert added_ids <= observed and len(projected) == 705
-    return tuple(projected)
+    # 歴史的89文は現行集合にも同じIDで一件ずつ残る。
+    assert added_ids <= observed
+    return tuple(rows)
 
 
 def _project_batted_source_extension(rows):
-    """実17追加と2文だけを全値照合し、旧署名検査用の原典へ戻す。"""
+    """旧17追加と3文の後継だけを全値照合し、残りを歴史原典へ戻す。"""
+    import hashlib
     from dataclasses import replace
 
     reference = _load_batted_source_reference()
-    assert len(rows) == 705
+    successor = _load_batted_successor()
+    _verify_successor_git(successor)
+    assert len(rows) == successor["statement_count"]
+    assert (
+        hashlib.sha256(
+            json.dumps(
+                [{"sequence": row.sequence, "sql": row.sql} for row in rows],
+                ensure_ascii=False,
+                separators=(",", ":"),
+            ).encode()
+        ).hexdigest()
+        == successor["statements_sha256"]
+    )
     additions = reference["added_statements"]
     assert len(additions) == len(_BATTED_ADDED_IDS) == 17
     assert {row["element_id"] for row in additions} == _BATTED_ADDED_IDS
@@ -547,9 +633,26 @@ def _project_batted_source_extension(rows):
     usage = "\nGRANT USAGE ON SCHEMA public TO pitchlog_recording_vocab_fn_owner;\n"
     assert public["after"]["sequence"] == public["before"]["sequence"]
     assert public["after"]["sql"] == public["before"]["sql"] + usage
+    current = _successor_current_rows(successor, rows)
+    successor_by_id = {
+        item["element_id"]: item for item in successor["changed_statements"]
+    }
+    historical = {
+        _BATTED_PREPARE_ID: reference["changed_statement"]["after"],
+    }
+    for row in reference["terminal_before"]:
+        element_id = _batted_statement_id(row["sql"])
+        if element_id == _BATTED_PREPARE_ID:
+            continue
+        historical[element_id] = {"sequence": row["sequence"], "sql": row["sql"]}
+    for element_id, item in successor_by_id.items():
+        assert item["historical"] == historical[element_id]
+        assert current[element_id] == item["current"]
     projected = []
     found = []
     actual_added = []
+    terminal_ids = set(historical) - {_BATTED_PREPARE_ID}
+    changed_ids = set(successor_by_id)
     for row in rows:
         assert type(row.sequence) is int
         assert type(row.sql) is str
@@ -562,22 +665,17 @@ def _project_batted_source_extension(rows):
                 {"element_id": element_id, "sequence": row.sequence, "sql": row.sql}
             )
             continue
-        if element_id in {"public", _BATTED_PREPARE_ID}:
-            pair = public if element_id == "public" else reference["changed_statement"]
-            assert {"sequence": row.sequence, "sql": row.sql} == pair["after"]
-            row = replace(row, sql=pair["before"]["sql"])
+        if element_id in changed_ids:
+            continue
+        if element_id == _BATTED_PREPARE_ID:
+            row = replace(row, sql=historical[element_id]["sql"])
+        elif element_id in terminal_ids:
+            expected = historical[element_id]
+            assert {"sequence": row.sequence, "sql": row.sql} == expected
         projected.append(row)
-    assert len(found) == len(set(found)) == 705
+    assert len(found) == len(set(found)) == len(rows)
     assert actual_added == additions
-    assert {"public", _BATTED_PREPARE_ID} <= set(found)
-    terminal_before = reference["terminal_before"]
-    terminal_ids = {_batted_statement_id(row["sql"]) for row in terminal_before}
-    assert len(terminal_before) == len(terminal_ids) == 31
-    assert [
-        {"sequence": row.sequence, "sql": row.sql}
-        for row in projected
-        if _batted_statement_id(row.sql) in terminal_ids
-    ] == terminal_before
+    assert set(successor_by_id) <= set(found)
     return tuple(projected)
 
 
@@ -674,13 +772,19 @@ def test_batted_extension_rejects_every_other_old_statement(index, monkeypatch):
     from dataclasses import replace
 
     reference = _load_batted_source_reference()
+    successor = _load_batted_successor()
+    _, base_rows = prov._build_operation_statements(prov.ProductOperation.APPLY)
+    current = _successor_current_rows(successor, base_rows)
     others = [
         row
         for row in reference["terminal_before"]
         if f"-- ELEMENT-ID: {_BATTED_PREPARE_ID}\n" not in row["sql"]
     ]
     assert len(others) == 30
-    target = others[index]["sql"]
+    element_id = _batted_statement_id(others[index]["sql"])
+    target = current.get(element_id, others[index])["sql"]
+    # 基準テストが赤いまま負例の失敗を成功に写さない。
+    test_reapply_keeps_all_other_generated_statements_exact()
     steps, rows = prov._build_operation_statements(prov.ProductOperation.APPLY)
     assert sum(row.sql == target for row in rows) == 1
     changed = tuple(
@@ -835,12 +939,30 @@ def test_batted_extension_rejects_reference_mutation(fault):
 
 
 def test_reapply_keeps_all_other_generated_statements_exact():
-    """旧637文の全byteを保持し、有限追加19+12文も独立固定値へ束縛する。"""
+    """歴史層を保持し、統合後の全生成集合を後継pinの同一byteへ束縛する。"""
     import hashlib
 
     _, rows = prov._build_operation_statements(prov.ProductOperation.APPLY)
-    rows = _project_batted_source_extension(_project_stats_source_extension(rows))
-    wrappers = [r for r in rows if r.sql.startswith("DO $first_ball_reapply$")]
+    for row in rows:
+        assert type(row.sequence) is int
+        assert type(row.sql) is str
+    successor = _load_batted_successor()
+    _verify_successor_git(successor)
+    assert len(rows) == successor["statement_count"]
+    assert (
+        hashlib.sha256(
+            json.dumps(
+                [{"sequence": row.sequence, "sql": row.sql} for row in rows],
+                ensure_ascii=False,
+                separators=(",", ":"),
+            ).encode()
+        ).hexdigest()
+        == successor["statements_sha256"]
+    )
+    # 歴史的89追加・17追加・旧31文の不変条件を通過した場合だけ後継を成功とする。
+    projected = _project_batted_source_extension(
+        _project_stats_source_extension(rows)
+    )
     terminal_ids = (
         _TERMINAL_FUNCTION_IDS
         | _TERMINAL_POLICY_IDS
@@ -849,43 +971,14 @@ def test_reapply_keeps_all_other_generated_statements_exact():
         | _LINEUP_POLICY_IDS
         | _LINEUP_COLUMN_ACL_IDS
     )
-    terminal = []
-    previous = []
-    found = []
-    for row in rows:
-        marker = re.search(r"-- ELEMENT-ID: ([^\n]+)", row.sql)
-        element_id = marker[1] if marker else None
-        if element_id in terminal_ids:
-            terminal.append({"sequence": row.sequence, "sql": row.sql})
-            found.append(element_id)
-        else:
-            previous.append(row)
-    assert frozenset(found) == terminal_ids
-    assert (
-        len(_TERMINAL_FUNCTION_IDS | _TERMINAL_POLICY_IDS | _TERMINAL_COLUMN_ACL_IDS)
-        == 19
-    )
-    assert len(_LINEUP_FUNCTION_IDS | _LINEUP_POLICY_IDS | _LINEUP_COLUMN_ACL_IDS) == 12
-    assert len(found) == len(terminal_ids) == 31
-    assert len(rows) == 688 and len(wrappers) == 28
-    assert len(previous) == 657
-    assert sum(row.sql.startswith("DO $first_ball_reapply$") for row in previous) == 20
-    keep = [
-        {"sequence": row.sequence, "sql": row.sql}
-        for row in previous
-        if not row.sql.startswith("DO $first_ball_reapply$")
+    found = [
+        _batted_statement_id(row.sql)
+        for row in rows
+        if _batted_statement_id(row.sql) in terminal_ids
     ]
-    assert len(keep) == 637
-    assert (
-        hashlib.sha256(
-            json.dumps(terminal, ensure_ascii=False, separators=(",", ":")).encode()
-        ).hexdigest()
-        == _EXPECTED_SOURCE_PINS["terminal_generated_statements_sha256"]
-    )
-    digest = hashlib.sha256(
-        json.dumps(keep, ensure_ascii=False, separators=(",", ":")).encode()
-    ).hexdigest()
-    assert digest == _EXPECTED_SOURCE_PINS["other_generated_statements_sha256"]
+    assert frozenset(found) == terminal_ids
+    assert len(found) == len(terminal_ids) == 31
+    assert type(projected) is tuple
 
 
 def test_reapply_is_per_function_and_normalizes_only_new_table_spacing():
@@ -1031,16 +1124,19 @@ def test_expected_source_pin_fixture_has_all_thirty_independent_values():
             "read_lineup_started_origin",
             "old_v2_prepare_body_sha256",
         },
-        "test_sync_apply_product_supply.py": {"batted_extension_reference_sha256"},
+        "test_sync_apply_product_supply.py": {
+            "batted_extension_reference_sha256",
+            "batted_extension_successor_sha256",
+        },
     }
-    assert sum(map(len, batted_keys.values())) == 11
+    assert sum(map(len, batted_keys.values())) == 12
     for name, keys in batted_keys.items():
         assert keys <= raw["pins"][name].keys()
     total = sum(len(values) for values in raw["pins"].values())
-    assert total - 11 - 5 - 1 == 37
-    assert total - 11 - 1 == 42
-    assert total - 11 == 43
-    assert total == 54
+    assert total - 12 - 5 - 1 == 37
+    assert total - 12 - 1 == 42
+    assert total - 12 == 43
+    assert total == 55
     assert {name: read_expected_source_pins(name) for name in raw["pins"]} == raw[
         "pins"
     ]

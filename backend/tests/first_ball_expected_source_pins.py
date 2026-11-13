@@ -19,6 +19,7 @@ _EXPECTED_KEYS = {
             "other_generated_statements_sha256",
             "terminal_generated_statements_sha256",
             "batted_extension_reference_sha256",
+            "batted_extension_successor_sha256",
         ]
     ),
     "test_sync_apply_writer_binding.py": frozenset(

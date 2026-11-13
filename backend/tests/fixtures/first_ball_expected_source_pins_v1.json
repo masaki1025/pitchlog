@@ -12,7 +12,8 @@
     "test_sync_apply_product_supply.py": {
       "other_generated_statements_sha256": "886798da9f719c0a57534d629d279028d07387e2de375b510f2969ab4e1519de",
       "terminal_generated_statements_sha256": "70327380c4b57eb9b7960dd636ebbf5af3f5ed7a3befbc7fa3ccfbdfc4bf49ef",
-      "batted_extension_reference_sha256": "ddf4953a9ab4e3f48863c79c2042d895611aa4efc99a546864595c9f477da421"
+      "batted_extension_reference_sha256": "ddf4953a9ab4e3f48863c79c2042d895611aa4efc99a546864595c9f477da421",
+      "batted_extension_successor_sha256": "d5e5b80b506931e94e6a0306ffa8dceec267e878465a4082c55fa845749b8413"
     },
     "test_sync_apply_writer_binding.py": {
       "RG1:precheck": "cd36c04857da91f506e29414e5bf0bb07d4b7c6b2826ccf97be1bb123823051c",
