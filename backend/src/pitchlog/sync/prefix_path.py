@@ -511,6 +511,18 @@ def _event_insert_token(
         from pitchlog.sync.substitution_execution import reserved_substitution_event_id
 
         reserved = reserved_substitution_event_id(scope, event)
+    elif (
+        _event_kind(event) == "tiebreak_start"
+        and isinstance(event.v7, Mapping)
+        and event.v7.get("formatVersion") == "tiebreak-start-event-v1"
+    ):
+        from pitchlog.sync.tiebreak_start_execution import (
+            reserved_tiebreak_start_event_id,
+        )
+
+        reserved = reserved_tiebreak_start_event_id(scope, event)
+        if type(reserved) is not UUID:
+            raise P1PreconditionError("タイブレーク開始の予約原本idがありません")
     return OperationEventInsertToken(
         reserved if reserved is not None else uuid4(),
         game_id,

@@ -32,14 +32,6 @@ _BENCH = UUID(int=214)
     or not os.environ.get("PITCHLOG_E2E_TLS_KEY_PATH"),
     reason="隔離HTTPS証明書PATH未供給。画面縦断は未実証",
 )
-@pytest.mark.skip(
-    reason=(
-        "CPはinternal_generation=1/recovery_generation=1/current、"
-        "recording_generationsも1/1だが、consume_nonplay_tiebreak_startの"
-        "CP SELECTがP0002で0行。nonplay admissionはrollbackされ、"
-        "stampの世代値とCP行の対応修正まで未完了。"
-    )
-)
 def test_tiebreak_screen_start_score_pitcher_change_replacement_reload(
     vertical_database,
 ):
@@ -101,12 +93,49 @@ def test_tiebreak_screen_start_score_pitcher_change_replacement_reload(
                 admin.execute(
                     "SELECT game_id,internal_generation,recovery_generation,"
                     "state,revision,content->>'version',"
-                    "content->>'formatVersion' "
+                    "content->>'formatVersion',"
+                    "content->'content'->>'internal_generation',"
+                    "content->'content'->>'recovery_generation' "
                     "FROM sync_fence.ordinary_pitch_checkpoints "
                     "WHERE tenant_id=%s ORDER BY saved_at DESC LIMIT 5",
                     (db.tenant_id,),
                 ).fetchall(),
             )
+            print(
+                "TIEBREAK_RG1",
+                admin.execute(
+                    "SELECT state,recovery_generation FROM public.rg1_restore_gate"
+                ).fetchall(),
+            )
+            match = re.search(
+                r'PITCHLOG_TIEBREAK_REQ=(\{[^\n]+\})', result.stdout
+            )
+            if match:
+                request = json.loads(match.group(1))
+                d5 = request["events"][0]["d5"]
+                print(
+                    "TIEBREAK_BINDINGS",
+                    admin.execute(
+                        "SELECT attempt_id,phase_id,internal_generation,"
+                        "recovery_generation,state,d5 "
+                        "FROM sync_fence.writer_bindings "
+                        "WHERE tenant_id=%s AND game_id=%s AND d5=%s",
+                        (
+                            db.tenant_id,
+                            UUID(request["events"][0]["game_id"]),
+                            UUID(d5),
+                        ),
+                    ).fetchall(),
+                )
+                print(
+                    "TIEBREAK_ADMISSION_BY_D5",
+                    admin.execute(
+                        "SELECT internal_generation,recovery_generation,state,"
+                        "source_d1 FROM sync_fence.nonplay_write_admissions "
+                        "WHERE tenant_id=%s AND d5=%s",
+                        (db.tenant_id, UUID(d5)),
+                    ).fetchall(),
+                )
             print(
                 "TIEBREAK_GENS",
                 admin.execute(
