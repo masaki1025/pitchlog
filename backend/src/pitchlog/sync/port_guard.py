@@ -527,6 +527,10 @@ def _load_first_ball_port_classes() -> tuple[type[object], ...]:
         SubstitutionContentValidationPort,
         SubstitutionProjectionPort,
     )
+    from pitchlog.sync.tiebreak_start_ports import (
+        TiebreakStartContentValidationPort,
+        TiebreakStartProjectionPort,
+    )
     from pitchlog.sync.undo_ports import UndoContentValidationPort, UndoProjectionPort
 
     return (
@@ -548,6 +552,8 @@ def _load_first_ball_port_classes() -> tuple[type[object], ...]:
         PastCorrectionProjectionPort,
         SubstitutionContentValidationPort,
         SubstitutionProjectionPort,
+        TiebreakStartContentValidationPort,
+        TiebreakStartProjectionPort,
         PlayerRegistrationContentValidationPort,
         PlayerRegistrationProjectionPort,
     )

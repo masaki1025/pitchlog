@@ -51,6 +51,7 @@ export async function createAndStartRealGame(
   label: string,
   expectedRegulationInnings = 9,
   gameType = 'game_other',
+  exclude: readonly string[] = [],
 ) {
   const tenantId = await realLogin(page)
   await page.getByRole('button', { name: '新しい試合', exact: true }).click()
@@ -99,10 +100,24 @@ export async function createAndStartRealGame(
   const dh = saved.applied_rules.dh === true
   for (const side of ['away', 'home'] as const) {
     const rows = dh ? 10 : 9
+    await expect(
+      page.locator(`#start-${side}-0-player`).locator('option'),
+    ).not.toHaveCount(1)
+    const values = (
+      await page
+        .locator(`#start-${side}-0-player`)
+        .locator('option')
+        .evaluateAll((options) =>
+          options
+            .map((option) => (option as HTMLOptionElement).value)
+            .filter((value) => value.length > 0),
+        )
+    ).filter((value) => !exclude.includes(value))
+    expect(values.length).toBeGreaterThanOrEqual(rows)
     for (let index = 0; index < rows; index += 1) {
       await page
         .locator(`#start-${side}-${index}-player`)
-        .selectOption({ index: index + 1 })
+        .selectOption(values[index]!)
       const position =
         index === 9
           ? '1'

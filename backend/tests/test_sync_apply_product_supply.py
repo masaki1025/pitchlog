@@ -222,6 +222,7 @@ def test_catalog_keeps_added_objects_and_actual_bodies():
         "check_nonplay_right",
         "consume_game_lifecycle",
         "consume_nonplay_substitution",
+        "consume_nonplay_tiebreak_start",
         "consume_nonplay_undo",
         "lock_nonplay_checkpoint",
         "prepare_game_lifecycle",
@@ -244,11 +245,11 @@ def test_catalog_keeps_added_objects_and_actual_bodies():
         }
     )
     assert len(old_names) == 20
-    assert len(preceding_names) == 13
+    assert len(preceding_names) == 14
     assert len(p3_names) == 10 and len(started_read_names) == 5
     assert len(_TERMINAL_FUNCTION_IDS) == 7 and len(_LINEUP_FUNCTION_IDS) == 1
-    assert len(rows) - len(_TERMINAL_FUNCTION_IDS) - len(_LINEUP_FUNCTION_IDS) == 50
-    assert len(rows) == 58
+    assert len(rows) - len(_TERMINAL_FUNCTION_IDS) - len(_LINEUP_FUNCTION_IDS) == 51
+    assert len(rows) == 59
     assert sum(r[4] is False for r in rows) == 2
     assert all(r[9] and r[8] == ("search_path=pg_catalog, pg_temp",) for r in rows)
 
@@ -272,9 +273,9 @@ def test_full_apply_has_attempt_retirement_definitions_and_six_guards():
         sql.count("CREATE FUNCTION sync_right_api.")
         - len(_TERMINAL_FUNCTION_IDS)
         - len(_LINEUP_FUNCTION_IDS)
-        == 38
+        == 39
     )
-    assert sql.count("CREATE FUNCTION sync_right_api.") == 46
+    assert sql.count("CREATE FUNCTION sync_right_api.") == 47
     assert sql.count("CREATE TRIGGER trg_play_prefix_") == 2
     assert sql.count("CREATE TRIGGER sync_writer_") == 4
     assert sql.count("CREATE TRIGGER sync_attempt_retirement_") == 2

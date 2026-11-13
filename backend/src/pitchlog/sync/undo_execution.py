@@ -424,7 +424,7 @@ def _undo_qualification_scope(handle, source):
         or source.scope is not handle
         or source.write_started
         or handle._state_key in _QUALIFICATIONS
-        or source.event.v5 not in {"undo", "substitution"}
+        or source.event.v5 not in {"undo", "substitution", "tiebreak_start"}
     ):
         raise UndoExecutionError("取消の実rights資格が不一致です")
     lifetime = handle._writer_lifetime()

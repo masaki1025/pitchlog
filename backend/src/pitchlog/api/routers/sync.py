@@ -118,6 +118,7 @@ from pitchlog.sync.substitution_ports import (
 )
 from pitchlog.sync.substitution_projection import SubstitutionProjectionError
 from pitchlog.sync.substitution_roster import SubstitutionRosterUnavailable
+from pitchlog.sync.tiebreak_start_execution import TiebreakStartExecutionError
 from pitchlog.sync.tiebreak_start_ports import (
     TiebreakStartContentValidationPort,
     TiebreakStartProjectionPort,
@@ -679,6 +680,7 @@ def sync_events(
         LifecycleExecutionError,
         SubstitutionExecutionError,
         SubstitutionRosterUnavailable,
+        TiebreakStartExecutionError,
         NonplaySourceUnavailable,
         PlayExportWriterUnavailable,
         *DATABASE_ERRORS,

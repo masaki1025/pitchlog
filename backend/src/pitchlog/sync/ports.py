@@ -151,6 +151,8 @@ PORT_IMPLEMENTATIONS: frozenset[tuple[str, str]] = frozenset(
         ("pitchlog.sync.lifecycle_ports", "LifecycleProjectionPort"),
         ("pitchlog.sync.substitution_ports", "SubstitutionContentValidationPort"),
         ("pitchlog.sync.substitution_ports", "SubstitutionProjectionPort"),
+        ("pitchlog.sync.tiebreak_start_ports", "TiebreakStartContentValidationPort"),
+        ("pitchlog.sync.tiebreak_start_ports", "TiebreakStartProjectionPort"),
         (
             "pitchlog.sync.player_registration_ports",
             "PlayerRegistrationContentValidationPort",

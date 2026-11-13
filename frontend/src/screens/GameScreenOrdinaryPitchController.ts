@@ -50,6 +50,7 @@ import { GameStartPersistence } from '../lib/gameStartPersistence'
 import { FirstBallAttemptPersistence } from '../lib/firstBallAttemptPersistence'
 import { SyncAttemptBarrier } from '../lib/syncAttemptBarrier'
 import { recoverSyncAttempt } from '../api/syncAttemptRecovery'
+import { readCompleteUndoGame } from '../api/nativeUndoGame'
 import { OrdinaryPitchAttemptPersistence } from '../lib/ordinaryPitchAttemptPersistence'
 import {
   digestPreparedEnvelope,
@@ -1002,8 +1003,12 @@ export class GameScreenOrdinaryPitchController {
       const r = this.#resources!,
         d5 = crypto.randomUUID(),
         eventId = crypto.randomUUID()
-      const prefixRef = this.#context.prefixRef
-      const checkpoint = prefixRef.checkpoint
+      // 非play CPの真正refはplay-prefix GETのprefix refと別物。保存済みsourceから読む。
+      const complete = await readCompleteUndoGame(
+        this.#context.game.id,
+        this.#identity.tenantId!,
+      )
+      const checkpoint = complete.source.checkpoint.ref
       if (
         !Number.isSafeInteger(selection.leadoffBatter) ||
         !Number.isSafeInteger(selection.inning)
@@ -1055,7 +1060,7 @@ export class GameScreenOrdinaryPitchController {
             if (
               !this.canStartTiebreak ||
               (await r.queue.readNextD1(this.#scope())) !== expected ||
-              !sameOrdinaryWire(prefixRef.checkpoint, checkpoint)
+              !sameOrdinaryWire(complete.source.checkpoint.ref, checkpoint)
             )
               throw new Error('記録位置が変わりました')
           },
