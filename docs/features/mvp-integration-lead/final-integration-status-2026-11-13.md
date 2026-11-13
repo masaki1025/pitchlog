@@ -75,3 +75,18 @@
 - 修正対象: tiebreakのnonplay consumeへ渡すstampの世代（D4/internal）と
   CP行の世代の対応。substitutionの同SQLは2球試験で通るため、長い試合/
   legacy CPでの世代解決差を追う。
+
+
+## 2026-11-14 追試4（世代の実測）
+
+9回E2Eの失敗後にowned PGを読み取り専用で照合した。
+
+- CP: `internal_generation=1`, `recovery_generation=1`, `state=current`,
+  `revision=55`, `content.version=3`（legacy v3）。
+- `recording_generations`: `(generation,recovery_generation)=(1,1)`。
+- `nonplay_write_admissions`: 失敗TXのrollbackにより0行。
+- したがってCP側の世代は1/1で一貫しており、残る不一致は
+  `consume_nonplay_tiebreak_start` に渡るnonplay stampの世代値。
+- 次の最小再現: 2球程度のnonplay admissionを作り、stampの
+  internal/recoveryをCP行と比較する短いDB試験を追加する。54アウトE2Eの
+  反復は修正後まで行わない。

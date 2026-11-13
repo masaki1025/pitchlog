@@ -34,9 +34,10 @@ _BENCH = UUID(int=214)
 )
 @pytest.mark.skip(
     reason=(
-        "9回54frameのsource chainとnative ledgerは通過したが、"
-        "consume_nonplay_tiebreak_start のCP SELECTがP0002で0行。"
-        "stamp.internal_generation/recovery_generationとCP行の照合修正まで未完了。"
+        "CPはinternal_generation=1/recovery_generation=1/current、"
+        "recording_generationsも1/1だが、consume_nonplay_tiebreak_startの"
+        "CP SELECTがP0002で0行。nonplay admissionはrollbackされ、"
+        "stampの世代値とCP行の対応修正まで未完了。"
     )
 )
 def test_tiebreak_screen_start_score_pitcher_change_replacement_reload(
@@ -91,6 +92,39 @@ def test_tiebreak_screen_start_score_pitcher_change_replacement_reload(
     if result.returncode != 0:
         print("TIEBREAK_E2E_STDOUT", result.stdout)
         print("TIEBREAK_E2E_STDERR", result.stderr)
+        with psycopg.connect(
+            db.authority.database.business_admin,
+            options="-c default_transaction_read_only=on",
+        ) as admin:
+            print(
+                "TIEBREAK_CP_ROWS",
+                admin.execute(
+                    "SELECT game_id,internal_generation,recovery_generation,"
+                    "state,revision,content->>'version',"
+                    "content->>'formatVersion' "
+                    "FROM sync_fence.ordinary_pitch_checkpoints "
+                    "WHERE tenant_id=%s ORDER BY saved_at DESC LIMIT 5",
+                    (db.tenant_id,),
+                ).fetchall(),
+            )
+            print(
+                "TIEBREAK_GENS",
+                admin.execute(
+                    "SELECT generation,recovery_generation "
+                    "FROM public.recording_generations WHERE tenant_id=%s "
+                    "ORDER BY generation DESC LIMIT 5",
+                    (db.tenant_id,),
+                ).fetchall(),
+            )
+            print(
+                "TIEBREAK_ADMISSIONS",
+                admin.execute(
+                    "SELECT internal_generation,recovery_generation,state,"
+                    "source_d1 FROM sync_fence.nonplay_write_admissions "
+                    "WHERE tenant_id=%s ORDER BY source_d1 DESC LIMIT 5",
+                    (db.tenant_id,),
+                ).fetchall(),
+            )
     assert result.returncode == 0, (
         result.stdout[-20000:],
         result.stderr[-4000:],
