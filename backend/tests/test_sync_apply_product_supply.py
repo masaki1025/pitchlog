@@ -485,6 +485,45 @@ def _load_batted_successor(raw: bytes | None = None):
     return json.loads(data)
 
 
+_HISTORICAL_PROJECTION_PATH = (
+    Path(__file__).parent / "fixtures/product_supply_historical_projection_v1.json"
+)
+
+
+def _load_historical_projection(raw: bytes | None = None):
+    """MVP統合前の637+31文を独立pinへ照合し、現行期待への流用を拒否する。"""
+    import hashlib
+
+    data = _HISTORICAL_PROJECTION_PATH.read_bytes() if raw is None else raw
+    assert (
+        hashlib.sha256(data).hexdigest()
+        == _EXPECTED_SOURCE_PINS["product_supply_historical_projection_sha256"]
+    )
+    fixture = json.loads(data)
+    for key in ("keep", "terminal"):
+        digest = hashlib.sha256(
+            json.dumps(
+                [
+                    {"sequence": row["sequence"], "sql": row["sql"]}
+                    for row in fixture[key]
+                ],
+                ensure_ascii=False,
+                separators=(",", ":"),
+            ).encode()
+        ).hexdigest()
+        pin = (
+            _EXPECTED_SOURCE_PINS["other_generated_statements_sha256"]
+            if key == "keep"
+            else _EXPECTED_SOURCE_PINS["terminal_generated_statements_sha256"]
+        )
+        assert digest == pin == fixture[
+            "other_generated_statements_sha256"
+            if key == "keep"
+            else "terminal_generated_statements_sha256"
+        ]
+    return fixture
+
+
 def _successor_current_rows(successor, rows):
     """後継fixtureの3文が現行生成行の同byte一件だけを指すことを検査する。"""
     changed = successor["changed_statements"]
@@ -938,6 +977,19 @@ def test_batted_extension_rejects_reference_mutation(fault):
         _load_batted_source_reference(json.dumps(reference).encode())
 
 
+def test_historical_projection_pin_cannot_be_zeroed(monkeypatch):
+    """旧637/31文の固定pinをゼロや別値へ差し替えても成功にしない。"""
+    for key in (
+        "product_supply_historical_projection_sha256",
+        "other_generated_statements_sha256",
+        "terminal_generated_statements_sha256",
+    ):
+        with monkeypatch.context() as patch:
+            patch.setitem(_EXPECTED_SOURCE_PINS, key, "0" * 64)
+            with pytest.raises(AssertionError):
+                _load_historical_projection()
+
+
 def test_reapply_keeps_all_other_generated_statements_exact():
     """歴史層を保持し、統合後の全生成集合を後継pinの同一byteへ束縛する。"""
     import hashlib
@@ -963,6 +1015,50 @@ def test_reapply_keeps_all_other_generated_statements_exact():
     projected = _project_batted_source_extension(
         _project_stats_source_extension(rows)
     )
+    historical = _load_historical_projection()
+    current_by_id = {
+        _batted_statement_id(row.sql): row
+        for row in rows
+    }
+    changed_keep = set(successor["historical_keep_changed_ids"])
+    historical_keep = []
+    for row in historical["keep"]:
+        current = current_by_id[row["element_id"]]
+        assert current.sequence == row["sequence"]
+        if row["element_id"] in changed_keep:
+            assert current.sql != row["sql"]
+            historical_keep.append(
+                {"sequence": row["sequence"], "sql": row["sql"]}
+            )
+        else:
+            assert current.sql == row["sql"]
+            historical_keep.append(
+                {"sequence": current.sequence, "sql": current.sql}
+            )
+    changed_terminal = {
+        item["element_id"] for item in successor["changed_statements"]
+    }
+    historical_terminal = []
+    for row in historical["terminal"]:
+        current = current_by_id[row["element_id"]]
+        assert current.sequence == row["sequence"]
+        if row["element_id"] in changed_terminal:
+            assert current.sql != row["sql"]
+        else:
+            assert current.sql == row["sql"]
+        historical_terminal.append({"sequence": row["sequence"], "sql": row["sql"]})
+    for values, pin in (
+        (historical_keep, "other_generated_statements_sha256"),
+        (historical_terminal, "terminal_generated_statements_sha256"),
+    ):
+        assert (
+            hashlib.sha256(
+                json.dumps(
+                    values, ensure_ascii=False, separators=(",", ":")
+                ).encode()
+            ).hexdigest()
+            == _EXPECTED_SOURCE_PINS[pin]
+        )
     terminal_ids = (
         _TERMINAL_FUNCTION_IDS
         | _TERMINAL_POLICY_IDS
@@ -1127,16 +1223,17 @@ def test_expected_source_pin_fixture_has_all_thirty_independent_values():
         "test_sync_apply_product_supply.py": {
             "batted_extension_reference_sha256",
             "batted_extension_successor_sha256",
+            "product_supply_historical_projection_sha256",
         },
     }
-    assert sum(map(len, batted_keys.values())) == 12
+    assert sum(map(len, batted_keys.values())) == 13
     for name, keys in batted_keys.items():
         assert keys <= raw["pins"][name].keys()
     total = sum(len(values) for values in raw["pins"].values())
-    assert total - 12 - 5 - 1 == 37
-    assert total - 12 - 1 == 42
-    assert total - 12 == 43
-    assert total == 55
+    assert total - 13 - 5 - 1 == 37
+    assert total - 13 - 1 == 42
+    assert total - 13 == 43
+    assert total == 56
     assert {name: read_expected_source_pins(name) for name in raw["pins"]} == raw[
         "pins"
     ]
