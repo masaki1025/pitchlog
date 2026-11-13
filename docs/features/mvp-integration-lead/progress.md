@@ -41,6 +41,12 @@
   - **P2**: 打球語彙cacheの破棄が認証watchの `immediate` に依存し、同tenantの再表示でも毎回消え、フォーム非表示中の認証切替では残った。`noteBattedBallAuthKey` を導入し、認証キーが変わった時だけ一度破棄する（初回マウント・同tenant再表示では保持）。
 - ACK喪失E2Eは是正後も **1 passed / 105.31秒**。
 
+### 2026-11-13 19:20 7回制・延長上限の選択を隔離ブランチへ接続
+
+- `feature/mvp-rules-20261113` HEAD **`da2bcb01`**（push済み）。試合作成画面に「規定回7/9」「延長上限7/9/12」の選択を追加し、`rule_choice` として作成時に一度だけ既存6-key snapshotへ適用する。開始・終了・再読込は保存snapshotを読む。
+- 検証: backend **326 passed**、frontend **334 passed**、`vue-tsc`・ESLint・Ruff通過。タイブレーク開始回の再設計、派生 `ruleSetId` の `rule_sets` 実行列、実ブラウザのcreate→start→record→end→reload連続E2Eは未達。台帳 `docs/features/mvp-rules-20261113/notes.md`。
+- 統合ブランチへは未マージ。正式資産・7.7の赤が残るため、必須CIが揃うまでマージしない。
+
 ### 2026-11-13 18:45 タイブレーク開始の接続候補を隔離ブランチへ前進
 
 - `feature/mvp-tiebreak-pipeline-20261113` HEAD **`446ff9da`** に、タイブレーク開始の実画面パネル・E1保存・非play read/receipt・契約schema/型・投影検証を接続してpushした。統合ブランチへは未マージ。
