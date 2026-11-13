@@ -8897,6 +8897,41 @@
           "grantable": false
         }
       ]
+    },
+    {
+      "function_id": "FUNCTION:initial_right_api:insert_handover_grant(uuid, uuid, uuid, uuid, uuid, uuid, bytea, bigint, bytea, bigint, bigint, bigint, bytea, text, bytea, bytea)",
+      "schema_name": "initial_right_api",
+      "function_name": "insert_handover_grant",
+      "identity_args": "uuid, uuid, uuid, uuid, uuid, uuid, bytea, bigint, bytea, bigint, bigint, bigint, bytea, text, bytea, bytea",
+      "function_kind": "definer",
+      "owner_role_id": "pitchlog_initial_fn_owner",
+      "language": "plpgsql",
+      "returns": "boolean",
+      "security_mode": "definer",
+      "volatility": "volatile",
+      "search_path": [
+        "pg_catalog",
+        "pg_temp"
+      ],
+      "acl_expectations": [
+        {
+          "grantee": "pitchlog_initial_actor",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ],
+      "revoked_acl_expectations": [
+        {
+          "grantee": "PUBLIC",
+          "privilege": "EXECUTE",
+          "grantable": false
+        },
+        {
+          "grantee": "pitchlog_app",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ]
     }
   ],
   "acl_expectations": [
@@ -9929,7 +9964,8 @@
       "column_id": "revoked_at",
       "grantee_role_id": "pitchlog_initial_fn_owner",
       "privilege_ids": [
-        "SELECT"
+        "SELECT",
+        "UPDATE"
       ],
       "grant_option": false
     },
@@ -10202,7 +10238,8 @@
       "column_id": "revoked_at",
       "grantee_role_id": "pitchlog_initial_fn_owner",
       "privilege_ids": [
-        "SELECT"
+        "SELECT",
+        "UPDATE"
       ],
       "grant_option": false
     },
@@ -10306,7 +10343,8 @@
       "column_id": "revoked_at",
       "grantee_role_id": "pitchlog_initial_fn_owner",
       "privilege_ids": [
-        "SELECT"
+        "SELECT",
+        "UPDATE"
       ],
       "grant_option": false
     },
@@ -10318,7 +10356,8 @@
       "column_id": "issuance_order",
       "grantee_role_id": "pitchlog_initial_fn_owner",
       "privilege_ids": [
-        "INSERT"
+        "INSERT",
+        "SELECT"
       ],
       "grant_option": false
     },
@@ -10330,7 +10369,8 @@
       "column_id": "confirmed_watermark",
       "grantee_role_id": "pitchlog_initial_fn_owner",
       "privilege_ids": [
-        "INSERT"
+        "INSERT",
+        "SELECT"
       ],
       "grant_option": false
     },
@@ -10342,7 +10382,8 @@
       "column_id": "applied_prefix",
       "grantee_role_id": "pitchlog_initial_fn_owner",
       "privilege_ids": [
-        "INSERT"
+        "INSERT",
+        "SELECT"
       ],
       "grant_option": false
     },
@@ -18960,6 +19001,18 @@
       "object_id": "admin_vocabularies",
       "column_id": "display_name",
       "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:public:recording_generations:retired_at:pitchlog_initial_fn_owner",
+      "object_kind": "column",
+      "object_schema": "public",
+      "object_id": "recording_generations",
+      "column_id": "retired_at",
+      "grantee_role_id": "pitchlog_initial_fn_owner",
       "privilege_ids": [
         "SELECT"
       ],

@@ -456,7 +456,7 @@ _INITIAL_COLUMN_ACLS: Final[dict[str, dict[str, object]]] = {
         "object_id": "trusted_devices",
         "column_id": "revoked_at",
         "grantee_role_id": "pitchlog_initial_fn_owner",
-        "privilege_ids": ["SELECT"],
+        "privilege_ids": ["SELECT", "UPDATE"],
         "grant_option": False,
     },
     ("COLUMN-ACL:public:game_start_requests:tenant_id:pitchlog_initial_fn_owner"): {
@@ -749,7 +749,7 @@ _INITIAL_COLUMN_ACLS: Final[dict[str, dict[str, object]]] = {
         "object_id": "recording_right_deliveries",
         "column_id": "revoked_at",
         "grantee_role_id": "pitchlog_initial_fn_owner",
-        "privilege_ids": ["SELECT"],
+        "privilege_ids": ["SELECT", "UPDATE"],
         "grant_option": False,
     },
     ("COLUMN-ACL:public:recording_generations:tenant_id:pitchlog_initial_fn_owner"): {
@@ -849,6 +849,19 @@ _INITIAL_COLUMN_ACLS: Final[dict[str, dict[str, object]]] = {
         "privilege_ids": ["SELECT", "INSERT"],
         "grant_option": False,
     },
+    ("COLUMN-ACL:public:recording_generations:retired_at:pitchlog_initial_fn_owner"): {
+        "expectation_id": (
+            "COLUMN-ACL:public:recording_generations:retired_at:pitc"
+            "hlog_initial_fn_owner"
+        ),
+        "object_kind": "column",
+        "object_schema": "public",
+        "object_id": "recording_generations",
+        "column_id": "retired_at",
+        "grantee_role_id": "pitchlog_initial_fn_owner",
+        "privilege_ids": ["SELECT"],
+        "grant_option": False,
+    },
     ("COLUMN-ACL:public:recording_generations:revoked_at:pitchlog_initial_fn_owner"): {
         "expectation_id": (
             "COLUMN-ACL:public:recording_generations:revoked_at:pitc"
@@ -859,7 +872,7 @@ _INITIAL_COLUMN_ACLS: Final[dict[str, dict[str, object]]] = {
         "object_id": "recording_generations",
         "column_id": "revoked_at",
         "grantee_role_id": "pitchlog_initial_fn_owner",
-        "privilege_ids": ["SELECT"],
+        "privilege_ids": ["SELECT", "UPDATE"],
         "grant_option": False,
     },
     (
@@ -875,7 +888,7 @@ _INITIAL_COLUMN_ACLS: Final[dict[str, dict[str, object]]] = {
         "object_id": "recording_generations",
         "column_id": "issuance_order",
         "grantee_role_id": "pitchlog_initial_fn_owner",
-        "privilege_ids": ["INSERT"],
+        "privilege_ids": ["INSERT", "SELECT"],
         "grant_option": False,
     },
     (
@@ -891,7 +904,7 @@ _INITIAL_COLUMN_ACLS: Final[dict[str, dict[str, object]]] = {
         "object_id": "recording_generations",
         "column_id": "confirmed_watermark",
         "grantee_role_id": "pitchlog_initial_fn_owner",
-        "privilege_ids": ["INSERT"],
+        "privilege_ids": ["INSERT", "SELECT"],
         "grant_option": False,
     },
     (
@@ -907,7 +920,7 @@ _INITIAL_COLUMN_ACLS: Final[dict[str, dict[str, object]]] = {
         "object_id": "recording_generations",
         "column_id": "applied_prefix",
         "grantee_role_id": "pitchlog_initial_fn_owner",
-        "privilege_ids": ["INSERT"],
+        "privilege_ids": ["INSERT", "SELECT"],
         "grant_option": False,
     },
     "COLUMN-ACL:public:games:tenant_id:pitchlog_initial_fn_owner": {

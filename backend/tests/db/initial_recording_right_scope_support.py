@@ -347,8 +347,11 @@ from test_authz_tenant_context import make_tenant_context
 from pitchlog.durable_rights_ledger import DurableLedger
 from pitchlog.recording_rights.initial_grant import (
     V12Box,InitialGrantUnavailable,InitialGrantConflict)
+from pydantic import SecretStr
 from pitchlog.recording_rights.initial_grant_broker import (
-    _load_initial_actor_runtime,_close_initial_actor_runtime,_issue_initial_grant)
+    _AcquireHandoverCommand,_BrokerIdentity,_ReleaseHandoverCommand,
+    _WorkerState,_acquire_handover,_close_initial_actor_runtime,
+    _issue_initial_grant,_load_initial_actor_runtime,_release_handover)
 from pitchlog.recording_rights.rg1_lifecycle import configure_runtime
 from pitchlog.repositories.initial_recording_right import _StartOwner
 box=V12Box('k1',bytes(range(32)))
@@ -372,6 +375,29 @@ def receipt(grant):
              'generation':grant.generation,'epoch':grant.recovery_generation,
              'proof_digest':hashlib.sha256(base64.urlsafe_b64decode(
                  grant.recording_right_proof+'=')).hexdigest()}}
+def handover_identity():
+    return _BrokerIdentity(owner.tenant_id,uuid4(),SecretStr('cookie'))
+def release_handover(to_device,request_id,from_grant,last_d1=0,
+                     from_credential='credential-a'):
+    command=_ReleaseHandoverCommand(
+        handover_identity(),owner.game_id,request_id,owner.device_id,to_device,
+        from_grant.generation,SecretStr(from_credential),
+        SecretStr(from_grant.recording_right_proof),last_d1)
+    state=_WorkerState(runtime,object(),source)
+    with source.recovery_fence() as fence:
+        return _release_handover(context,runtime,command,state,fence)
+def acquire_handover(to_device,request_id,credential='credential-a'):
+    command=_AcquireHandoverCommand(
+        handover_identity(),owner.game_id,request_id,to_device,
+        SecretStr(credential))
+    state=_WorkerState(runtime,object(),source)
+    with source.recovery_fence() as fence:
+        return _acquire_handover(context,runtime,command,state,fence)
+def handover_receipt(value):
+    return {{'game_id':str(value.game_id),'device_id':str(value.device_id),
+             'd4':value.d4,'epoch':value.recovery_generation,
+             'proof_digest':hashlib.sha256(base64.urlsafe_b64decode(
+                 value.recording_right_proof.get_secret_value()+'=')).hexdigest()}}
 """
         # 失敗例も型だけを返す。raw例外/SQL/設定/資格をdockerログへ渡さない。
         script = (

@@ -41,6 +41,8 @@ _MATCH_OPERATIONS = frozenset(
         "initial_device_enroll",
         "initial_game_start",
         "initial_game_start_resolve",
+        "release_recording_right_handover",
+        "acquire_recording_right_handover",
         "roster_self_team_read",
         "roster_team_list",
         "roster_team_create",

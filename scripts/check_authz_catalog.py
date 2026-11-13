@@ -2638,6 +2638,7 @@ _INITIAL_HTTP_CAP_TOKENS = (
     ("_LockCurrentStartToken", "lock_current_start"),
     ("_CheckBusinessEpochToken", "check_business_epoch"),
     ("_InsertInitialGrantToken", "insert_initial_grant"),
+    ("_InsertHandoverGrantToken", "insert_handover_grant"),
     ("_BeginStartAttemptToken", "begin_start_attempt"),
     ("_ResolveStartAttemptToken", "resolve_start_attempt"),
     ("_ReadInitialStartContextToken", "read_initial_start_context"),
@@ -2775,8 +2776,8 @@ def _initial_http_provenance(root: Path) -> dict[str, dict[str, str]]:
     types = assignment(caps, "_INITIAL_TOKEN_TYPES")
     if (not isinstance(types, ast.Tuple)
             or [n.id if isinstance(n, ast.Name) else None for n in types.elts]
-            != [name for name, _ in _INITIAL_HTTP_CAP_TOKENS[:11]]):
-        raise CatalogError("initial HTTPの既11CAP登録がexact-set不一致")
+            != [name for name, _ in _INITIAL_HTTP_CAP_TOKENS[:12]]):
+        raise CatalogError("initial HTTPの既12CAP登録がexact-set不一致")
     registry = assignment(caps, "_INITIAL_FUNCTION_REGISTRY")
     if (not isinstance(registry, ast.Call) or not registry.args
             or not isinstance(registry.func, ast.Name)
@@ -2792,10 +2793,10 @@ def _initial_http_provenance(root: Path) -> dict[str, dict[str, str]]:
     calls = [n for f in builders for n in ast.walk(f) if isinstance(n, ast.Call)
              and isinstance(n.func, ast.Name) and n.func.id == "FunctionOperationRegistration"]
     if len(builders) != 1 or len(calls) != 1:
-        raise CatalogError("initial HTTPの既11CAP factoryが欠落/重複")
+        raise CatalogError("initial HTTPの既12CAP factoryが欠落/重複")
     kw = {k.arg: k.value for k in calls[0].keywords}
     if len(kw) != len(calls[0].keywords) or set(kw) != _INITIAL_HTTP_REGISTRATION_KEYS:
-        raise CatalogError("initial HTTPの既11CAP factory fieldが欠落/余剰/重複")
+        raise CatalogError("initial HTTPの既12CAP factory fieldが欠落/余剰/重複")
     expected_cap = ast.parse('f"CAP:initial_right:{name}"', mode="eval").body
     if (not isinstance(kw.get("token_type"), ast.Name)
             or cast(ast.Name, kw["token_type"]).id != "token_type"
@@ -2803,13 +2804,13 @@ def _initial_http_provenance(root: Path) -> dict[str, dict[str, str]]:
             or cast(ast.Name, kw["function_id"]).id != "function_id"
             or ast.dump(kw.get("capability_id", ast.Constant(value=None)))
             != ast.dump(expected_cap)):
-        raise CatalogError("initial HTTPの既11CAP factory対応が不一致")
+        raise CatalogError("initial HTTPの既12CAP factory対応が不一致")
     _, spec = source("backend/src/pitchlog/repositories/function_operations.py")
     for symbol, names in (
-        ("_INITIAL_FUNCTION_TYPES", _INITIAL_HTTP_CAP_TOKENS[:9]),
-        ("_INITIAL_START_FUNCTION_TYPES", _INITIAL_HTTP_CAP_TOKENS[9:11]),
-        ("_INITIAL_ENROLL_FUNCTION_TYPES", _INITIAL_HTTP_CAP_TOKENS[11:12]),
-        ("_INITIAL_RESOLVE_FUNCTION_TYPES", _INITIAL_HTTP_CAP_TOKENS[12:]),
+        ("_INITIAL_FUNCTION_TYPES", _INITIAL_HTTP_CAP_TOKENS[:10]),
+        ("_INITIAL_START_FUNCTION_TYPES", _INITIAL_HTTP_CAP_TOKENS[10:12]),
+        ("_INITIAL_ENROLL_FUNCTION_TYPES", _INITIAL_HTTP_CAP_TOKENS[12:13]),
+        ("_INITIAL_RESOLVE_FUNCTION_TYPES", _INITIAL_HTTP_CAP_TOKENS[13:]),
     ):
         mapping = assignment(spec, symbol)
         if (not isinstance(mapping, ast.Call) or len(mapping.args) != 1

@@ -11,9 +11,16 @@ export type SyncRequestCredentials = Readonly<{
   attempt: string
 }>
 
+export type DeviceCredentials = Readonly<{
+  deviceId: string
+  deviceCredential: string
+}>
+
 export interface RequestOptions {
   /** 同期POST専用。資格を他経路へ転送しない。 */
   syncCredentials?: SyncRequestCredentials
+  /** 記録権引き継ぎPOST専用。同期attemptを要求しない。 */
+  deviceCredentials?: DeviceCredentials
   body?: unknown
   query?: Record<
     string,
@@ -257,11 +264,27 @@ async function requestResponse<T>(
   ) {
     throw new Error('同期要求の資格または送信先が不正です')
   }
+  const handover = options.deviceCredentials
+  if (
+    handover !== undefined &&
+    (method !== 'POST' ||
+      !/^\/games\/[0-9a-f-]{36}\/recording-right\/handover\/(?:release|acquire)$/.test(
+        path,
+      ) ||
+      !isCanonicalUuid(handover.deviceId) ||
+      !/^[\x21-\x7e]+$/.test(handover.deviceCredential))
+  ) {
+    throw new Error('引き継ぎ要求の資格または送信先が不正です')
+  }
   const headers: Record<string, string> = {}
   if (sync !== undefined) {
     headers['X-Pitchlog-Device-Id'] = sync.deviceId
     headers['X-Pitchlog-Device-Credential'] = sync.deviceCredential
     headers['X-Pitchlog-Sync-Attempt'] = sync.attempt
+  }
+  if (handover !== undefined) {
+    headers['X-Pitchlog-Device-Id'] = handover.deviceId
+    headers['X-Pitchlog-Device-Credential'] = handover.deviceCredential
   }
   if (options.tenantBound) {
     headers['X-Pitchlog-Expected-Tenant'] = expectedTenant!

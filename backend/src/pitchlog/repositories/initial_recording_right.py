@@ -185,6 +185,32 @@ class _InsertInitialGrantToken(TenantOperationToken):
 
 
 @dataclass(frozen=True, slots=True)
+class _InsertHandoverGrantToken(TenantOperationToken):
+    """旧世代の失効と新世代の保存を一つの固定関数へ渡す。"""
+
+    game_id: UUID
+    start_request_id: UUID
+    device_id: UUID
+    attempt_id: UUID
+    from_device_id: UUID
+    from_credential_digest: bytes = field(repr=False)
+    from_generation: int
+    from_proof_digest: bytes = field(repr=False)
+    last_d1: int
+    generation: int
+    recovery_generation: int
+    proof_digest: bytes = field(repr=False)
+    key_id: str
+    nonce: bytes = field(repr=False)
+    ciphertext: bytes = field(repr=False)
+
+    @property
+    def capability_id(self) -> str:
+        """固定能力だけを返す。"""
+        return "CAP:initial_right:insert_handover_grant"
+
+
+@dataclass(frozen=True, slots=True)
 class _BeginStartAttemptToken(TenantOperationToken):
     """業務scopeより前の短intentを耐久化する。"""
 
@@ -248,6 +274,7 @@ _INITIAL_TOKEN_TYPES = (
     _LockCurrentStartToken,
     _CheckBusinessEpochToken,
     _InsertInitialGrantToken,
+    _InsertHandoverGrantToken,
     _BeginStartAttemptToken,
     _ResolveStartAttemptToken,
     _ReadInitialStartContextToken,
@@ -302,6 +329,7 @@ def _initial_registrations() -> tuple[FunctionOperationRegistration, ...]:
             "lock_preparing_game",
             "check_business_epoch",
             "insert_initial_grant",
+            "insert_handover_grant",
         )
         result.append(
             FunctionOperationRegistration(
@@ -723,6 +751,137 @@ class InitialRecordingRightScope:
             raise InitialGrantConflict("初期付与を確定できない")
         self._outcome = "committed"
         self._resolved_generation = record.generation
+
+    def insert_handover_grant(
+        self,
+        record: InitialGrantRecord,
+        *,
+        from_device_id: UUID,
+        from_credential: str,
+        from_generation: int,
+        from_proof_digest: bytes,
+        last_d1: int,
+    ) -> None:
+        """旧保持端末の照合済み解放と新世代の保存を同一取引で確定する。
+
+        解放操作は新保持端末の資格を提示しないため、新端末の資格確認は
+        取得時に別途行う。ここでは新端末の実在と要求/試行の所有者だけを
+        SQL 側で確認する。
+
+        Args:
+            record: 新世代の保存record。
+            from_device_id: 旧保持端末。
+            from_credential: 旧保持端末の資格原文。
+            from_generation: 旧世代値。
+            from_proof_digest: 旧保持端末が提示した V12 の digest。
+            last_d1: 旧保持端末が同期済みと主張する最終 D1。
+
+        Raises:
+            InitialGrantConflict: owner・入力・保存結果が一致しない場合。
+        """
+        self._check()
+        owner = self._owner
+        if (
+            type(record) is not InitialGrantRecord
+            or type(record.envelope) is not ProofEnvelope
+            or self._start_payload is not None
+            or type(from_device_id) is not UUID
+            or type(from_credential) is not str
+            or not from_credential
+            or not _positive_generation(from_generation)
+            or type(from_proof_digest) is not bytes
+            or len(from_proof_digest) != 32
+            or type(last_d1) is not int
+            or last_d1 < 0
+            or (
+                record.tenant_id,
+                record.game_id,
+                record.start_request_id,
+                record.device_id,
+            )
+            != (owner.tenant_id, owner.game_id, owner.start_request_id, owner.device_id)
+        ):
+            raise InitialGrantConflict("引き継ぎ付与のownerが一致しない")
+        token = _InsertHandoverGrantToken(
+            record.game_id,
+            record.start_request_id,
+            record.device_id,
+            owner.attempt_id,
+            from_device_id,
+            _credential_digest(from_credential),
+            from_generation,
+            from_proof_digest,
+            last_d1,
+            record.generation,
+            record.recovery_generation,
+            record.proof_digest,
+            record.envelope.key_id,
+            record.envelope.nonce,
+            record.envelope.ciphertext,
+        )
+        if self._transaction.run_function(token).rows != ((True,),):
+            raise InitialGrantConflict("引き継ぎ付与を確定できない")
+        self._outcome = "committed"
+        self._resolved_generation = record.generation
+
+    def read_handover_grant(
+        self, *, device_id: UUID, credential: str
+    ) -> InitialGrantRecord | None:
+        """新保持端末の資格と引き継ぎ配達の現在性を同じscopeで確認する。
+
+        Args:
+            device_id: 取得を要求する端末。
+            credential: その端末の資格原文。
+
+        Returns:
+            現世代と一致する引き継ぎ配達。未解放・不一致は ``None``。
+
+        Raises:
+            InitialGrantUnavailable: 端末資格を確認できない場合。
+            InitialGrantConflict: 保存済みrecordのownerが一致しない場合。
+        """
+        self._check()
+        if (
+            self._start_payload is not None
+            or type(device_id) is not UUID
+            or device_id != self._owner.device_id
+            or type(credential) is not str
+            or not credential
+        ):
+            raise InitialGrantUnavailable("引き継ぎ取得の入力が不正")
+        rows = self._transaction.run_function(_LockDeviceToken(device_id)).rows
+        if not rows or rows[0][1] is not None:
+            raise InitialGrantUnavailable("端末資格を確認できない")
+        if not hmac.compare_digest(
+            cast(bytes, rows[0][0]), _credential_digest(credential)
+        ):
+            raise InitialGrantUnavailable("端末資格を確認できない")
+        rows = self._transaction.run_function(
+            _ReadExistingStartToken(self._owner.game_id, self._owner.start_request_id)
+        ).rows
+        if not rows:
+            return None
+        if (
+            len(rows[0]) != 10
+            or not _positive_generation(rows[0][4])
+            or rows[0][3] != device_id
+        ):
+            raise InitialGrantConflict("引き継ぎ配達のownerが一致しない")
+        self._outcome = "committed"
+        self._resolved_generation = cast(int, rows[0][4])
+        self._device_valid = True
+        return self._record(rows)
+
+    def assert_handover_open_before_commit(self) -> None:
+        """新端末資格を提示しない引き継ぎ解放でもRG1の共有lockを保持する。
+
+        SQL 側で新端末の実在と要求/試行の所有者を確認済みであり、ここでは
+        既存の commit 直前ゲートだけを同じ transaction で再確認する。
+        """
+        self._check()
+        if self._start_payload is not None:
+            raise InitialGrantUnavailable("引き継ぎ解放のscopeが不正")
+        assert_rg1_open_before_commit(self._transaction)
 
     def assert_open_before_commit(self) -> None:
         """既RG1の実共有lockを同一scopeでcommitまで保持する。"""

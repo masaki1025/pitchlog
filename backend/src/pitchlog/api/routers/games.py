@@ -3,7 +3,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from pydantic import SecretStr
 
@@ -25,6 +25,10 @@ from pitchlog.api.schemas.games import (
     _decode_preparing_snapshot,
     encode_preparing_game_cursor,
 )
+from pitchlog.api.schemas.handover import (
+    HandoverAcquireRequest,
+    HandoverReleaseRequest,
+)
 from pitchlog.api.tenant_access import (
     TenantMatchedRoute,
     _canonical_header,
@@ -32,12 +36,16 @@ from pitchlog.api.tenant_access import (
 )
 from pitchlog.db.game_state.rule_snapshot import encode_applied_rules
 from pitchlog.recording_rights.initial_grant_broker import (
+    InitialBrokerUnavailable,
+    _AcquireHandoverCommand,
     _BrokerCommand,
     _BrokerIdentity,
+    _BrokerReply,
     _encode_initial_reply,
     _EnrollDeviceCommand,
     _initial_reply_source,
     _InitialBrokerClient,
+    _ReleaseHandoverCommand,
     _ResolveStartCommand,
     _StartInitialGameCommand,
 )
@@ -380,3 +388,93 @@ def resolve_initial_game_start(
             )
         )
     )
+
+
+def _handover_reply(
+    command: _BrokerCommand, reply: _BrokerReply, success: str
+) -> JSONResponse:
+    """解放/取得の実postcommit値だけを、通常dumpで秘密を伏せず返す。"""
+    if reply.status != success:
+        status = (
+            401
+            if reply.status == "denied"
+            else 409
+            if reply.status in ("conflict", "unresolved")
+            else 503
+        )
+        raise HTTPException(status_code=status)
+    wire = _initial_reply_source(command, reply)
+    return JSONResponse(content=wire["value"], headers={"Cache-Control": "no-store"})
+
+
+@router.post(
+    "/games/{game_id}/recording-right/handover/release",
+    operation_id="release_recording_right_handover",
+    response_model=None,
+)
+def release_recording_right_handover(
+    game_id: UUID,
+    payload: HandoverReleaseRequest,
+    request: Request,
+    context: Annotated[TenantContext, Depends(require_tenant_access)],
+    cookie: Annotated[str, Depends(require_presented_token)],
+    device_id: Annotated[UUID, Header(alias="X-Pitchlog-Device-Id")],
+    device_credential: Annotated[str, Header(alias="X-Pitchlog-Device-Credential")],
+) -> JSONResponse:
+    """旧保持端末の明示解放を、実ledger・実V12・実SQLで一度だけ確定する。"""
+    from pitchlog.sync.d4_reference import D4ReferenceInvalid
+    from pitchlog.sync.http_recording_key import _decode_recording_key
+
+    try:
+        from_generation = _decode_recording_key(
+            payload.from_d4, context.tenant_id, game_id
+        )
+    except (ValueError, TypeError, D4ReferenceInvalid, InitialBrokerUnavailable):
+        raise HTTPException(status_code=422) from None
+    command = _ReleaseHandoverCommand(
+        _initial_identity(request, context, cookie),
+        game_id,
+        payload.handover_request_id,
+        device_id,
+        payload.to_device_id,
+        from_generation,
+        SecretStr(device_credential),
+        payload.recording_right_proof,
+        payload.last_d1,
+    )
+    try:
+        reply = _InitialBrokerClient().call(command)
+        _encode_initial_reply(command, reply)
+    except Exception:
+        raise HTTPException(status_code=503) from None
+    return _handover_reply(command, reply, "released")
+
+
+@router.post(
+    "/games/{game_id}/recording-right/handover/acquire",
+    operation_id="acquire_recording_right_handover",
+    response_model=None,
+)
+def acquire_recording_right_handover(
+    game_id: UUID,
+    payload: HandoverAcquireRequest,
+    request: Request,
+    context: Annotated[TenantContext, Depends(require_tenant_access)],
+    cookie: Annotated[str, Depends(require_presented_token)],
+    device_id: Annotated[UUID, Header(alias="X-Pitchlog-Device-Id")],
+    device_credential: Annotated[str, Header(alias="X-Pitchlog-Device-Credential")],
+) -> JSONResponse:
+    """新保持端末の資格で同じ要求の配達だけを取得し、新V12を返す。"""
+    command = _AcquireHandoverCommand(
+        _initial_identity(request, context, cookie),
+        game_id,
+        payload.handover_request_id,
+        device_id,
+        SecretStr(device_credential),
+    )
+    try:
+        reply = _InitialBrokerClient().call(command)
+        _encode_initial_reply(command, reply)
+    except Exception:
+        raise HTTPException(status_code=503) from None
+    return _handover_reply(command, reply, "acquired")

@@ -64,10 +64,18 @@ async function reconnect() {
     <nav aria-label="試合データ出力" class="mx-auto max-w-4xl px-4 pb-6">
       <RouterLink
         :to="{
-          name: 'game-export',
+          name: 'game-handover',
           params: { gameId: router.currentRoute.value.params.gameId },
         }"
         class="inline-block rounded border px-3 py-2 underline"
+        >記録担当を引き継ぐ</RouterLink
+      >
+      <RouterLink
+        :to="{
+          name: 'game-export',
+          params: { gameId: router.currentRoute.value.params.gameId },
+        }"
+        class="ml-2 inline-block rounded border px-3 py-2 underline"
         >毎球CSVへ</RouterLink
       >
       <p class="text-sm">未送信の記録はサーバーのCSVに含まれません。</p>
