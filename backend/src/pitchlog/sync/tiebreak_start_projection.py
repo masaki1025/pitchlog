@@ -71,6 +71,10 @@ def build_tiebreak_start_source(
         restored = content["restored"]
         fields = restored["current"]["stateFields"]
         rules = restored["rules"]["tiebreak"]
+        if type(rules) is not dict:
+            raise TiebreakStartProjectionError(
+                "タイブレーク開始の規則snapshotがありません"
+            )
         if (
             payload["leadoffBatter"] != fields["state.battingOrder"]
             or payload["inning"] != fields["state.inning"]
