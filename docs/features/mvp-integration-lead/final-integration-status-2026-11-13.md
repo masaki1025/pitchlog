@@ -27,3 +27,26 @@
 ## 判定
 
 `7c07fccb` は「複数トラックを統合した最終候補」であり、MVP完成版・正式受理済みではない。上記の未通過を解消するまで最終マージ・完了報告をしない。
+
+
+## 2026-11-14 追試（HEAD `7d84b7b3`）
+
+9回消化後のタイブレークE2Eを実画面/実DBで実行し、タイブレーク開始POSTまで到達した。通過した工程:
+
+- 9回54アウトの実画面保存
+- タイブレーク発動回のロック表示
+- 配置選手選択から `tiebreak_start` POST の発行
+- 製品資産（`consume_nonplay_tiebreak_start` / receipt table）の実DB setup
+- 非play CP ref を `readCompleteUndoGame` から取得してpayloadへ束縛
+- 資格scope（`tiebreak_start`）とport登録（`TiebreakStartProjectionPort`）の実接続
+
+最後の停止:
+
+- サーバーの `read_confirmed_nonplay_prefix` が **`NonplaySourceUnavailable: 交代frameの連結が不一致です`** を返した。
+- 9回54frameのnonplay source chainで、隣接play frameの `afterContext` と次frameの `beforeContext` が一致しない区間がある。2球程度の既存substitution縦断では再現せず、長い試合のsource chainで顕在化する。
+- このため `test_tiebreak_screen_e2e.py` は skip。タイブレーク開始POSTの内容・製品資産・資格・CP refは通過済みだが、保存成功・生還・交代・再配置・reloadは未通過。
+
+製品供給:
+
+- `tests/test_sync_apply_product_supply.py` は 2642 passed / 4 failed。
+- 残りは batted source extension reference の後継（terminal 30文のうち変更された読み取り関数）と stats extension pin の再導出。`catalog_after_revision` の後継受理が必要。
