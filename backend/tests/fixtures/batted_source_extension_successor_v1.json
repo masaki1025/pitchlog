@@ -2,19 +2,19 @@
   "schema_version": 1,
   "scope": "successor_after_mvp_integration_not_a_rewrite_of_historical_pr196_pr197_layers",
   "catalog": {
-    "revision": "65399151c24972ce7c40d5062a10ab540ef1f0f2",
+    "revision": "2cc5baa8744d2c51aa5c98089bc50e9340b2ef05",
     "path": "contracts/authz/product/ddl-elements.json",
     "sha256": "9fe76e27d7ae2a855697ac7b4e2c3f3f385faf86e0f0de891af7e41e853443d0"
   },
   "generator": {
-    "revision": "65399151c24972ce7c40d5062a10ab540ef1f0f2",
+    "revision": "2cc5baa8744d2c51aa5c98089bc50e9340b2ef05",
     "tree_paths": {
-      "backend/src/pitchlog/authz": "ff39933b8a7cfe3613f89f9cc99f8b42c63b0acf",
-      "contracts/authz/product": "8fd861f1164f9d55237a8e1f218c228db9b5fea0"
+      "backend/src/pitchlog/authz": "7421fb868797775907019d78e7ecc9175c3a9d47",
+      "contracts/authz/product": "0bd5305294d9ec82801190ee03829ae2d2430ef2"
     }
   },
   "statement_count": 1228,
-  "statements_sha256": "b86552779991dee971ee9faa445e042bb87d497c0083709a15df0a81c3c73296",
+  "statements_sha256": "5cd61f5c9d02f79e899f48a6c23e32196c84db02071fa44dfb40b9771dfcdcb9",
   "changed_statements": [
     {
       "element_id": "FUNCTION:sync_right_api:prepare_play_prefix_projection(uuid, uuid, uuid, bytea, uuid, uuid, text)",
