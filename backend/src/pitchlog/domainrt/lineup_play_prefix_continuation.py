@@ -1257,7 +1257,12 @@ class NonplayEventSource(_LineupWire):
         str, Field(pattern=re.compile(r"^(?:wire-v1:)?[a-f0-9]{64}\Z"))
     ]
     event_kind: Literal[
-        "play_input", "undo", "substitution", "game_end_declaration", "game_reopen"
+        "play_input",
+        "undo",
+        "substitution",
+        "tiebreak_start",
+        "game_end_declaration",
+        "game_reopen",
     ] = Field(alias="eventKind")
 
 
@@ -1347,6 +1352,15 @@ class NonplaySubstitutionFrame(_LineupWire):
     after_context: NonplayRestoreContext = Field(alias="afterContext")
 
 
+class NonplayTiebreakStartFrame(_LineupWire):
+    """真正event照合前のタイブレーク開始frame閉形。"""
+
+    source: NonplayEventSource
+    after_play_id: CanonicalUuid | None = Field(alias="afterPlayId")
+    before_context: NonplayRestoreContext = Field(alias="beforeContext")
+    after_context: NonplayRestoreContext = Field(alias="afterContext")
+
+
 class NonplayRestoreContext(_LineupWire):
     """採用Sourceの全復元文脈を不変保持する。"""
 
@@ -1429,6 +1443,9 @@ class NonplayContent(_LineupWire):
     )
     substitution_frames: tuple[NonplaySubstitutionFrame, ...] | None = Field(
         default=None, alias="substitutionFrames"
+    )
+    tiebreak_frames: tuple[NonplayTiebreakStartFrame, ...] | None = Field(
+        default=None, alias="tiebreakFrames"
     )
 
     @model_validator(mode="after")
